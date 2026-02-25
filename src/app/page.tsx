@@ -1,5 +1,6 @@
 import { getLatestArticle, getRecentArticles } from "@/lib/data";
 import { ArticleCard } from "@/components/ArticleCard";
+import { PageHeader } from "@/components/PageHeader";
 
 export default async function Home() {
   const latestArticle = await getLatestArticle();
@@ -21,15 +22,11 @@ export default async function Home() {
 
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 max-w-7xl">
-      <div className="mb-16 text-center">
-        <h1 className="text-5xl md:text-7xl font-black tracking-tight mb-6 uppercase">
-          Hlavné správy
-        </h1>
-        <div className="w-24 h-1.5 bg-primary mx-auto mb-6 rounded-full" />
-        <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto">
-          Váš denný prehľad toho najdôležitejšieho zo sveta AI, technológií a spoločnosti.
-        </p>
-      </div>
+      <PageHeader
+        title="Hlavné správy"
+        description="Váš denný prehľad toho najdôležitejšieho zo sveta AI, technológií a spoločnosti."
+        category="Latest Intelligence"
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
         {/* Main large articles column */}
