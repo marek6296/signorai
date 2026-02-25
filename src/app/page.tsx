@@ -65,15 +65,21 @@ export default async function Home() {
             )}
           </div>
 
-          <div className="mt-8 p-8 bg-zinc-950 border border-white/5 rounded-[2rem] flex flex-col items-center text-center sticky top-24 shadow-2xl">
-            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-              <span className="text-primary text-xl">✉️</span>
+          <div className="mt-8 p-8 bg-muted/40 border border-border rounded-[2rem] flex flex-col items-center text-center sticky top-24 shadow-sm backdrop-blur-sm">
+            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4 text-2xl">
+              ✉️
             </div>
             <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary mb-2">AI Weekly Newsletter</span>
-            <p className="text-sm font-bold mb-6 text-zinc-300">Získajte najdôležitejšie AI novinky každú nedeľu do emailu.</p>
+            <p className="text-sm font-bold mb-6 text-foreground/80">Získajte najdôležitejšie AI novinky každú nedeľu do emailu.</p>
             <div className="w-full flex flex-col gap-3">
-              <input type="email" placeholder="Váš email" className="w-full bg-zinc-900 border-white/10 rounded-xl px-4 py-4 text-xs focus:ring-2 focus:ring-primary transition-all" />
-              <button className="w-full bg-primary text-primary-foreground text-xs font-black px-4 py-4 rounded-xl uppercase tracking-[0.1em] hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-primary/20">Odoberať</button>
+              <input
+                type="email"
+                placeholder="Váš email"
+                className="w-full bg-background border border-border rounded-xl px-4 py-4 text-xs focus:ring-2 focus:ring-primary focus:border-primary transition-all outline-none"
+              />
+              <button className="w-full bg-primary text-primary-foreground text-xs font-black px-4 py-4 rounded-xl uppercase tracking-[0.1em] hover:opacity-90 active:scale-[0.98] transition-all shadow-lg shadow-primary/20">
+                Odoberať
+              </button>
             </div>
           </div>
         </section>
