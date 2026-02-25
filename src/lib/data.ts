@@ -38,7 +38,7 @@ export async function getRecentArticles(excludeId?: string): Promise<Article[]> 
         .select('*')
         .eq('status', 'published')
         .order('published_at', { ascending: false })
-        .limit(10);
+        .limit(50);
 
     if (excludeId) {
         query = query.neq('id', excludeId);

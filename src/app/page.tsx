@@ -71,7 +71,26 @@ export default async function Home() {
         <div className="my-16 border-t pt-16">
           <h2 className="text-3xl font-bold tracking-tight mb-8">Odporúčané čítanie</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {recommendedArticles.map(article => (
+            {recommendedArticles.slice(0, 3).map(article => (
+              <ArticleCard key={article.id} article={article} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Infinite-like feed for all mixed articles */}
+      {recommendedArticles.length > 3 && (
+        <div className="my-24 border-t pt-24">
+          <div className="flex items-center justify-between mb-12">
+            <div>
+              <h2 className="text-4xl font-black uppercase tracking-tight mb-2">Najnovšie príspevky</h2>
+              <p className="text-muted-foreground">Kompletný prehľad správ zoradený podľa času pridania.</p>
+            </div>
+            <div className="h-1 flex-grow mx-8 bg-gradient-to-r from-primary/20 to-transparent rounded-full hidden md:block"></div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 lg:gap-8">
+            {recommendedArticles.slice(3).map(article => (
               <ArticleCard key={article.id} article={article} />
             ))}
           </div>
