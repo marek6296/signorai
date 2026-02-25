@@ -32,9 +32,9 @@ export function ArticleCard({ article, featured = false }: ArticleCardProps) {
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-80" />
             </div>
 
-            {/* Category Badge - Top Left */}
-            <div className="absolute top-6 left-6 z-20">
-                <span className="inline-flex items-center rounded-full bg-black/60 backdrop-blur-md border border-white/20 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-2xl">
+            {/* Category Badge - Centered at Top */}
+            <div className="absolute top-6 left-1/2 -translate-x-1/2 z-20 w-fit">
+                <span className="inline-flex items-center rounded-full bg-black/60 backdrop-blur-md border border-white/20 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-2xl whitespace-nowrap">
                     {article.category}
                 </span>
             </div>
