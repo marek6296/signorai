@@ -150,8 +150,8 @@ Vráť len čistý JSON.`;
 
         return NextResponse.json({ success: true, article: data });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Multi-generate article error:", error);
-        return NextResponse.json({ message: error.message || "Internal server error" }, { status: 500 });
+        return NextResponse.json({ message: error instanceof Error ? error.message : "Internal server error" }, { status: 500 });
     }
 }

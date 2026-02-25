@@ -3,8 +3,8 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Trash2, Plus, Sparkles, Check, Loader2, Globe, FileText, Image as ImageIcon } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { ArrowLeft, Trash2, Plus, Sparkles, Check, Loader2, Globe } from "lucide-react";
+import { Article } from "@/lib/data";
 
 type Step = "input" | "research" | "synthesis" | "preview";
 
@@ -18,8 +18,7 @@ function SynthesisStudioContent() {
     const [urls, setUrls] = useState<string[]>([""]);
 
     // Step 2 & 3: Results
-    const [researchResults, setResearchResults] = useState<any[]>([]);
-    const [synthesizedArticle, setSynthesizedArticle] = useState<any>(null);
+    const [synthesizedArticle, setSynthesizedArticle] = useState<Article | null>(null);
     const [status, setStatus] = useState("");
     const [error, setError] = useState("");
 
@@ -81,8 +80,9 @@ function SynthesisStudioContent() {
 
             setSynthesizedArticle(data.article);
             setStep("preview");
-        } catch (err: any) {
-            setError(err.message);
+        } catch (error: unknown) {
+            console.error("Generate article error:", error);
+            setError(error instanceof Error ? error.message : "Syntéza zlyhala");
             setStep("input");
         }
     };
@@ -228,6 +228,7 @@ function SynthesisStudioContent() {
                         <div className="bg-card border rounded-3xl overflow-hidden shadow-2xl">
                             {synthesizedArticle.main_image && (
                                 <div className="w-full h-[400px] relative">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img
                                         src={synthesizedArticle.main_image}
                                         alt={synthesizedArticle.title}
@@ -256,7 +257,7 @@ function SynthesisStudioContent() {
                                             <span className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/80">AI SUMMARY</span>
                                         </div>
                                         <p className="text-lg md:text-xl font-medium italic leading-relaxed text-zinc-200">
-                                            "{synthesizedArticle.ai_summary}"
+                                            &quot;{synthesizedArticle.ai_summary}&quot;
                                         </p>
                                     </div>
                                 </div>

@@ -100,7 +100,7 @@ export default async function ArticlePage({ params }: Props) {
                                     <span className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/80">AI SUMMARY</span>
                                 </div>
                                 <p className="text-lg md:text-xl font-medium italic leading-relaxed text-zinc-200">
-                                    "{article.ai_summary}"
+                                    &quot;{article.ai_summary}&quot;
                                 </p>
                             </div>
                         </div>

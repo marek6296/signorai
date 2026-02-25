@@ -95,9 +95,9 @@ export default function AdminPage() {
             setUrl("");
             fetchArticles(); // Obnov zoznam článkov
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             setStatus("error");
-            setMessage(error.message);
+            setMessage(error instanceof Error ? error.message : "Nepodarilo sa vygenerovať článok");
         }
     };
 

@@ -27,6 +27,31 @@ export default function EditArticlePage({ params }: Props) {
     const [message, setMessage] = useState("");
 
     useEffect(() => {
+        const fetchArticle = async () => {
+            const { data, error } = await supabase
+                .from("articles")
+                .select("*")
+                .eq("id", params.id)
+                .single();
+
+            if (error || !data) {
+                setStatus("error");
+                setMessage("Nepodarilo sa načítať článok: " + (error?.message || "Neznáma chyba"));
+                return;
+            }
+
+            const article: Article = data;
+            setTitle(article.title || "");
+            setSlug(article.slug || "");
+            setExcerpt(article.excerpt || "");
+            setContent(article.content || "");
+            setCategory(article.category || "");
+            setAiSummary(article.ai_summary || "");
+            setMainImage(article.main_image || "");
+
+            setStatus("idle");
+        };
+
         if (typeof window !== "undefined") {
             const loggedInUser = localStorage.getItem("admin_logged_in");
             if (loggedInUser === "true") {
@@ -36,32 +61,7 @@ export default function EditArticlePage({ params }: Props) {
                 router.push("/admin");
             }
         }
-    }, []);
-
-    const fetchArticle = async () => {
-        const { data, error } = await supabase
-            .from("articles")
-            .select("*")
-            .eq("id", params.id)
-            .single();
-
-        if (error || !data) {
-            setStatus("error");
-            setMessage("Nepodarilo sa načítať článok: " + (error?.message || "Neznáma chyba"));
-            return;
-        }
-
-        const article: Article = data;
-        setTitle(article.title || "");
-        setSlug(article.slug || "");
-        setExcerpt(article.excerpt || "");
-        setContent(article.content || "");
-        setCategory(article.category || "");
-        setAiSummary(article.ai_summary || "");
-        setMainImage(article.main_image || "");
-
-        setStatus("idle");
-    };
+    }, [params.id, router]);
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
