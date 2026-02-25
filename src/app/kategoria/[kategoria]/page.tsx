@@ -1,5 +1,6 @@
 import { getArticlesByCategory, CATEGORY_MAP } from "@/lib/data";
 import { ArticleCard } from "@/components/ArticleCard";
+import { PageHeader } from "@/components/PageHeader";
 import { notFound } from "next/navigation";
 
 interface Props {
@@ -19,15 +20,11 @@ export default async function CategoryPage({ params }: Props) {
 
     return (
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 max-w-7xl flex-grow">
-            <div className="mb-16 text-center">
-                <h1 className="text-5xl md:text-7xl font-black tracking-tight mb-6 uppercase">
-                    {categoryName}
-                </h1>
-                <div className="w-24 h-1.5 bg-primary mx-auto mb-6 rounded-full" />
-                <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto">
-                    Najnovšie články z kategórie {categoryName}.
-                </p>
-            </div>
+            <PageHeader
+                title={categoryName}
+                description={`Najnovšie články a hĺbkové analýzy z kategórie ${categoryName}.`}
+                label="Kategória"
+            />
 
             {articles.length === 0 ? (
                 <div className="text-center py-20 bg-muted/30 rounded-2xl border border-dashed">
