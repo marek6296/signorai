@@ -1,4 +1,4 @@
-import { getArticlesByCategory } from "@/lib/data";
+import { getArticlesByCategory, CATEGORY_MAP } from "@/lib/data";
 import { ArticleCard } from "@/components/ArticleCard";
 import { notFound } from "next/navigation";
 
@@ -7,16 +7,15 @@ interface Props {
 }
 
 export default async function CategoryPage({ params }: Props) {
-    const kategoriaVstup = params.kategoria;
+    const slug = params.kategoria.toLowerCase();
 
-    // Validate if it's one of our allowed categories
-    const validCategories = ['svet', 'tech', 'politika', 'biznis'];
-    if (!validCategories.includes(kategoriaVstup.toLowerCase())) {
+    // Validate if it's one of our defined categories
+    if (!CATEGORY_MAP[slug]) {
         notFound();
     }
 
-    const articles = await getArticlesByCategory(kategoriaVstup);
-    const categoryName = kategoriaVstup.charAt(0).toUpperCase() + kategoriaVstup.slice(1).toLowerCase();
+    const articles = await getArticlesByCategory(slug);
+    const categoryName = CATEGORY_MAP[slug];
 
     return (
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 max-w-7xl flex-grow">

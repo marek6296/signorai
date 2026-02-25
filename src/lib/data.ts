@@ -1,7 +1,5 @@
 import { supabase } from "./supabase";
 
-export type Category = "Domov" | "Svet" | "Tech" | "Lifestyle";
-
 export interface Article {
     id: string;
     title: string;
@@ -9,12 +7,22 @@ export interface Article {
     excerpt: string;
     content: string;
     main_image: string;
-    category: Category;
+    category: string;
     published_at: string;
     source_url: string;
     ai_summary: string;
     status: 'draft' | 'published';
 }
+
+export const CATEGORY_MAP: Record<string, string> = {
+    "ai": "Umelá Inteligencia",
+    "tech": "Tech",
+    "biznis": "Biznis",
+    "krypto": "Krypto",
+    "svet-politika": "Svet & Politika",
+    "veda": "Veda",
+    "navody": "Návody & Tipy"
+};
 
 export async function getLatestArticle(): Promise<Article | null> {
     const { data, error } = await supabase
@@ -68,18 +76,18 @@ export async function getArticleBySlug(slug: string): Promise<Article | null> {
     return data as Article;
 }
 
-export async function getArticlesByCategory(category: string): Promise<Article[]> {
-    const formattedCategory = category.charAt(0).toUpperCase() + category.slice(1).toLowerCase();
+export async function getArticlesByCategory(slug: string): Promise<Article[]> {
+    const dbCategoryName = CATEGORY_MAP[slug.toLowerCase()] || (slug.charAt(0).toUpperCase() + slug.slice(1).toLowerCase());
 
     const { data, error } = await supabase
         .from('articles')
         .select('*')
         .eq('status', 'published')
-        .eq('category', formattedCategory)
+        .eq('category', dbCategoryName)
         .order('published_at', { ascending: false });
 
     if (error) {
-        console.error(`Error fetching articles for category ${category}:`, error);
+        console.error(`Error fetching articles for category ${slug}:`, error);
         return [];
     }
     return data as Article[];
