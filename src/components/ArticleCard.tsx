@@ -41,8 +41,8 @@ export function ArticleCard({ article, featured = false }: ArticleCardProps) {
 
             {/* Content Overlay - Glassmorphism at Bottom */}
             <div className="mt-auto relative z-10 w-full p-2">
-                <div className="bg-black/40 backdrop-blur-2xl border border-white/10 rounded-[1.5rem] p-6 md:p-8 transition-transform duration-500 group-hover:-translate-y-2 flex flex-col items-center text-center">
-                    <div className="flex flex-col gap-3 items-center">
+                <div className="bg-black/40 backdrop-blur-2xl border border-white/10 rounded-[1.5rem] p-6 md:p-8 transition-transform duration-500 group-hover:-translate-y-2 flex flex-col items-start text-left">
+                    <div className="flex flex-col gap-3 items-start">
                         <time className="text-[10px] md:text-xs font-bold text-white/50 uppercase tracking-widest">
                             {publishDate}
                         </time>
@@ -50,7 +50,7 @@ export function ArticleCard({ article, featured = false }: ArticleCardProps) {
                             }`}>
                             {article.title}
                         </h2>
-                        <p className="text-sm md:text-base text-zinc-300/90 line-clamp-2 md:line-clamp-3 leading-relaxed font-medium max-w-2xl">
+                        <p className="text-sm md:text-base text-zinc-300/90 line-clamp-2 md:line-clamp-3 leading-relaxed font-medium">
                             {article.ai_summary || article.excerpt}
                         </p>
                     </div>
