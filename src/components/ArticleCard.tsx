@@ -34,7 +34,7 @@ export function ArticleCard({ article, featured = false }: ArticleCardProps) {
 
             {/* Category Badge - Top Left */}
             <div className="absolute top-6 left-6 z-20">
-                <span className="inline-flex items-center rounded-full bg-primary/20 backdrop-blur-xl border border-white/10 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-primary-foreground shadow-2xl">
+                <span className="inline-flex items-center rounded-full bg-black/60 backdrop-blur-md border border-white/20 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-2xl">
                     {article.category}
                 </span>
             </div>
