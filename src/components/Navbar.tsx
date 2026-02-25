@@ -36,8 +36,8 @@ export function Navbar() {
                     ))}
                 </nav>
 
-                {/* Right side: Actions */}
-                <div className="absolute right-4 sm:right-6 lg:right-8 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                {/* Top Right: Actions */}
+                <div className="absolute right-4 sm:right-6 lg:right-8 top-4 flex items-center gap-2">
                     <ThemeToggle />
                 </div>
             </div>
