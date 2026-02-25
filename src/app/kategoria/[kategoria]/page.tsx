@@ -19,11 +19,12 @@ export default async function CategoryPage({ params }: Props) {
 
     return (
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 max-w-7xl flex-grow">
-            <div className="mb-12">
-                <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-4">
+            <div className="mb-16 text-center">
+                <h1 className="text-5xl md:text-7xl font-black tracking-tight mb-6 uppercase">
                     {categoryName}
                 </h1>
-                <p className="text-xl text-muted-foreground mb-8 border-b pb-4">
+                <div className="w-24 h-1.5 bg-primary mx-auto mb-6 rounded-full" />
+                <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto">
                     Najnovšie články z kategórie {categoryName}.
                 </p>
             </div>
