@@ -266,6 +266,17 @@ function SynthesisStudioContent() {
                                     className="prose prose-invert max-w-none prose-p:text-lg prose-p:leading-relaxed prose-headings:font-black"
                                     dangerouslySetInnerHTML={{ __html: synthesizedArticle.content }}
                                 />
+
+                                <div className="mt-12 pt-8 border-t border-white/5">
+                                    <span className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground block mb-4">ZDROJE SYNTÉZY</span>
+                                    <div className="flex flex-wrap gap-4">
+                                        {synthesizedArticle.source_url.split(',').map((url, i) => (
+                                            <a key={i} href={url.trim()} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-primary hover:underline">
+                                                {url.trim().substring(0, 40)}...
+                                            </a>
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

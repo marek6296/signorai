@@ -111,10 +111,36 @@ export default async function ArticlePage({ params }: Props) {
                         dangerouslySetInnerHTML={{ __html: article.content }}
                     />
 
-                    <div className="mt-12 pt-8 border-t flex items-center justify-between">
-                        <a href={article.source_url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-muted-foreground hover:text-foreground underline underline-offset-4">
-                            Pôvodný zdroj
-                        </a>
+                    <div className="mt-12 pt-8 border-t">
+                        <div className="flex flex-col gap-4">
+                            <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Zdroje informácií</span>
+                            <div className="flex flex-wrap gap-x-6 gap-y-2">
+                                {article.source_url.split(',').map((url, index) => {
+                                    const trimmedUrl = url.trim();
+                                    if (!trimmedUrl) return null;
+
+                                    // Try to get a clean domain name for display
+                                    let domain = trimmedUrl;
+                                    try {
+                                        domain = new URL(trimmedUrl).hostname.replace('www.', '');
+                                    } catch (e) {
+                                        // fallback to full URL or trimmed
+                                    }
+
+                                    return (
+                                        <a
+                                            key={index}
+                                            href={trimmedUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-sm font-bold text-primary hover:text-primary/80 underline underline-offset-4 transition-colors"
+                                        >
+                                            {domain}
+                                        </a>
+                                    );
+                                })}
+                            </div>
+                        </div>
                     </div>
                 </article>
 
