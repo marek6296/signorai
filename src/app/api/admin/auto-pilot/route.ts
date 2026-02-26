@@ -25,15 +25,15 @@ export async function POST(request: NextRequest) {
 }
 
 async function handleAutopilot(request: NextRequest, mode: 'automated' | 'manual', providedSecret?: string) {
+    console.log(`>>> [Autopilot] Starting mode: ${mode}`);
     try {
         const secret = providedSecret || request.nextUrl.searchParams.get('secret') || request.headers.get('x-api-key');
 
-        // 1. Authorization
         if (secret !== process.env.ADMIN_SECRET && secret !== 'make-com-webhook-secret') {
+            console.warn(">>> [Autopilot] Unauthorized attempt");
             return NextResponse.json({ message: "Invalid token" }, { status: 401 });
         }
 
-        // 2. Check site settings
         const { data: settings, error: settingsError } = await supabase
             .from('site_settings')
             .select('value')
@@ -41,60 +41,55 @@ async function handleAutopilot(request: NextRequest, mode: 'automated' | 'manual
             .single();
 
         if (settingsError || !settings) {
+            console.error(">>> [Autopilot] Settings fetch error:", settingsError);
             return NextResponse.json({ message: "Could not fetch autopilot settings" }, { status: 500 });
         }
 
         const autopilotEnabled = settings.value.enabled;
-
         let itemsToProcess: AutopilotItem[] = [];
 
+        console.log(`>>> [Autopilot] Logic branch for mode: ${mode}`);
+
         if (mode === 'automated') {
-            // AUTOMATED CRON MODE
             if (!autopilotEnabled) {
+                console.log(">>> [Autopilot] Automated run skipped (disabled)");
                 return NextResponse.json({ message: "Autopilot is disabled in settings" });
             }
 
-            // A. Discover fresh news from last 1 day (24 hours)
-            // They are returned sorted by date DESC (newest first)
             const freshNews = await discoverNewNews(1);
+            console.log(`>>> [Autopilot] Discovered ${freshNews.length} fresh items`);
+
             if (freshNews.length === 0) {
                 return NextResponse.json({ message: "No fresh news found for autopilot run", count: 0 });
             }
 
-            // B. Insert them as suggested_news first (to maintain history and URL tracking)
             const { data: inserted, error: insertError } = await supabase
                 .from('suggested_news')
                 .insert(freshNews)
                 .select();
 
             if (insertError) {
-                // If all are duplicates (unique constraint), just finish
                 if (insertError.message.includes('unique')) {
+                    console.log(">>> [Autopilot] All items were duplicates");
                     return NextResponse.json({ message: "No new unique news discovered today", count: 0 });
                 }
                 throw insertError;
             }
 
-            // C. Pick one per category from the NEWLY discovered items
-            // Since freshNews was sorted DESC, we pick the first occurrence in the result
             const insertedItems = inserted as AutopilotItem[];
             const categoriesMap = new Map();
-
-            // We iterate through freshNews to preserve the chronological order
             freshNews.forEach(newsItem => {
                 const cat = newsItem.category || "Umelá Inteligencia";
                 if (!categoriesMap.has(cat)) {
-                    // Find the corresponding inserted ID
                     const match = insertedItems.find(i => i.url === newsItem.url);
-                    if (match) {
-                        categoriesMap.set(cat, match);
-                    }
+                    if (match) categoriesMap.set(cat, match);
                 }
             });
             itemsToProcess = Array.from(categoriesMap.values());
 
         } else {
-            // MANUAL TRIGGER MODE (from UI) - uses EXISTING suggestions
+            // MANUAL MODE - processes EXISTING pending suggestions
+            console.log(">>> [Autopilot] Manual mode: Fetching pending suggestions");
             const { data: suggestions, error: suggestionsError } = await supabase
                 .from('suggested_news')
                 .select('*')
@@ -102,6 +97,8 @@ async function handleAutopilot(request: NextRequest, mode: 'automated' | 'manual
                 .order('created_at', { ascending: false });
 
             if (suggestionsError) throw suggestionsError;
+
+            console.log(`>>> [Autopilot] Found ${suggestions?.length || 0} pending suggestions`);
 
             if (!suggestions || suggestions.length === 0) {
                 return NextResponse.json({ message: "Nenašli sa žiadne navrhované témy. Najprv spusti objavovanie správ.", count: 0 });
@@ -115,20 +112,21 @@ async function handleAutopilot(request: NextRequest, mode: 'automated' | 'manual
                 }
             });
             itemsToProcess = Array.from(categoriesMap.values());
+            console.log(`>>> [Autopilot] Selected ${itemsToProcess.length} unique categories to process`);
         }
 
         if (itemsToProcess.length === 0) {
             return NextResponse.json({ message: "Žiadne články na spracovanie", count: 0 });
         }
 
-        // 5. Process articles in parallel
-        // We limit to max 12 categories to avoid overloading
         const limitedItems = itemsToProcess.slice(0, 15);
+        console.log(`>>> [Autopilot] Starting parallel processing for ${limitedItems.length} articles`);
+
+        const { processArticleFromUrl } = await import("../../../../lib/generate-logic");
 
         const results = await Promise.allSettled(limitedItems.map(async (item) => {
-            // processArticleFromUrl will scrape, translate, and INSERT as published
+            console.log(`>>> [Autopilot] Processing article: ${item.url} (${item.category})`);
             const article = await processArticleFromUrl(item.url, 'published', item.category);
-            // Mark suggestion as processed
             await supabase.from('suggested_news').update({ status: 'processed' }).eq('id', item.id);
             return { item, article };
         }));
@@ -137,12 +135,12 @@ async function handleAutopilot(request: NextRequest, mode: 'automated' | 'manual
         results.forEach((r, idx) => {
             if (r.status === 'fulfilled') {
                 successCount++;
+                console.log(`>>> [Autopilot] Successfully processed: ${limitedItems[idx].url}`);
             } else {
-                console.error(`Autopilot error processing ${limitedItems[idx].category}:`, r.reason);
+                console.error(`>>> [Autopilot] Error processing ${limitedItems[idx].category}:`, r.reason);
             }
         });
 
-        // 6. Update stats
         const newValue = {
             ...settings.value,
             last_run: new Date().toISOString(),
@@ -154,6 +152,8 @@ async function handleAutopilot(request: NextRequest, mode: 'automated' | 'manual
             .update({ value: newValue })
             .eq('key', 'auto_pilot');
 
+        console.log(`>>> [Autopilot] Run finished. Success count: ${successCount}`);
+
         return NextResponse.json({
             success: true,
             message: mode === 'automated'
@@ -163,7 +163,7 @@ async function handleAutopilot(request: NextRequest, mode: 'automated' | 'manual
         });
 
     } catch (error: unknown) {
-        console.error("Autopilot API error:", error);
+        console.error(">>> [Autopilot] CRITICAL ERROR:", error);
         return NextResponse.json({
             message: error instanceof Error ? error.message : "Internal server error"
         }, { status: 500 });
