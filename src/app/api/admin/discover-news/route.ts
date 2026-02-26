@@ -166,7 +166,7 @@ export async function GET(request: NextRequest) {
 
         // 2. Select a balanced mix (Targeting ~3 per category, max 30 total)
         const finalSelection: DiscoveryItem[] = [];
-        for (const [_, items] of Object.entries(newsByGroup)) {
+        for (const items of Object.values(newsByGroup)) {
             const shuffled = items.sort(() => Math.random() - 0.5);
             finalSelection.push(...shuffled.slice(0, 4));
         }
