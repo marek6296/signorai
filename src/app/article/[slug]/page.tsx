@@ -1,5 +1,6 @@
 import { getArticleBySlug, getRecentArticles } from "@/lib/data";
 import { Sidebar } from "@/components/Sidebar";
+import { AdminEditButton } from "@/components/AdminEditButton";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { format, parseISO } from "date-fns";
@@ -71,15 +72,16 @@ export default async function ArticlePage({ params, searchParams }: Props) {
                         </div>
                     )}
                     <header className="mb-8">
-                        <div className="flex items-center gap-4 mb-6">
+                        <div className="flex flex-wrap items-center gap-4 mb-6">
                             <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
                                 <Tag className="w-4 h-4" />
                                 {article.category}
                             </span>
-                            <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1.5 text-sm text-muted-foreground mr-auto">
                                 <Calendar className="w-4 h-4" />
                                 <time>{publishDate}</time>
                             </span>
+                            <AdminEditButton articleId={article.id} />
                         </div>
                         <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight mb-6 leading-[1.1]">
                             {article.title}
@@ -127,7 +129,7 @@ export default async function ArticlePage({ params, searchParams }: Props) {
                         <div className="flex flex-col gap-4">
                             <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Zdroje informácií</span>
                             <div className="flex flex-wrap gap-x-6 gap-y-2">
-                                {article.source_url.split(',').map((url, index) => {
+                                {article.source_url.split(',').map((url: string, index: number) => {
                                     const trimmedUrl = url.trim();
                                     if (!trimmedUrl) return null;
 

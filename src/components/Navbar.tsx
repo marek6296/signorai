@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "./ThemeToggle";
@@ -9,6 +9,7 @@ import { Menu, X } from "lucide-react";
 
 const categories = [
     { name: "Najnovšie", href: "/" },
+    { name: "Novinky SK/CZ", href: "/kategoria/novinky" },
     { name: "Umelá Inteligencia", href: "/kategoria/ai" },
     { name: "Tech", href: "/kategoria/tech" },
     { name: "Biznis", href: "/kategoria/biznis" },
@@ -23,6 +24,23 @@ const categories = [
 export function Navbar() {
     const pathname = usePathname();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isAdmin, setIsAdmin] = useState(false);
+
+    useEffect(() => {
+        const checkAdmin = () => {
+            setIsAdmin(localStorage.getItem("admin_logged_in") === "true");
+        };
+        checkAdmin();
+        // Listen for storage changes in case login happens in another tab
+        window.addEventListener('storage', checkAdmin);
+        // Also check on manual interval or just once is fine for most cases since login is on the same site
+        return () => window.removeEventListener('storage', checkAdmin);
+    }, []);
+
+    const allCategories = [
+        ...categories,
+        ...(isAdmin ? [{ name: "Admin", href: "/admin" }] : [])
+    ];
 
     return (
         <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -51,7 +69,7 @@ export function Navbar() {
 
                 {/* Desktop Nav */}
                 <nav className="hidden md:flex flex-wrap items-center justify-center gap-2 mt-2 mb-1">
-                    {categories.map((category) => {
+                    {allCategories.map((category) => {
                         const isActive = pathname === category.href || (category.href !== "/" && pathname.startsWith(category.href));
 
                         return (
@@ -105,7 +123,7 @@ export function Navbar() {
                 "md:hidden absolute top-full left-0 w-full bg-background/95 backdrop-blur shadow-2xl border-b border-border/40 flex flex-col items-center py-6 gap-2 transition-all duration-300 ease-in-out origin-top",
                 isMenuOpen ? "scale-y-100 opacity-100" : "scale-y-0 opacity-0 pointer-events-none"
             )}>
-                {categories.map((category) => {
+                {allCategories.map((category) => {
                     const isActive = pathname === category.href || (category.href !== "/" && pathname.startsWith(category.href));
 
                     return (

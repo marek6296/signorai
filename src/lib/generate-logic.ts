@@ -10,6 +10,7 @@ const openai = new OpenAI({
 
 const VALID_CATEGORIES = [
     "Najnovšie",
+    "Novinky SK/CZ",
     "Umelá Inteligencia",
     "Tech",
     "Biznis",
@@ -21,9 +22,9 @@ const VALID_CATEGORIES = [
     "Newsletter"
 ];
 
-export async function processArticleFromUrl(url: string, targetStatus: 'draft' | 'published' = 'draft') {
+export async function processArticleFromUrl(url: string, targetStatus: 'draft' | 'published' = 'draft', forcedCategory?: string) {
     try {
-        // 1. Scrape the content
+        // ... scraping code remains the same ...
         const response = await fetch(url, {
             headers: {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -57,6 +58,20 @@ ZÁVÄZNÉ PRAVIDLÁ PRE KVALITU TEXTU:
 5. Vytvor logickú štruktúru s podnadpismi (<h2> alebo <h3>). 
 6. PONECHAJ VŠETKY OBRÁZKY! Ak sa v zdrojom HTML nachádzajú značky <img>, nevyrezávaj ich, ale vlož ich do svojho preloženého HTML presne na to miesto, kam patria.
 
+PRAVIDLÁ PRE KATEGORIZÁCIU (Urči podľa hlavnej témy článku):
+- Novinky SK/CZ: Akýkoľvek článok týkajúci sa Slovenska alebo Česka (domáce správy, SK/CZ politici, udalosti v regiónoch, lokálne firmy). TOTO MÁ PRIORITU.
+- Gaming: Všetko o videohrách, konzolách (PlayStation, Xbox, Nintendo), herných službách (PS Plus, Game Pass), e-športe a hernom hardvéri.
+- Umelá Inteligencia: Novinky o LLM (ChatGPT, Claude, Gemini), AI čipoch, AI nástrojoch, automatizácii a etike AI.
+- Krypto: Bitcoin, Ethereum, blockchain technológie, burzy, NFT a regulácie digitálnych aktív.
+- Tech: Spotrebná elektronika (mobily, PC), softvér, internetové služby, sociálne siete a gadgety.
+- Biznis: Akcie, fúzie firiem, ekonomické analýzy, startupy a správy z trhu (ak to nie je primárne o Tech/AI).
+- Svet & Politika: Globálne udalosti, vojnové konflikty, zahraničná politika a svetoví lídri (mimo SR/ČR).
+- Veda: Vesmír, astronómia, medicínske objavy, biológia, fyzika a nové technológie vo výskume.
+- Návody & Tipy: Praktické príručky, ako niečo nastaviť, tutoriály k softvéru alebo tipy na zvýšenie produktivity.
+- Newsletter: Len ak ide o zhrnutie viacerých správ alebo pravidelný týždenný prehľad.
+
+DÔLEŽITÉ: Kategóriu vyberaj podľa obsahu, nie podľa zdroja. Napríklad článok o "PS Plus" musí ísť do Gaming, aj keď ho publikoval Tech server.
+
 Tvoj výstup musí byť VŽDY EXAKTNE VO FORMÁTE JSON:
 {
     "title": "Úderný, presný a pútavý nadpis v dokonalej slovenčine",
@@ -64,9 +79,9 @@ Tvoj výstup musí byť VŽDY EXAKTNE VO FORMÁTE JSON:
     "excerpt": "Perex: 1 až 2 veľmi pútavé odseky.",
     "content": "Samotný dlhý článok v HTML s <p>, <strong>, <h2>, <h3> a pôvodnými <img>.",
     "ai_summary": "Extrémne stručné a super-moderné zhrnutie (max. 2 vety).",
-    "category": "Najnovšie, Umelá Inteligencia, Tech, Biznis, Krypto, Svet & Politika, Veda, Gaming, Návody & Tipy, Newsletter"
+    "category": "MUSÍŠ vybrať jednu z týchto kategórií (presne tento text): Najnovšie, Novinky SK/CZ, Umelá Inteligencia, Tech, Biznis, Krypto, Svet & Politika, Veda, Gaming, Návody & Tipy, Newsletter"
 }
-Nikdy nevracaj slovné omáčky okolo, vždy len čistý json.`;
+Nikdy nevracaj žiadnu inú kategóriu okrem týchto. Ak váhaš, daj Umelá Inteligencia. Nikdy nevracaj slovné omáčky okolo, vždy len čistý json.`;
 
         const completion = await openai.chat.completions.create({
             model: "gpt-4o",
@@ -104,11 +119,22 @@ Nikdy nevracaj slovné omáčky okolo, vždy len čistý json.`;
         }
 
         // Category validation
-        let finalCategory = articleData.category;
+        let finalCategory = forcedCategory || articleData.category;
+
         if (typeof finalCategory === 'string') {
             finalCategory = finalCategory.trim();
-            const matchingCategory = VALID_CATEGORIES.find(c => c.toLowerCase() === finalCategory.toLowerCase());
-            finalCategory = matchingCategory || "Umelá Inteligencia";
+
+            // Fuzzy/Partial matching
+            const lowerCat = finalCategory.toLowerCase();
+            const found = VALID_CATEGORIES.find(c => {
+                const lowerC = c.toLowerCase();
+                return lowerC === lowerCat ||
+                    lowerCat.includes(lowerC) ||
+                    lowerC.includes(lowerCat) ||
+                    (lowerCat.includes('svet') && lowerC.includes('svet'));
+            });
+
+            finalCategory = found || "Umelá Inteligencia";
         } else {
             finalCategory = "Umelá Inteligencia";
         }
