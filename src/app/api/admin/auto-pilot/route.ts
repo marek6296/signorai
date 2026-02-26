@@ -22,12 +22,6 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ message: "Could not fetch autopilot settings" }, { status: 500 });
         }
 
-        const autopilotEnabled = settings.value?.enabled;
-
-        // If triggered manually, we might want to ignore the "enabled" flag, 
-        // but for safety let's respect it unless we add a "force" param.
-        // For now, assume this is called by a cron job or manual "Run Now" button.
-
         // 3. Get pending suggestions grouped by category
         const { data: suggestions, error: suggestionsError } = await supabase
             .from('suggested_news')
@@ -53,28 +47,22 @@ export async function POST(request: NextRequest) {
         });
 
         const itemsToProcess = Array.from(categoriesMap.values());
-        const processedArticles = [];
-        let successCount = 0;
 
-        // 5. Process each article
-        for (const item of itemsToProcess) {
-            try {
-                // Process and publish immediately
-                const article = await processArticleFromUrl(item.url, 'published');
+        // 5. Process articles in parallel to avoid timeouts
+        const results = await Promise.allSettled(itemsToProcess.map(async (item) => {
+            // Process and publish immediately
+            const article = await processArticleFromUrl(item.url, 'published');
 
-                // Mark suggestion as processed
-                await supabase
-                    .from('suggested_news')
-                    .update({ status: 'processed' })
-                    .eq('id', item.id);
+            // Mark suggestion as processed
+            await supabase
+                .from('suggested_news')
+                .update({ status: 'processed' })
+                .eq('id', item.id);
 
-                processedArticles.push(article);
-                successCount++;
-            } catch (err) {
-                console.error(`Autopilot failed for ${item.url}:`, err);
-                // Continue to next category if one fails
-            }
-        }
+            return article;
+        }));
+
+        const successCount = results.filter(r => r.status === 'fulfilled').length;
 
         // 6. Update stats in site_settings
         const newValue = {
@@ -92,7 +80,7 @@ export async function POST(request: NextRequest) {
             success: true,
             message: `Autopilot complete. Processed ${successCount} articles.`,
             count: successCount,
-            articles: processedArticles
+            details: results.map(r => r.status === 'fulfilled' ? 'Success' : `Error: ${(r as PromiseRejectedResult).reason?.message || 'Unknown error'}`)
         });
 
     } catch (error: unknown) {
