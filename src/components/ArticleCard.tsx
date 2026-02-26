@@ -46,7 +46,7 @@ export function ArticleCard({ article, featured = false }: ArticleCardProps) {
                         <time className="text-[9px] md:text-[10px] font-bold text-white/50 uppercase tracking-widest">
                             {publishDate}
                         </time>
-                        <h2 className={`font-black tracking-tight text-white leading-tight group-hover:text-primary transition-colors ${featured ? 'text-xl md:text-3xl' : 'text-lg md:text-xl'
+                        <h2 className={`font-black tracking-tight text-white leading-tight group-hover:scale-[1.01] transition-all duration-300 ${featured ? 'text-xl md:text-3xl' : 'text-lg md:text-xl'
                             }`}>
                             {article.title}
                         </h2>
