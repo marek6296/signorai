@@ -76,7 +76,7 @@ export default function AdminPage() {
 
     const [isBulkCategoryMode, setIsBulkCategoryMode] = useState(false);
     const [bulkSelectedArticles, setBulkSelectedArticles] = useState<string[]>([]);
-    const [isRefreshingCategories, setIsRefreshingCategories] = useState(false);
+    const [refreshingType, setRefreshingType] = useState<"none" | "bulk" | "recent" | "all">("none");
 
     const fetchArticles = async () => {
         setLoadingArticles(true);
@@ -285,7 +285,7 @@ export default function AdminPage() {
 
     const handleRefreshCategories = async () => {
         if (bulkSelectedArticles.length === 0) return;
-        setIsRefreshingCategories(true);
+        setRefreshingType("bulk");
         setStatus("loading");
         try {
             const response = await fetch("/api/admin/refresh-categories", {
@@ -310,7 +310,7 @@ export default function AdminPage() {
             const error = e as Error;
             alert("API chyba: " + error.message);
         } finally {
-            setIsRefreshingCategories(false);
+            setRefreshingType("none");
             setStatus("idle");
         }
     };
@@ -328,7 +328,7 @@ export default function AdminPage() {
 
         if (!confirm(`AI teraz preanalyzuje a opraví kategórie pre ${recentIds.length} posledných článkov. Pokračovať?`)) return;
 
-        setIsRefreshingCategories(true);
+        setRefreshingType("recent");
         setStatus("loading");
         try {
             const response = await fetch("/api/admin/refresh-categories", {
@@ -351,7 +351,7 @@ export default function AdminPage() {
             const error = e as Error;
             alert("API chyba: " + error.message);
         } finally {
-            setIsRefreshingCategories(false);
+            setRefreshingType("none");
             setStatus("idle");
         }
     };
@@ -368,7 +368,7 @@ export default function AdminPage() {
 
         if (!confirm(`POZOR: AI teraz preanalyzuje a opraví kategórie pre VŠETKÝCH ${allIds.length} článkov v databáze. Toto môže trvať dlhšie. Pokračovať?`)) return;
 
-        setIsRefreshingCategories(true);
+        setRefreshingType("all");
         setStatus("loading");
         try {
             const response = await fetch("/api/admin/refresh-categories", {
@@ -391,7 +391,7 @@ export default function AdminPage() {
             const error = e as Error;
             alert("API chyba: " + error.message);
         } finally {
-            setIsRefreshingCategories(false);
+            setRefreshingType("none");
             setStatus("idle");
         }
     };
@@ -1037,18 +1037,18 @@ export default function AdminPage() {
                                     <div className="flex gap-2">
                                         <button
                                             onClick={handleRefreshRecentCategories}
-                                            disabled={isRefreshingCategories}
+                                            disabled={refreshingType !== "none"}
                                             className="bg-primary/10 text-primary px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary/20 transition-all flex items-center gap-2 border-2 border-primary/20"
                                         >
-                                            <RefreshCw className={cn("w-3 h-3", isRefreshingCategories && "animate-spin")} />
+                                            <RefreshCw className={cn("w-3 h-3", refreshingType === "recent" && "animate-spin")} />
                                             AI opraviť 20
                                         </button>
                                         <button
                                             onClick={handleRefreshAllCategories}
-                                            disabled={isRefreshingCategories}
+                                            disabled={refreshingType !== "none"}
                                             className="bg-red-500/10 text-red-500 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all flex items-center gap-2 border-2 border-red-500/20"
                                         >
-                                            <RefreshCw className={cn("w-3 h-3", isRefreshingCategories && "animate-spin")} />
+                                            <RefreshCw className={cn("w-3 h-3", refreshingType === "all" && "animate-spin")} />
                                             AI opraviť VŠETKO
                                         </button>
                                         <button
@@ -1066,17 +1066,17 @@ export default function AdminPage() {
                                 {isBulkCategoryMode && (
                                     <div className="w-full bg-primary/10 border border-primary/20 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 mb-8">
                                         <div className="flex items-center gap-3 text-primary">
-                                            <RefreshCw className={`w-5 h-5 ${isRefreshingCategories ? "animate-spin" : ""}`} />
+                                            <RefreshCw className={`w-5 h-5 ${refreshingType === "bulk" ? "animate-spin" : ""}`} />
                                             <span className="font-bold text-sm tracking-wide">
                                                 Vybraných článkov pre AI kontrolu: <span className="text-lg font-black">{bulkSelectedArticles.length}</span>
                                             </span>
                                         </div>
                                         <button
                                             onClick={handleRefreshCategories}
-                                            disabled={bulkSelectedArticles.length === 0 || isRefreshingCategories}
+                                            disabled={bulkSelectedArticles.length === 0 || refreshingType !== "none"}
                                             className="w-full md:w-auto px-6 py-3 bg-primary text-white rounded-xl text-xs font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg shadow-primary/30 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center gap-2 justify-center"
                                         >
-                                            {isRefreshingCategories ? "AI analyzuje články..." : "Zistiť a opraviť kategórie s AI"}
+                                            {refreshingType === "bulk" ? "AI analyzuje články..." : "Zistiť a opraviť kategórie s AI"}
                                         </button>
                                     </div>
                                 )}
