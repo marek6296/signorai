@@ -43,13 +43,18 @@ export async function processArticleFromUrl(url: string, targetStatus: 'draft' |
         }
 
         const html = await response.text();
+        console.log(`Scraped ${html.length} characters from ${url}`);
+
         const doc = new JSDOM(html, { url });
         const reader = new Readability(doc.window.document);
         const parsedArticle = reader.parse();
 
         if (!parsedArticle || !parsedArticle.textContent) {
+            console.error("Readability failed to parse:", url);
             throw new Error("Could not parse article from the provided URL");
         }
+
+        console.log("Readability success, title:", parsedArticle.title);
 
         // 2. Generate article with OpenAI
         const promptSystem = `Si šéfredaktor a špičkový copywriter pre prestížny magazín Postovinky na Slovensku. Bude ti zadaný zdrojový text z nejakého webu.
@@ -102,7 +107,9 @@ Nikdy nevracaj žiadnu inú kategóriu. AI dávaj len ak je to jadro správy. Pr
         const gptResponse = completion.choices[0].message.content;
         if (!gptResponse) throw new Error("Empty response from OpenAI");
 
+        console.log("OpenAI raw response received");
         const articleData = JSON.parse(gptResponse);
+        console.log("OpenAI JSON parsed successfully, article title:", articleData.title);
 
         // Image extraction
         let mainImage = `https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=1200`;
@@ -159,9 +166,15 @@ Nikdy nevracaj žiadnu inú kategóriu. AI dávaj len ak je to jadro správy. Pr
             status: targetStatus
         };
 
+        console.log("Saving to Supabase...");
         const { data, error } = await supabase.from('articles').insert([dbData]).select().single();
 
-        if (error) throw error;
+        if (error) {
+            console.error("Supabase insert error:", error);
+            throw error;
+        }
+
+        console.log("Supabase save success, ID:", data.id);
 
         // 4. Revalidate
         revalidatePath("/", "layout");
