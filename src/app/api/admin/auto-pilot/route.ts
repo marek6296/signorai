@@ -3,6 +3,13 @@ import { supabase } from "@/lib/supabase";
 import { processArticleFromUrl } from "@/lib/generate-logic";
 import { discoverNewNews } from "@/lib/discovery-logic";
 
+interface AutopilotItem {
+    id: string;
+    url: string;
+    category?: string;
+    title: string;
+}
+
 export async function POST(request: NextRequest) {
     try {
         const { secret, mode } = await request.json();
@@ -25,7 +32,7 @@ export async function POST(request: NextRequest) {
 
         const autopilotEnabled = settings.value.enabled;
 
-        let itemsToProcess: any[] = [];
+        let itemsToProcess: AutopilotItem[] = [];
 
         if (mode === 'automated') {
             // AUTOMATED CRON MODE
@@ -55,7 +62,7 @@ export async function POST(request: NextRequest) {
 
             // C. Pick one per category from the NEWLY discovered items
             const categoriesMap = new Map();
-            (inserted || []).forEach(item => {
+            ((inserted as AutopilotItem[]) || []).forEach(item => {
                 const cat = item.category || "Umelá Inteligencia";
                 if (!categoriesMap.has(cat)) {
                     categoriesMap.set(cat, item);

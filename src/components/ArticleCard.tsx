@@ -35,8 +35,8 @@ export function ArticleCard({ article, featured = false }: ArticleCardProps) {
 
             await fetch("/api/revalidate?secret=make-com-webhook-secret", { method: "POST" });
             router.refresh();
-        } catch (error: any) {
-            alert("Chyba pri mazaní: " + error.message);
+        } catch (error: unknown) {
+            alert("Chyba pri mazaní: " + (error as Error).message);
         }
     };
 

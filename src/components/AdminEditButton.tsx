@@ -25,8 +25,8 @@ export function AdminEditButton({ articleId }: AdminEditButtonProps) {
             await fetch("/api/revalidate?secret=make-com-webhook-secret", { method: "POST" });
             router.push("/");
             router.refresh();
-        } catch (error: any) {
-            alert("Chyba pri mazaní: " + error.message);
+        } catch (error: unknown) {
+            alert("Chyba pri mazaní: " + (error as Error).message);
         }
     };
 

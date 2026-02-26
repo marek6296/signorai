@@ -186,14 +186,14 @@ export async function discoverNewNews(maxDays: number, targetCategories: string[
                 return false;
             }
             return true;
-        } catch (e) {
+        } catch {
             console.warn(`[Discovery] URL unreachable (network error): ${url}`);
             return false;
         }
     };
 
     const finalSelection: DiscoveryItem[] = [];
-    for (const [groupName, candidates] of Object.entries(candidatesByGroup)) {
+    for (const [, candidates] of Object.entries(candidatesByGroup)) {
         const accessible: DiscoveryItem[] = [];
         for (const item of candidates) {
             if (accessible.length >= 5) break; // keep up to 5 verified per category

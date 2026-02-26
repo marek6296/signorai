@@ -21,6 +21,13 @@ type SuggestedNews = {
     created_at: string;
 };
 
+type AutopilotHistoryItem = {
+    title: string;
+    url: string;
+    category: string;
+    created_at: string;
+};
+
 type AutopilotSettings = {
     enabled: boolean;
     last_run: string | null;
@@ -37,8 +44,6 @@ export default function AdminPage() {
     const [loadingArticles, setLoadingArticles] = useState(true);
     const [loadingSuggestions, setLoadingSuggestions] = useState(false);
     const [autopilotSettings, setAutopilotSettings] = useState<AutopilotSettings>({ enabled: false, last_run: null, processed_count: 0 });
-    const [loadingAutopilot, setLoadingAutopilot] = useState(false);
-    const [autopilotProgress, setAutopilotProgress] = useState<{ current: number, total: number }>({ current: 0, total: 0 });
 
     // Tab control
     const [activeTab, setActiveTab] = useState<"create" | "manage" | "discovery">("manage");
@@ -67,7 +72,7 @@ export default function AdminPage() {
 
     const [isAutopilotHistoryOpen, setIsAutopilotHistoryOpen] = useState(false);
     const [loadingHistory, setLoadingHistory] = useState(false);
-    const [autopilotHistory, setAutopilotHistory] = useState<any[]>([]);
+    const [autopilotHistory, setAutopilotHistory] = useState<AutopilotHistoryItem[]>([]);
 
     const [isBulkCategoryMode, setIsBulkCategoryMode] = useState(false);
     const [bulkSelectedArticles, setBulkSelectedArticles] = useState<string[]>([]);
@@ -101,7 +106,6 @@ export default function AdminPage() {
     };
 
     const fetchAutopilotSettings = async () => {
-        setLoadingAutopilot(true);
         const { data, error } = await supabase
             .from('site_settings')
             .select('value')
@@ -111,7 +115,6 @@ export default function AdminPage() {
         if (!error && data) {
             setAutopilotSettings(data.value as AutopilotSettings);
         }
-        setLoadingAutopilot(false);
     };
 
     useEffect(() => {
@@ -303,8 +306,9 @@ export default function AdminPage() {
             } else {
                 alert("Chyba: " + data.message);
             }
-        } catch (e: any) {
-            alert("API chyba: " + e.message);
+        } catch (e: unknown) {
+            const error = e as Error;
+            alert("API chyba: " + error.message);
         } finally {
             setIsRefreshingCategories(false);
             setStatus("idle");
@@ -1013,8 +1017,8 @@ export default function AdminPage() {
                                                 <div
                                                     onClick={() => toggleBulkSelection(article.id)}
                                                     className={`absolute inset-0 z-40 rounded-[2rem] cursor-pointer transition-all ${bulkSelectedArticles.includes(article.id)
-                                                            ? "bg-primary/20 ring-4 ring-inset ring-primary"
-                                                            : "bg-black/50 hover:bg-black/30"
+                                                        ? "bg-primary/20 ring-4 ring-inset ring-primary"
+                                                        : "bg-black/50 hover:bg-black/30"
                                                         }`}
                                                 >
                                                     {bulkSelectedArticles.includes(article.id) && (
@@ -1186,17 +1190,17 @@ export default function AdminPage() {
                                         if (!acc[cat]) acc[cat] = [];
                                         acc[cat].push(curr);
                                         return acc;
-                                    }, {} as Record<string, any[]>)).map(([category, items]) => (
+                                    }, {} as Record<string, AutopilotHistoryItem[]>)).map(([category, items]) => (
                                         <div key={category} className="space-y-4">
                                             <h4 className="flex items-center gap-3 text-white text-sm font-black uppercase tracking-widest border-b border-[#2a2a2a] pb-3">
                                                 <div className="w-2.5 h-2.5 rounded-full bg-white/20 flex items-center justify-center">
                                                     <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></div>
                                                 </div>
                                                 {category}
-                                                <span className="text-zinc-400 bg-[#2a2a2a] px-2 py-0.5 rounded-full text-[10px] ml-auto">({(items as any[]).length})</span>
+                                                <span className="text-zinc-400 bg-[#2a2a2a] px-2 py-0.5 rounded-full text-[10px] ml-auto">({(items as AutopilotHistoryItem[]).length})</span>
                                             </h4>
                                             <div className="grid gap-3">
-                                                {(items as any[]).map((item, idx) => (
+                                                {(items as AutopilotHistoryItem[]).map((item, idx) => (
                                                     <div
                                                         key={idx}
                                                         className="flex flex-col sm:flex-row gap-4 sm:items-center p-5 rounded-2xl bg-[#1a1a1a] border border-[#2a2a2a] hover:border-white/30 transition-all group"

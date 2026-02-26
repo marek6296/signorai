@@ -89,8 +89,8 @@ Nepíš žiadne iné slová okolo.`;
             total: articleIds.length
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Refresh categories API error:", error);
-        return NextResponse.json({ message: error.message || "Internal Error" }, { status: 500 });
+        return NextResponse.json({ message: (error as Error).message || "Internal Error" }, { status: 500 });
     }
 }
