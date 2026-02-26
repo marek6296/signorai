@@ -496,13 +496,15 @@ export default function AdminPage() {
         }, 5000);
 
         try {
+            console.log(">>> [UI] Starting Manual Autopilot Run...");
             const res = await fetch("/api/admin/auto-pilot", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ secret: "make-com-webhook-secret", mode: 'automated' })
+                body: JSON.stringify({ secret: "make-com-webhook-secret", mode: 'manual' })
             });
 
             const data = await res.json();
+            console.log(">>> [UI] Autopilot Response:", data);
             if (!res.ok) throw new Error(data.message);
 
             setStatus("success");
