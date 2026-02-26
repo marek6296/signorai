@@ -44,7 +44,7 @@ Perex: ${excerpt}`;
 
         return NextResponse.json({ socialPost });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Social post generation failed:", error);
         return NextResponse.json({ error: "Failed to generate social post" }, { status: 500 });
     }

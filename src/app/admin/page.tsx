@@ -1359,7 +1359,7 @@ export default function AdminPage() {
                                 ].map((p) => (
                                     <button
                                         key={p.id}
-                                        onClick={() => setSocialPlatform(p.id as any)}
+                                        onClick={() => setSocialPlatform(p.id as "Facebook" | "Instagram" | "X")}
                                         className={cn(
                                             "flex items-center justify-center gap-4 p-6 rounded-[24px] border-2 transition-all font-black uppercase tracking-widest text-sm",
                                             socialPlatform === p.id
