@@ -41,7 +41,8 @@ KATEGÓRIE NA VÝBER:
 - Tech
 - Biznis
 - Krypto
-- Svet & Politika
+- Svet
+- Politika
 - Veda
 - Gaming
 - Návody & Tipy

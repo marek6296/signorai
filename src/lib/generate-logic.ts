@@ -14,7 +14,8 @@ const VALID_CATEGORIES = [
     "Tech",
     "Biznis",
     "Krypto",
-    "Svet & Politika",
+    "Svet",
+    "Politika",
     "Veda",
     "Gaming",
     "Návody & Tipy",
@@ -58,18 +59,19 @@ ZÁVÄZNÉ PRAVIDLÁ PRE KVALITU TEXTU:
 6. PONECHAJ VŠETKY OBRÁZKY! Ak sa v zdrojom HTML nachádzajú značky <img>, nevyrezávaj ich, ale vlož ich do svojho preloženého HTML presne na to miesto, kam patria.
 
 PRAVIDLÁ PRE KATEGORIZÁCIU (Buď veľmi prísny a presný!):
-- Novinky SK/CZ: Akýkoľvek článok týkajúci sa Slovenska alebo Česka (domáce správy, SK/CZ politici, udalosti v regiónoch, lokálne firmy). TOTO MÁ ABSOLÚTNU PRIORITU. Ak je v článku spomenuté SK/CZ, ide sem bez ohľadu na tému.
-- Gaming: Všetko o videohrách, konzolách (PlayStation, Xbox, Nintendo), herných službách (PS Plus, Game Pass), e-športe a hernom hardvéri. Ak ide o hru, patrí sem, aj keď ju poháňa AI.
-- Krypto: Bitcoin, Ethereum, blockchain technológie, burzy, NFT, regulácie kryptomien a Web3.
-- Umelá Inteligencia: LEN články, ktoré sú PRIMÁRNE o algoritmoch, LLM (ChatGPT, Claude, Gemini), vývoji AI, čipoch pre AI alebo hlbokej automatizácii. Ak je AI len malou súčasťou iného produktu (napr. funkcia vo Photoshope), patrí to do Tech.
-- Tech: Spotrebná elektronika (nové iPhony, MacBooky, Androidy), všeobecný softvér, internetové služby, sociálne siete (Meta, X, TikTok), kyberbezpečnosť a gadgety.
-- Biznis: Akcie, fúzie firiem (napr. Broadcom kúpil VMware), ekonomické analýzy, startupy a správy zo sveta veľkých korporácií.
-- Svet & Politika: Globálne správy, vojny, voľby v USA/EU, zahraničná politika (mimo SR/ČR).
-- Veda: Vesmír (NASA, SpaceX), medicína, biológia, kvantová fyzika, nové materiály a akademický výskum.
-- Návody & Tipy: Praktické postupy typu "Ako nastaviť...", "5 tipov pre...", tutoriály k nástrojom.
-- Newsletter: Len ak ide o týždenný súhrn viacerých tém.
+- Novinky SK/CZ: Akýkoľvek článok týkajúci sa Slovenska alebo Česka (domáce správy, SK/CZ politici, udalosti v regiónoch, lokálne firmy). TOTO MÁ ABSOLÚTNU PRIORITU. Ak sa v článku spomína SR alebo ČR, ide to SEM.
+- Gaming: Všetko o videohrách (PS5, Xbox, PC hry), herných službách a hardvéri. Ak ide o hru, patrí sem, aj keď ju poháňa AI.
+- Krypto: Bitcoin, Ethereum, blockchain, burzy, regulácie kryptomien.
+- Umelá Inteligencia: LEN články, ktoré sú o VÝVOJI AI (nové modely GPT, Claude, Gemini), hlbokej technológii AI, čipoch (Nvidia H100) alebo budúcnosti AI. Ak je AI len funkcia v aplikácii, daj to do Tech.
+- Tech: Spotrebná elektronika (nové mobily, laptopy), sociálne siete (Meta, X, TikTok, Instagram), internetové služby a gadgety.
+- Biznis: Akcie, ekonomika, fúzie firiem, startupy a správy zo sveta korporácií.
+- Politika: Vládne rozhodnutia, parlament, politické kampane, medzinárodná diplomacia a štátne záležitosti (ak to nie je primárne SK/CZ).
+- Svet: Zaujímavosti zo sveta, prírodné úkazy, globálne trendy a udalosti, ktoré nemajú primárne politický charakter.
+- Veda: Vesmír, medicína, kvantová fyzika a akademický výskum.
+- Návody & Tipy: "Ako urobiť...", tutoriály, praktické rady.
+- Newsletter: Len pre súhrnné týždenné novinky.
 
-DÔLEŽITÉ: Kategória musí sedieť presne. Ak ide o finančné výsledky Apple, je to Biznis (nie Tech). Ak ide o novú hru s AI postavami, je to Gaming (nie AI). Ak ide o slovenský startup, sú to Novinky SK/CZ.
+DÔLEŽITÉ: Ak ide o biznis tech firmy (napr. rast akcií Microsoftu), je to Biznis. Ak ide o politické regulácie AI v USA, je to Politika. Ak ide o slovenského politika, sú to Novinky SK/CZ.
 
 Tvoj výstup musí byť VŽDY EXAKTNE VO FORMÁTE JSON:
 {
@@ -78,9 +80,9 @@ Tvoj výstup musí byť VŽDY EXAKTNE VO FORMÁTE JSON:
     "excerpt": "Perex: 1 až 2 veľmi pútavé odseky.",
     "content": "Samotný dlhý článok v HTML s <p>, <strong>, <h2>, <h3> a pôvodnými <img>.",
     "ai_summary": "Extrémne stručné a super-moderné zhrnutie (max. 2 vety).",
-    "category": "JEDNA Z TÝCHTO: Novinky SK/CZ, Umelá Inteligencia, Tech, Biznis, Krypto, Svet & Politika, Veda, Gaming, Návody & Tipy, Newsletter"
+    "category": "JEDNA Z TÝCHTO: Novinky SK/CZ, Umelá Inteligencia, Tech, Biznis, Krypto, Svet, Politika, Veda, Gaming, Návody & Tipy, Newsletter"
 }
-Nikdy nevracaj žiadnu inú kategóriu. Ak váhaš medzi AI a niečím iným, daj to druhé (AI dávaj len ak je to jadro správy).`;
+Nikdy nevracaj žiadnu inú kategóriu. AI dávaj len ak je to jadro správy.`;
 
         const completion = await openai.chat.completions.create({
             model: "gpt-4o",

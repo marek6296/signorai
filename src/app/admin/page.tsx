@@ -716,7 +716,7 @@ export default function AdminPage() {
                                 </div>
                                 <div className="flex flex-wrap gap-2">
                                     {(() => {
-                                        const allCats = ["Novinky SK/CZ", "Umelá Inteligencia", "Tech", "Biznis", "Krypto", "Svet & Politika", "Gaming", "Veda", "Návody & Tipy"];
+                                        const allCats = ["Novinky SK/CZ", "Umelá Inteligencia", "Tech", "Biznis", "Krypto", "Svet", "Politika", "Gaming", "Veda", "Návody & Tipy"];
                                         const isAllSelected = discoveryTargetCategories.length === allCats.length;
 
                                         return (

@@ -156,13 +156,13 @@ export default function EditArticlePage({ params }: Props) {
                                     className="w-full bg-background border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
                                     required
                                 >
-                                    <option value="Najnovšie">Najnovšie</option>
                                     <option value="Novinky SK/CZ">Novinky SK/CZ</option>
                                     <option value="Umelá Inteligencia">Umelá Inteligencia</option>
                                     <option value="Tech">Tech</option>
                                     <option value="Biznis">Biznis</option>
                                     <option value="Krypto">Krypto</option>
-                                    <option value="Svet & Politika">Svet & Politika</option>
+                                    <option value="Svet">Svet</option>
+                                    <option value="Politika">Politika</option>
                                     <option value="Veda">Veda</option>
                                     <option value="Gaming">Gaming</option>
                                     <option value="Návody & Tipy">Návody & Tipy</option>

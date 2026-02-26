@@ -91,7 +91,8 @@ export function Footer() {
                             <h3 className="font-bold uppercase tracking-widest text-[11px] text-foreground/50">Ostatné</h3>
                             <ul className="space-y-4 text-[15px] font-medium text-muted-foreground">
                                 <li><Link href="/newsletter" className="hover:text-primary transition-colors">Newsletter</Link></li>
-                                <li><Link href="/kategoria/svet-politika" className="hover:text-primary transition-colors">Svet</Link></li>
+                                <li><Link href="/kategoria/svet" className="hover:text-primary transition-colors">Svet</Link></li>
+                                <li><Link href="/kategoria/politika" className="hover:text-primary transition-colors">Politika</Link></li>
                                 <li><Link href="/kategoria/veda" className="hover:text-primary transition-colors">Veda</Link></li>
                             </ul>
                         </div>

@@ -57,12 +57,16 @@ export const FEED_GROUPS: Record<string, { name: string, url: string }[]> = {
         { name: "Decrypt", url: "https://decrypt.co/feed" },
         { name: "CryptoSlate", url: "https://cryptoslate.com/feed/" }
     ],
-    "Svet & Politika": [
+    "Svet": [
         { name: "The Guardian World", url: "https://www.theguardian.com/world/rss" },
         { name: "BBC News World", url: "http://feeds.bbci.co.uk/news/world/rss.xml" },
         { name: "Reuters World", url: "https://www.reutersagency.com/feed/?best-topics=world-news" },
         { name: "The NY Times World", url: "https://rss.nytimes.com/services/xml/rss/nyt/World.xml" },
         { name: "Al Jazeera", url: "https://www.aljazeera.com/xml/rss/all.xml" }
+    ],
+    "Politika": [
+        { name: "Denno N Politika", url: "https://dennikn.sk/sekcia/politika/feed/" },
+        { name: "Aktuality Politika", url: "https://www.aktuality.sk/rss/?category=politika" }
     ],
     "Gaming": [
         { name: "IGN", url: "https://feeds.feedburner.com/ign/all" },
@@ -223,25 +227,19 @@ export async function discoverNewNews(maxDays: number, targetCategories: string[
                         role: "system",
                         content: `Si profesionálny slovenský redaktor portálu POSTOVINKY. Tvojou ÚLOHOU je pripraviť tému na spracovanie.
                         
-KATEGORIZÁCIA (Urči podľa hlavnej témy článku):
-- Novinky SK/CZ: Akýkoľvek článok týkajúci sa Slovenska alebo Česka (domáce správy, SK/CZ politici, udalosti v regiónoch, lokálne firmy). TOTO MÁ PRIORITU.
-- Gaming: Všetko o videohrách, konzolách (PlayStation, Xbox, Nintendo), herných službách (PS Plus, Game Pass), e-športe a hernom hardvéri.
-- Umelá Inteligencia: Novinky o LLM (ChatGPT, Claude, Gemini), AI čipoch, AI nástrojoch, automatizácii a etike AI.
-- Krypto: Bitcoin, Ethereum, blockchain technológie, burzy, NFT a regulácie digitálnych aktív.
-- Tech: Spotrebná elektronika (mobily, PC), softvér, internetové služby, sociálne siete a gadgety.
-- Biznis: Akcie, fúzie firiem, ekonomické analýzy, startupy a správy z trhu (ak to nie je primárne o Tech/AI).
-- Svet & Politika: Globálne udalosti, vojnové konflikty, zahraničná politika a svetoví lídri (mimo SR/ČR).
-- Veda: Vesmír, astronómia, medicínske objavy, biológia, fyzika a nové technológie vo výskume.
-- Návody & Tipy: Praktické príručky, ako niečo nastaviť, tutoriály k softvéru alebo tipy na zvýšenie produktivity.
-- Newsletter: Len ak ide o zhrnutie viacerých správ alebo pravidelný týždenný prehľad.
+KATEGORIZÁCIA (Buď veľmi prísny a presný!):
+- Novinky SK/CZ: Akýkoľvek článok týkajúci sa Slovenska alebo Česka (domáce správy, SK/CZ politici, udalosti v regiónoch, lokálne firmy). TOTO MÁ ABSOLÚTNU PRIORITU.
+- Gaming: Všetko o videohrách, konzolách a hernom hardvéri.
+- Umelá Inteligencia: LEN články o VÝVOJI AI (nové modely, výskum, AI čipy). Ak je AI len malou súčasťou iného produktu, daj Tech.
+- Krypto: Bitcoin, blockchain, regulácie kryptomien.
+- Tech: Spotrebná elektronika, softvér, internetové služby a gadgety.
+- Biznis: Akcie, ekonomika, fúzie firiem, startupy.
+- Politika: Vládne témy, voľby, medzinárodná diplomacia a štátne záležitosti (mimo SR/ČR).
+- Svet: Zaujímavosti zo sveta, prírodné udalosti a témy bez politickému charakteru.
+- Veda: Vesmír, medicína a akademický výskum.
+- Návody & Tipy: "Ako urobiť...", tutoriály.
 
-DÔLEŽITÉ: Kategóriu vyberaj podľa obsahu, nie podľa zdroja. Napríklad článok o "PS Plus" musí ísť do Gaming, aj keď ho publikoval Tech server.
-
-ZADANIE:
-1. TITULOK: Prelož do údernej slovenčiny.
-2. ZHRNUTIE: Jedna pútavá veta v slovenčine.
-
-Vráť EXAKTNE JSON: {"title": "Slovenský titulok", "summary": "Slovenské zhrnutie...", "category": "Novinky SK/CZ | Umelá Inteligencia | Tech | Biznis | Krypto | Svet & Politika | Veda | Gaming | Návody & Tipy | Newsletter"}`
+Vráť EXAKTNE JSON: {"title": "Slovenský titulok", "summary": "Slovenské zhrnutie...", "category": "Novinky SK/CZ | Umelá Inteligencia | Tech | Biznis | Krypto | Svet | Politika | Veda | Gaming | Návody & Tipy"}`
                     },
                     { role: "user", content: `Pôvodný titulok: ${item.title}\nUkážka: ${item.contentSnippet.substring(0, 500)}\nOdporúčaná kategória podľa zdroja: ${item.groupHint}` }
                 ],
@@ -251,15 +249,13 @@ Vráť EXAKTNE JSON: {"title": "Slovenský titulok", "summary": "Slovenské zhrn
             const aiData = JSON.parse(completion.choices[0].message.content || "{}");
 
             // Final Category Match Validation
-            const validCategories = ["Novinky SK/CZ", "Umelá Inteligencia", "Tech", "Biznis", "Krypto", "Svet & Politika", "Veda", "Gaming", "Návody & Tipy", "Newsletter"];
+            const validCategories = ["Novinky SK/CZ", "Umelá Inteligencia", "Tech", "Biznis", "Krypto", "Svet", "Politika", "Veda", "Gaming", "Návody & Tipy", "Newsletter"];
             let assignedCategory = aiData.category || item.groupHint || "Tech";
 
             const lowerAssigned = assignedCategory.toLowerCase();
             const matchedCat = validCategories.find(c => {
                 const lowC = c.toLowerCase();
-                return lowerAssigned.includes(lowC) || lowC.includes(lowerAssigned) ||
-                    (lowerAssigned.includes('svet') && lowC.includes('svet')) ||
-                    (lowerAssigned.includes('politika') && lowC.includes('politika'));
+                return lowerAssigned.includes(lowC) || lowC.includes(lowerAssigned);
             });
 
             assignedCategory = matchedCat || item.groupHint || "Tech";
