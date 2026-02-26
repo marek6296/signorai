@@ -15,7 +15,7 @@ export default function PrivacyPage() {
                 <section className="space-y-4">
                     <h2 className="text-2xl font-bold text-foreground font-syne">1. Úvodné informácie</h2>
                     <p>
-                        Vaše súkromie je pre nás prioritou. Tento dokument vysvetľuje, ako POSTOVINKY ("my", "nás" alebo "portál") zhromažďujú, používajú a chránia vaše osobné údaje pri návšteve našej webovej stránky.
+                        Vaše súkromie je pre nás prioritou. Tento dokument vysvetľuje, ako POSTOVINKY ({'\"'}my{'\"'}, {'\"'}nás{'\"'} alebo {'\"'}portál{'\"'}) zhromažďujú, používajú a chránia vaše osobné údaje pri návšteve našej webovej stránky.
                     </p>
                 </section>
 
@@ -46,7 +46,7 @@ export default function PrivacyPage() {
                 <section className="space-y-4">
                     <h2 className="text-2xl font-bold text-foreground font-syne">4. Vaše práva</h2>
                     <p>
-                        V súlade s nariadením GDPR máte právo na prístup k svojim údajom, právo na opravu, vymazanie (právo na "zabudnutie") a právo kedykoľvek odvolať svoj súhlas so spracovaním.
+                        V súlade s nariadením GDPR máte právo na prístup k svojim údajom, právo na opravu, vymazanie (právo na {'\"'}zabudnutie{'\"'}) a právo kedykoľvek odvolať svoj súhlas so spracovaním.
                     </p>
                 </section>
 

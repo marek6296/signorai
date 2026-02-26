@@ -33,7 +33,7 @@ export default function AboutPage() {
                 <section className="p-8 rounded-2xl bg-muted/50 border border-border/50 space-y-4">
                     <h2 className="text-2xl font-bold text-foreground font-syne italic text-center">Naša vízia</h2>
                     <p className="text-center italic">
-                        "Veríme, že digitálna éra by mala patriť všetkým, ktorí sú zvedaví. Cieľom POSTOVINKY je byť mostom medzi komplexnou technológiou a koncovým čitateľom."
+                        {"\""}Veríme, že digitálna éra by mala patriť všetkým, ktorí sú zvedaví. Cieľom POSTOVINKY je byť mostom medzi komplexnou technológiou a koncovým čitateľom.{"\""}
                     </p>
                 </section>
 
