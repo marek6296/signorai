@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabase";
 import { Article } from "@/lib/data";
 import Link from "next/link";
-import { Edit, ArrowDown, Trash2, Sparkles, Plus, Globe, Search, CheckCircle2, XCircle, RefreshCw, Zap, Play, History, RotateCcw } from "lucide-react";
+import { Edit, ArrowDown, Trash2, Sparkles, Plus, Globe, Search, CheckCircle2, XCircle, RefreshCw, Zap, Play, History, RotateCcw, BarChart3, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ArticleCard } from "@/components/ArticleCard";
 import Image from "next/image";
@@ -44,9 +44,11 @@ export default function AdminPage() {
     const [loadingArticles, setLoadingArticles] = useState(true);
     const [loadingSuggestions, setLoadingSuggestions] = useState(false);
     const [autopilotSettings, setAutopilotSettings] = useState<AutopilotSettings>({ enabled: false, last_run: null, processed_count: 0 });
+    const [analytics, setAnalytics] = useState<{ totalVisits: number, topPages: { path: string, count: number }[], recentVisits: { path: string, created_at: string, referrer: string | null }[] }>({ totalVisits: 0, topPages: [], recentVisits: [] });
+    const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
     // Tab control
-    const [activeTab, setActiveTab] = useState<"create" | "manage" | "discovery">("manage");
+    const [activeTab, setActiveTab] = useState<"create" | "manage" | "discovery" | "analytics">("manage");
 
     // Authentication state
     const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -117,6 +119,44 @@ export default function AdminPage() {
         }
     };
 
+    const fetchAnalytics = async () => {
+        setLoadingAnalytics(true);
+        try {
+            const { count: totalCount } = await supabase
+                .from('site_visits')
+                .select('*', { count: 'exact', head: true });
+
+            const { data: pageData } = await supabase
+                .from('site_visits')
+                .select('path');
+
+            const counts: Record<string, number> = {};
+            pageData?.forEach(v => {
+                counts[v.path] = (counts[v.path] || 0) + 1;
+            });
+            const topPages = Object.entries(counts)
+                .map(([path, count]) => ({ path, count }))
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 10);
+
+            const { data: recentVisits } = await supabase
+                .from('site_visits')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(20);
+
+            setAnalytics({
+                totalVisits: totalCount || 0,
+                topPages,
+                recentVisits: recentVisits || []
+            });
+        } catch (err) {
+            console.error("Analytics fetch error:", err);
+        } finally {
+            setLoadingAnalytics(false);
+        }
+    };
+
     useEffect(() => {
         if (typeof window !== "undefined") {
             const loggedInUser = localStorage.getItem("admin_logged_in");
@@ -125,6 +165,7 @@ export default function AdminPage() {
                 fetchArticles();
                 fetchSuggestions();
                 fetchAutopilotSettings();
+                fetchAnalytics();
             }
         }
     }, []);
@@ -633,7 +674,8 @@ export default function AdminPage() {
                         {[
                             { id: "discovery", label: "Discovery", icon: Search, badge: suggestions.length },
                             { id: "create", label: "Tvorba", icon: Sparkles },
-                            { id: "manage", label: "Správa", icon: Edit }
+                            { id: "manage", label: "Správa", icon: Edit },
+                            { id: "analytics", label: "Navštevnosť", icon: BarChart3 }
                         ].map((tab) => {
                             const isActive = activeTab === tab.id;
                             return (
@@ -1170,6 +1212,62 @@ export default function AdminPage() {
                                             Zatiaľ žiadne články vonku
                                         </div>
                                     )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === "analytics" && (
+                    <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        {/* Summary Cards */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="bg-card border rounded-[32px] p-8 shadow-sm flex flex-col gap-2">
+                                <div className="flex items-center gap-3 text-muted-foreground mb-2">
+                                    <Users className="w-5 h-5 text-primary" />
+                                    <span className="text-[10px] font-black uppercase tracking-widest">Celkový počet videní</span>
+                                </div>
+                                <div className="text-4xl font-black">{analytics.totalVisits.toLocaleString('sk-SK')}</div>
+                            </div>
+                            <button
+                                onClick={fetchAnalytics}
+                                disabled={loadingAnalytics}
+                                className="md:col-span-1 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 rounded-[32px] p-8 flex flex-col items-center justify-center gap-2 transition-all group"
+                            >
+                                <RefreshCw className={cn("w-8 h-8", loadingAnalytics && "animate-spin")} />
+                                <span className="text-[10px] font-black uppercase tracking-widest">Obnoviť dáta</span>
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                            {/* Top Pages Table */}
+                            <div className="bg-card border rounded-[40px] p-10 shadow-sm">
+                                <h3 className="text-xl font-black uppercase tracking-tight mb-8">Najčítanejšie stránky</h3>
+                                <div className="space-y-4">
+                                    {analytics.topPages.map((page, idx) => (
+                                        <div key={idx} className="flex items-center justify-between p-4 bg-muted/30 rounded-2xl border border-border/50">
+                                            <span className="text-sm font-bold truncate max-w-[200px] md:max-w-md">{page.path === '/' ? 'Domovská stránka' : page.path}</span>
+                                            <span className="bg-primary/10 text-primary px-3 py-1 rounded-lg text-[10px] font-black">{page.count} videní</span>
+                                        </div>
+                                    ))}
+                                    {analytics.topPages.length === 0 && <p className="text-center text-muted-foreground py-10 font-medium">Zatiaľ žiadne dáta o návštevách.</p>}
+                                </div>
+                            </div>
+
+                            {/* Recent Activity */}
+                            <div className="bg-card border rounded-[40px] p-10 shadow-sm">
+                                <h3 className="text-xl font-black uppercase tracking-tight mb-8">Posledná aktivita</h3>
+                                <div className="space-y-4 overflow-y-auto max-h-[500px] pr-2">
+                                    {analytics.recentVisits.map((visit, idx) => (
+                                        <div key={idx} className="flex flex-col gap-1 p-4 bg-muted/20 rounded-2xl border border-border/40 text-[10px]">
+                                            <div className="flex justify-between font-black uppercase tracking-widest text-muted-foreground mb-1">
+                                                <span className="text-primary">{visit.path}</span>
+                                                <span>{new Date(visit.created_at).toLocaleString('sk-SK')}</span>
+                                            </div>
+                                            <div className="text-muted-foreground truncate opacity-60">Ref: {visit.referrer || 'Priamy prístup'}</div>
+                                        </div>
+                                    ))}
+                                    {analytics.recentVisits.length === 0 && <p className="text-center text-muted-foreground py-10 font-medium">Zatiaľ žiadne dáta o návštevách.</p>}
                                 </div>
                             </div>
                         </div>
