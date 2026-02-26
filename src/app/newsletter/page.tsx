@@ -12,11 +12,25 @@ export default function NewsletterPage() {
         e.preventDefault();
         setStatus("loading");
 
-        // Simulating API call
-        setTimeout(() => {
+        try {
+            const res = await fetch("/api/newsletter/subscribe", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email })
+            });
+
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.message || "Chyba pri prihlasovaní");
+            }
+
             setStatus("success");
             setEmail("");
-        }, 1500);
+        } catch (error) {
+            console.error("Subscription error:", error);
+            alert(error instanceof Error ? error.message : "Chyba pri prihlasovaní. Skúste to neskôr.");
+            setStatus("idle");
+        }
     };
 
     return (
