@@ -617,19 +617,19 @@ export default function AdminPage() {
         <>
             <div className="container mx-auto px-4 py-12 max-w-5xl flex-grow">
                 {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12 bg-card border p-8 rounded-3xl shadow-sm ring-1 ring-border/50">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 md:mb-12 bg-card border p-6 md:p-8 rounded-2xl md:rounded-3xl shadow-sm ring-1 ring-border/50">
                     <div>
-                        <h1 className="text-4xl font-black mb-2 uppercase tracking-tight">Redakčný Systém</h1>
-                        <p className="text-muted-foreground font-medium">Správa obsahu a generovanie noviniek pomocou AI</p>
+                        <h1 className="text-2xl md:text-4xl font-black mb-1 md:mb-2 uppercase tracking-tight">Redakčný Systém</h1>
+                        <p className="text-sm md:text-base text-muted-foreground font-medium">Správa obsahu a generovanie noviniek pomocou AI</p>
                     </div>
-                    <button onClick={handleLogout} className="text-sm font-black text-muted-foreground hover:text-red-500 uppercase tracking-widest transition-colors flex items-center gap-2">
+                    <button onClick={handleLogout} className="text-[10px] md:text-sm font-black text-muted-foreground hover:text-red-500 uppercase tracking-widest transition-colors flex items-center gap-2 w-fit">
                         Odhlásiť sa <XCircle className="w-4 h-4" />
                     </button>
                 </div>
 
                 {/* Premium Admin Tabs */}
-                <div className="flex items-center justify-center mb-12">
-                    <div className="flex p-1.5 bg-muted/30 rounded-[28px] border border-border/40 backdrop-blur-md shadow-inner">
+                <div className="flex items-center justify-center mb-10 md:mb-12">
+                    <div className="flex w-full md:w-fit p-1 md:p-1.5 bg-muted/30 rounded-2xl md:rounded-[28px] border border-border/40 backdrop-blur-md shadow-inner overflow-x-auto no-scrollbar">
                         {[
                             { id: "discovery", label: "Discovery", icon: Search, badge: suggestions.length },
                             { id: "create", label: "Tvorba", icon: Sparkles },
@@ -641,18 +641,18 @@ export default function AdminPage() {
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id as "create" | "manage" | "discovery")}
                                     className={cn(
-                                        "relative px-10 py-4 flex items-center gap-3 rounded-[22px] font-black text-xs uppercase tracking-[0.1em] transition-all duration-500 overflow-hidden group",
+                                        "relative flex-1 md:flex-none px-4 md:px-10 py-3 md:py-4 flex items-center justify-center gap-2 md:gap-3 rounded-xl md:rounded-[22px] font-black text-[10px] md:text-xs uppercase tracking-[0.1em] transition-all duration-500 overflow-hidden group min-w-fit",
                                         isActive
-                                            ? "bg-foreground text-background shadow-2xl scale-[1.05] z-10 shadow-black/20"
+                                            ? "bg-foreground text-background shadow-lg md:shadow-2xl md:scale-[1.05] z-10 shadow-black/20"
                                             : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                                     )}
                                 >
-                                    <tab.icon className={cn("w-4 h-4 transition-transform duration-500", isActive && "scale-110")} />
-                                    <span>{tab.label}</span>
+                                    <tab.icon className={cn("w-3.5 h-3.5 md:w-4 h-4 transition-transform duration-500", isActive && "scale-110")} />
+                                    <span className="whitespace-nowrap">{tab.label}</span>
 
                                     {tab.badge !== undefined && tab.badge > 0 && (
                                         <span className={cn(
-                                            "ml-1 text-[9px] px-2 py-0.5 rounded-full font-black",
+                                            "ml-1 text-[8px] md:text-[9px] px-1.5 md:px-2 py-0.5 rounded-full font-black",
                                             isActive ? "bg-background text-foreground" : "bg-primary text-primary-foreground"
                                         )}>
                                             {tab.badge}
