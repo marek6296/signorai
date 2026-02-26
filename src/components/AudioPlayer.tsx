@@ -71,9 +71,10 @@ export function AudioPlayer({ text, title }: AudioPlayerProps) {
                 });
                 setIsPlaying(true);
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("Audio generation failed:", error);
-            alert(`Chyba: ${error.message}`);
+            const errorMessage = error instanceof Error ? error.message : "Neznáma chyba";
+            alert(`Chyba: ${errorMessage}`);
         } finally {
             setIsLoading(false);
         }
