@@ -99,11 +99,14 @@ export function InstagramPreview({ title }: InstagramPreviewProps) {
                         <div className="absolute inset-0 border-[40px] border-primary/20 z-0" />
                         <div className="absolute inset-10 border-[2px] border-primary/40 z-0" />
 
-                        {/* Top Logo */}
-                        <div className="absolute top-[120px] left-0 right-0 text-center z-10">
-                            <div className="text-[42px] font-black tracking-[0.5em] text-white/40 uppercase">
-                                Postovinky
-                            </div>
+                        {/* Top Logo - Matched to Header */}
+                        <div className="absolute top-[120px] left-0 right-0 flex items-baseline justify-center gap-3 z-10">
+                            <span className="font-syne font-extrabold text-[56px] tracking-tighter uppercase text-white">
+                                POSTOVINKY
+                            </span>
+                            <span className="text-primary font-black text-[16px] uppercase tracking-[0.3em] opacity-80 translate-y-[-4px]">
+                                News
+                            </span>
                         </div>
 
                         {/* Centered Content */}
