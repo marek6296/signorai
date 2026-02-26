@@ -38,6 +38,10 @@ export function AudioPlayer({ text, title }: AudioPlayerProps) {
 
         // Generate audio if not already generated
         setIsLoading(true);
+        // Prime the audio element while still in the user gesture stack frame
+        if (audioRef.current) {
+            audioRef.current.load();
+        }
         try {
             const response = await fetch("/api/tts", {
                 method: "POST",
@@ -48,7 +52,8 @@ export function AudioPlayer({ text, title }: AudioPlayerProps) {
             });
 
             if (!response.ok) {
-                throw new Error("Nepodarilo sa vygenerovať zvuk.");
+                const errorData = await response.json();
+                throw new Error(errorData.error || "Nepodarilo sa vygenerovať zvuk.");
             }
 
             const blob = await response.blob();
@@ -57,12 +62,18 @@ export function AudioPlayer({ text, title }: AudioPlayerProps) {
 
             if (audioRef.current) {
                 audioRef.current.src = url;
-                audioRef.current.play();
+                // Browsers often block .play() after an async fetch if the gesture is considered "stale"
+                audioRef.current.play().catch(err => {
+                    console.warn("Autoplay/Play blocked, trying alternative...", err);
+                    // If it's a NotAllowedError, we can't do much automatically, 
+                    // but we can update the UI so the user can click again (now that we have the URL)
+                    setIsPlaying(false);
+                });
                 setIsPlaying(true);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Audio generation failed:", error);
-            alert("Chyba pri generovaní zvuku. Skontrolujte nastavenia ElevenLabs.");
+            alert(`Chyba: ${error.message}`);
         } finally {
             setIsLoading(false);
         }
