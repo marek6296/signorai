@@ -91,7 +91,7 @@ Tvoj výstup musí byť VŽDY EXAKTNE VO FORMÁTE JSON:
     "slug": "url-friendly-nazov-bez-diakritiky-a-medzier",
     "excerpt": "Perex: 1 až 2 veľmi pútavé odseky.",
     "content": "Samotný dlhý článok v HTML s <p>, <strong>, <h2>, <h3> a pôvodnými <img>.",
-    "ai_summary": "Extrémne stručné a super-moderné zhrnutie (max. 2 vety).",
+    "ai_summary": "Pútavé a výstižné zhrnutie článku (3 až 5 viet), ktoré slúži ako audio upútavka pre čitateľa.",
     "category": "JEDNA Z TÝCHTO: Novinky SK/CZ, Umelá Inteligencia, Tech, Biznis, Krypto, Svet, Politika, Veda, Gaming, Návody & Tipy, Newsletter"
 }
 Nikdy nevracaj žiadnu inú kategóriu. AI dávaj len ak je to jadro správy. Pred odoslaním si v duchu skontroluj, či sa v nadpise zhoduje podstatné meno s prídavným menom v správnom rode a páde.`;

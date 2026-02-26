@@ -145,10 +145,10 @@ export default async function ArticlePage({ params, searchParams }: Props) {
                         </p>
                     </header>
 
-                    {/* Audio Player */}
+                    {/* Audio Player (Reading only summary for efficiency) */}
                     <AudioPlayer
                         title={article.title}
-                        text={`${article.title}. ${article.excerpt}. ${article.content.replace(/<\/p>| <\/h2>|<\/h3>/g, ". ").replace(/<[^>]*>/g, "")}`}
+                        text={`${article.title}. ${article.ai_summary ? `Zhrnutie článku: ${article.ai_summary}` : article.excerpt}`}
                     />
 
                     <figure className="relative aspect-video w-full rounded-2xl overflow-hidden mb-12 border bg-muted">
