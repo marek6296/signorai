@@ -10,8 +10,13 @@ export async function GET() {
     return NextResponse.json({ message: "This endpoint only accepts POST requests (Article Generation)." }, { status: 405 });
 }
 
+interface GenerateArticleRequest {
+    url?: string;
+    secret?: string;
+}
+
 export async function POST(request: NextRequest) {
-    let body: any;
+    let body: GenerateArticleRequest;
     try {
         body = await request.json();
     } catch {
