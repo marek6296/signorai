@@ -111,9 +111,9 @@ export function InstagramPreview({ title }: InstagramPreviewProps) {
 
                         {/* Centered Content */}
                         <div className="relative z-10 text-center max-w-[850px]">
-                            {/* Blurred Logo Background - Using black.png as requested */}
-                            <div className="absolute inset-0 -top-40 -bottom-40 flex items-center justify-center opacity-[0.2] blur-[10px] -z-10 select-none pointer-events-none">
-                                <img src="/logo/black.png" alt="" className="w-[850px] h-[850px] object-contain" />
+                            {/* Blurred Logo Background - Drastically larger */}
+                            <div className="absolute inset-0 flex items-center justify-center opacity-[0.25] blur-[15px] -z-10 select-none pointer-events-none">
+                                <img src="/logo/black.png" alt="" className="w-[1400px] h-[1400px] object-contain scale-[1.5]" />
                             </div>
 
                             <div className="w-32 h-1.5 bg-primary mb-16 mx-auto rounded-full" />
