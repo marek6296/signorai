@@ -95,6 +95,10 @@ export function InstagramPreview({ title }: InstagramPreviewProps) {
                         ref={previewRef}
                         className="w-[1080px] h-[1080px] bg-black relative flex items-center justify-center p-20 overflow-hidden"
                     >
+                        {/* Background Logo Layer - Covers full area */}
+                        <div className="absolute inset-0 flex items-center justify-center opacity-[0.25] blur-[20px] z-0 select-none pointer-events-none">
+                            <img src="/logo/black.png" alt="" className="w-full h-full object-contain scale-[1.4]" />
+                        </div>
                         {/* Corner Accents */}
                         <div className="absolute top-[60px] left-[60px] w-32 h-32 border-t-[8px] border-l-[8px] border-primary z-10" />
                         <div className="absolute bottom-[60px] right-[60px] w-32 h-32 border-b-[8px] border-r-[8px] border-primary z-10" />
@@ -111,10 +115,6 @@ export function InstagramPreview({ title }: InstagramPreviewProps) {
 
                         {/* Centered Content */}
                         <div className="relative z-10 text-center max-w-[850px]">
-                            {/* Blurred Logo Background - Balanced middle ground */}
-                            <div className="absolute inset-0 flex items-center justify-center opacity-[0.2] blur-[15px] -z-10 select-none pointer-events-none">
-                                <img src="/logo/black.png" alt="" className="w-[1400px] h-[1400px] object-contain scale-[1.7]" />
-                            </div>
 
                             <div className="w-32 h-1.5 bg-primary mb-16 mx-auto rounded-full" />
                             <h2 className="text-[70px] font-black leading-[1.1] text-white uppercase tracking-tighter">
