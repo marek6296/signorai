@@ -53,8 +53,8 @@ export default function AdminPage() {
 
     // Social Tab State
     const [socialSelectedArticles, setSocialSelectedArticles] = useState<string[]>([]);
-    const [socialPlatform, setSocialPlatform] = useState<"Facebook" | "Instagram" | "X">("Instagram");
-    const [socialResults, setSocialResults] = useState<Record<string, string>>({});
+    const [socialPlatforms, setSocialPlatforms] = useState<("Facebook" | "Instagram" | "X")[]>(["Instagram"]);
+    const [socialResults, setSocialResults] = useState<Record<string, Record<string, string>>>({});
     const [isGeneratingSocial, setIsGeneratingSocial] = useState(false);
 
     // Authentication state
@@ -133,28 +133,32 @@ export default function AdminPage() {
         setMessage("Generujem príspevky...");
 
         try {
-            const results: Record<string, string> = {};
+            const results: Record<string, Record<string, string>> = { ...socialResults };
             for (const articleId of socialSelectedArticles) {
                 const article = articles.find(a => a.id === articleId);
                 if (!article) continue;
 
-                const res = await fetch("/api/admin/generate-social-post", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        title: article.title,
-                        excerpt: article.excerpt,
-                        url: `https://postovinky.news/article/${article.slug}`,
-                        platform: socialPlatform
-                    })
-                });
+                if (!results[articleId]) results[articleId] = {};
 
-                if (res.ok) {
-                    const data = await res.json();
-                    results[articleId] = data.socialPost;
+                for (const platform of socialPlatforms) {
+                    const res = await fetch("/api/admin/generate-social-post", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            title: article.title,
+                            excerpt: article.excerpt,
+                            url: `https://postovinky.news/article/${article.slug}`,
+                            platform: platform
+                        })
+                    });
+
+                    if (res.ok) {
+                        const data = await res.json();
+                        results[articleId][platform] = data.socialPost;
+                    }
                 }
             }
-            setSocialResults(prev => ({ ...prev, ...results }));
+            setSocialResults(results);
             setStatus("success");
             setMessage("Príspevky vygenerované!");
         } catch (err) {
@@ -1357,21 +1361,30 @@ export default function AdminPage() {
                                     { id: "Instagram", icon: Instagram, color: "text-pink-500" },
                                     { id: "Facebook", icon: Facebook, color: "text-blue-600" },
                                     { id: "X", icon: Twitter, color: "text-foreground" }
-                                ].map((p) => (
-                                    <button
-                                        key={p.id}
-                                        onClick={() => setSocialPlatform(p.id as "Facebook" | "Instagram" | "X")}
-                                        className={cn(
-                                            "flex items-center justify-center gap-4 p-6 rounded-[24px] border-2 transition-all font-black uppercase tracking-widest text-sm",
-                                            socialPlatform === p.id
-                                                ? "bg-foreground text-background border-foreground shadow-xl scale-[1.02]"
-                                                : "bg-background border-border/50 text-muted-foreground hover:border-primary/30"
-                                        )}
-                                    >
-                                        <p.icon className={cn("w-6 h-6", socialPlatform === p.id ? "text-background" : p.color)} />
-                                        {p.id}
-                                    </button>
-                                ))}
+                                ].map((p) => {
+                                    const isSelected = socialPlatforms.includes(p.id as any);
+                                    return (
+                                        <button
+                                            key={p.id}
+                                            onClick={() => {
+                                                setSocialPlatforms(prev =>
+                                                    isSelected
+                                                        ? prev.filter(id => id !== p.id)
+                                                        : [...prev, p.id as any]
+                                                );
+                                            }}
+                                            className={cn(
+                                                "flex items-center justify-center gap-4 p-6 rounded-[24px] border-2 transition-all font-black uppercase tracking-widest text-sm",
+                                                isSelected
+                                                    ? "bg-foreground text-background border-foreground shadow-xl scale-[1.02]"
+                                                    : "bg-background border-border/50 text-muted-foreground hover:border-primary/30"
+                                            )}
+                                        >
+                                            <p.icon className={cn("w-6 h-6", isSelected ? "text-background" : p.color)} />
+                                            {p.id}
+                                        </button>
+                                    );
+                                })}
                             </div>
 
                             <button
@@ -1458,32 +1471,47 @@ export default function AdminPage() {
 
                                     return (
                                         <div key={articleId} className="bg-card border rounded-[32px] p-8 shadow-md ring-1 ring-border/50 animate-in fade-in slide-in-from-right-4">
-                                            <div className="flex items-center justify-between mb-6">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-1.5 h-6 bg-primary rounded-full"></div>
-                                                    <p className="font-black uppercase text-xs tracking-wider line-clamp-1">{article.title}</p>
-                                                </div>
-                                                {result && (
-                                                    <button
-                                                        onClick={() => copyToClipboard(result)}
-                                                        className="p-3 bg-muted hover:bg-primary/10 hover:text-primary rounded-xl transition-all"
-                                                        title="Kopírovať text"
-                                                    >
-                                                        <Copy className="w-5 h-5" />
-                                                    </button>
-                                                )}
+                                            <div className="space-y-6">
+                                                {socialPlatforms.map((platform) => {
+                                                    const platformResult = result?.[platform];
+                                                    return (
+                                                        <div key={platform} className="animate-in fade-in slide-in-from-bottom-2">
+                                                            <div className="flex items-center justify-between mb-3 px-2">
+                                                                <div className="flex items-center gap-2">
+                                                                    {platform === "Instagram" && <Instagram className="w-3.5 h-3.5 text-pink-500" />}
+                                                                    {platform === "Facebook" && <Facebook className="w-3.5 h-3.5 text-blue-600" />}
+                                                                    {platform === "X" && <Twitter className="w-3.5 h-3.5" />}
+                                                                    <span className="text-[10px] font-black uppercase tracking-widest">{platform} príspevok</span>
+                                                                </div>
+                                                                {platformResult && (
+                                                                    <button
+                                                                        onClick={() => copyToClipboard(platformResult)}
+                                                                        className="flex items-center gap-2 px-3 py-1 bg-muted hover:bg-primary/20 hover:text-primary rounded-lg transition-all text-[9px] font-black uppercase tracking-wider"
+                                                                    >
+                                                                        <Copy className="w-3 h-3" />
+                                                                        Kopírovať
+                                                                    </button>
+                                                                )}
+                                                            </div>
+
+                                                            {platformResult ? (
+                                                                <div className="bg-muted/30 rounded-2xl p-6 relative group">
+                                                                    <div className="whitespace-pre-wrap text-sm leading-relaxed font-medium">
+                                                                        {platformResult}
+                                                                    </div>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="bg-muted/10 rounded-2xl p-8 text-center text-[9px] font-black uppercase tracking-widest text-muted-foreground italic">
+                                                                    {isGeneratingSocial ? "AI pripravuje..." : "Čaká na vygenerovanie"}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
 
-                                            {result ? (
-                                                <div className="bg-muted/30 rounded-2xl p-6 relative group mb-8">
-                                                    <div className="whitespace-pre-wrap text-sm leading-relaxed font-medium">
-                                                        {result}
-                                                    </div>
-                                                </div>
-                                            ) : null}
-
                                             {/* Image Generator Preview */}
-                                            <div className="mt-4 pt-8 border-t border-border/50">
+                                            <div className="mt-8 pt-8 border-t border-border/50">
                                                 <InstagramPreview title={article.title} />
                                             </div>
                                         </div>
