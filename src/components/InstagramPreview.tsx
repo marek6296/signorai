@@ -111,6 +111,11 @@ export function InstagramPreview({ title }: InstagramPreviewProps) {
 
                         {/* Centered Content */}
                         <div className="relative z-10 text-center max-w-[850px]">
+                            {/* Blurred Logo Background */}
+                            <div className="absolute inset-0 -top-20 -bottom-20 flex items-center justify-center opacity-[0.07] blur-[15px] -z-10 select-none pointer-events-none">
+                                <img src="/logo/black.png" alt="" className="w-[600px] h-[600px] object-contain invert" />
+                            </div>
+
                             <div className="w-32 h-1.5 bg-primary mb-16 mx-auto rounded-full" />
                             <h2 className="text-[70px] font-black leading-[1.1] text-white uppercase tracking-tighter">
                                 {title}
