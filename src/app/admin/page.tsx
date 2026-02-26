@@ -323,26 +323,7 @@ export default function AdminPage() {
         fetchSuggestions();
     };
 
-    const handleToggleAutopilot = async () => {
-        const newState = !autopilotSettings.enabled;
-        const newSettings = { ...autopilotSettings, enabled: newState };
-
-        setAutopilotSettings(newSettings); // Optimistic update
-
-        const { error } = await supabase
-            .from('site_settings')
-            .update({ value: newSettings })
-            .eq('key', 'auto_pilot');
-
-        if (error) {
-            alert("Chyba pri ukladaní nastavení");
-            setAutopilotSettings(autopilotSettings); // Rollback
-        }
-    };
-
-    const handleRunAutopilotNow = async () => {
-        if (!confirm("Spustiť AI Autopilota teraz? Spracuje jeden článok z každej kategórie a rovno ho PUBLIKUJE.")) return;
-
+    const executeAutopilotRun = async () => {
         setStatus("loading");
         setMessage("Autopilot pracuje...");
 
@@ -364,6 +345,29 @@ export default function AdminPage() {
         } catch (error: unknown) {
             setStatus("error");
             setMessage(error instanceof Error ? error.message : "Chyba Autopilota");
+        }
+    };
+
+    const handleToggleAutopilot = async () => {
+        const newState = !autopilotSettings.enabled;
+
+        if (newState) {
+            // Turning ON triggers the batch run
+            await executeAutopilotRun();
+        } else {
+            // Turning OFF just updates the state
+            const newSettings = { ...autopilotSettings, enabled: false };
+            setAutopilotSettings(newSettings);
+            await supabase
+                .from('site_settings')
+                .update({ value: newSettings })
+                .eq('key', 'auto_pilot');
+        }
+    };
+
+    const handleRunAutopilotNow = async () => {
+        if (confirm("Spustiť AI Autopilota teraz? Spracuje jeden článok z každej kategórie a publikuje ich.")) {
+            await executeAutopilotRun();
         }
     };
 
@@ -579,6 +583,7 @@ export default function AdminPage() {
                             <div className="flex flex-col gap-4 min-w-[240px]">
                                 <button
                                     onClick={handleToggleAutopilot}
+                                    disabled={status === "loading"}
                                     className={cn(
                                         "w-full py-5 rounded-2xl font-black uppercase tracking-[0.2em] text-xs transition-all flex items-center justify-center gap-3 shadow-xl",
                                         autopilotSettings.enabled

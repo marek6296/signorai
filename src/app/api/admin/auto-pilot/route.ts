@@ -34,6 +34,13 @@ export async function POST(request: NextRequest) {
         }
 
         if (!suggestions || suggestions.length === 0) {
+            // Even if no suggestions, we should turn off the autopilot if it was "on" for a run
+            const newValue = {
+                ...settings.value,
+                enabled: false,
+                last_run: new Date().toISOString()
+            };
+            await supabase.from('site_settings').update({ value: newValue }).eq('key', 'auto_pilot');
             return NextResponse.json({ message: "No pending suggestions found", count: 0 });
         }
 
@@ -48,25 +55,19 @@ export async function POST(request: NextRequest) {
 
         const itemsToProcess = Array.from(categoriesMap.values());
 
-        // 5. Process articles in parallel to avoid timeouts
+        // 5. Process articles in parallel
         const results = await Promise.allSettled(itemsToProcess.map(async (item) => {
-            // Process and publish immediately
             const article = await processArticleFromUrl(item.url, 'published');
-
-            // Mark suggestion as processed
-            await supabase
-                .from('suggested_news')
-                .update({ status: 'processed' })
-                .eq('id', item.id);
-
+            await supabase.from('suggested_news').update({ status: 'processed' }).eq('id', item.id);
             return article;
         }));
 
         const successCount = results.filter(r => r.status === 'fulfilled').length;
 
-        // 6. Update stats in site_settings
+        // 6. Update stats and DISABLE autopilot (as per user request: "potom sa to vypne")
         const newValue = {
             ...settings.value,
+            enabled: false, // Turn off after processing
             last_run: new Date().toISOString(),
             processed_count: (settings.value.processed_count || 0) + successCount
         };
@@ -78,9 +79,8 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({
             success: true,
-            message: `Autopilot complete. Processed ${successCount} articles.`,
-            count: successCount,
-            details: results.map(r => r.status === 'fulfilled' ? 'Success' : `Error: ${(r as PromiseRejectedResult).reason?.message || 'Unknown error'}`)
+            message: `Autopilot dokončený. Spracovaných ${successCount} článkov. Autopilot bol následne vypnutý.`,
+            count: successCount
         });
 
     } catch (error: unknown) {
