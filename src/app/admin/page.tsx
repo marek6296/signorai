@@ -44,7 +44,7 @@ export default function AdminPage() {
     const [loadingArticles, setLoadingArticles] = useState(true);
     const [loadingSuggestions, setLoadingSuggestions] = useState(false);
     const [autopilotSettings, setAutopilotSettings] = useState<AutopilotSettings>({ enabled: false, last_run: null, processed_count: 0 });
-    const [analytics, setAnalytics] = useState<{ totalVisits: number, topPages: { path: string, count: number }[], recentVisits: { path: string, created_at: string, referrer: string | null }[] }>({ totalVisits: 0, topPages: [], recentVisits: [] });
+    const [analytics, setAnalytics] = useState<{ totalVisits: number, uniqueVisitors: number, topPages: { path: string, count: number }[], recentVisits: { path: string, created_at: string, referrer: string | null }[] }>({ totalVisits: 0, uniqueVisitors: 0, topPages: [], recentVisits: [] });
     const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
     // Tab control
@@ -145,8 +145,16 @@ export default function AdminPage() {
                 .order('created_at', { ascending: false })
                 .limit(20);
 
+            // Get all unique visitor_ids
+            const { data: visitorData } = await supabase
+                .from('site_visits')
+                .select('visitor_id');
+
+            const uniqueVisitors = new Set(visitorData?.map(v => v.visitor_id).filter(Boolean)).size;
+
             setAnalytics({
                 totalVisits: totalCount || 0,
+                uniqueVisitors,
                 topPages,
                 recentVisits: recentVisits || []
             });
@@ -1228,6 +1236,13 @@ export default function AdminPage() {
                                     <span className="text-[10px] font-black uppercase tracking-widest">Celkový počet videní</span>
                                 </div>
                                 <div className="text-4xl font-black">{analytics.totalVisits.toLocaleString('sk-SK')}</div>
+                            </div>
+                            <div className="bg-card border rounded-[32px] p-8 shadow-sm flex flex-col gap-2">
+                                <div className="flex items-center gap-3 text-muted-foreground mb-2">
+                                    <Sparkles className="w-5 h-5 text-primary" />
+                                    <span className="text-[10px] font-black uppercase tracking-widest">Unikátni návštevníci</span>
+                                </div>
+                                <div className="text-4xl font-black">{analytics.uniqueVisitors.toLocaleString('sk-SK')}</div>
                             </div>
                             <button
                                 onClick={fetchAnalytics}
