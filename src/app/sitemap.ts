@@ -26,13 +26,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.8,
     }));
 
-    const articles = await getAllArticlesForSitemap();
-    const articlePages: MetadataRoute.Sitemap = articles.map((article) => ({
-        url: `${baseUrl}/article/${article.slug}`,
-        lastModified: new Date(article.published_at),
-        changeFrequency: 'weekly' as const,
-        priority: 0.7,
-    }));
+    let articlePages: MetadataRoute.Sitemap = [];
+    try {
+        const articles = await getAllArticlesForSitemap();
+        articlePages = (articles ?? []).map((article: { slug: string; published_at: string }) => ({
+            url: `${baseUrl}/article/${article.slug}`,
+            lastModified: new Date(article.published_at),
+            changeFrequency: 'weekly' as const,
+            priority: 0.7,
+        }));
+    } catch {
+        // Pri chybe (napr. chýbajúce Supabase env) vráť aspoň statické stránky
+    }
 
     return [...staticPages, ...categoryPages, ...articlePages];
 }
