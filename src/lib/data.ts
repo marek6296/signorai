@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { unstable_noStore as noStore } from 'next/cache';
 
 export interface Article {
     id: string;
@@ -28,6 +29,7 @@ export const CATEGORY_MAP: Record<string, string> = {
 };
 
 export async function getLatestArticle(): Promise<Article | null> {
+    noStore();
     const { data, error } = await supabase
         .from('articles')
         .select('*')
@@ -44,6 +46,7 @@ export async function getLatestArticle(): Promise<Article | null> {
 }
 
 export async function getRecentArticles(excludeId?: string): Promise<Article[]> {
+    noStore();
     let query = supabase
         .from('articles')
         .select('*')
@@ -65,6 +68,7 @@ export async function getRecentArticles(excludeId?: string): Promise<Article[]> 
 }
 
 export async function getArticleBySlug(slug: string, includeDrafts: boolean = false): Promise<Article | null> {
+    noStore();
     let query = supabase
         .from('articles')
         .select('*')
@@ -84,6 +88,7 @@ export async function getArticleBySlug(slug: string, includeDrafts: boolean = fa
 }
 
 export async function getArticlesByCategory(slug: string): Promise<Article[]> {
+    noStore();
     const dbCategoryName = CATEGORY_MAP[slug.toLowerCase()] || (slug.charAt(0).toUpperCase() + slug.slice(1).toLowerCase());
 
     const { data, error } = await supabase
