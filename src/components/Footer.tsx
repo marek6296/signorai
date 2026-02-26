@@ -7,7 +7,7 @@ export function Footer() {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                     <div className="space-y-4">
                         <span className="font-black text-3xl md:text-4xl tracking-widest uppercase">
-                            SIGNORAI
+                            POSTOVINKY
                         </span>
                         <p className="text-sm text-muted-foreground">
                             Váš prémiový zdroj pre najnovšie správy zo sveta technologického pokroku a umelej inteligencie.
@@ -42,7 +42,7 @@ export function Footer() {
                     </div>
                 </div>
                 <div className="mt-12 pt-8 border-t text-center text-sm text-muted-foreground">
-                    <p>© {new Date().getFullYear()} SIGNORAI. Všetky práva vyhradené.</p>
+                    <p>© {new Date().getFullYear()} POSTOVINKY. Všetky práva vyhradené.</p>
                 </div>
             </div>
         </footer>

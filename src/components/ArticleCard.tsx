@@ -33,7 +33,7 @@ export function ArticleCard({ article, featured = false }: ArticleCardProps) {
             </div>
 
             {/* Category Badge - Top Left */}
-            <div className="absolute top-6 left-6 z-20">
+            <div className="absolute top-4 left-6 z-20">
                 <span className="inline-flex items-center rounded-full bg-black/60 backdrop-blur-md border border-white/20 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-2xl">
                     {article.category}
                 </span>
@@ -41,16 +41,16 @@ export function ArticleCard({ article, featured = false }: ArticleCardProps) {
 
             {/* Content Overlay - Glassmorphism at Bottom */}
             <div className="mt-auto relative z-10 w-full p-2">
-                <div className="bg-black/40 backdrop-blur-2xl border border-white/10 rounded-[1.5rem] p-6 md:p-8 transition-transform duration-500 group-hover:-translate-y-2 flex flex-col items-start text-left">
-                    <div className="flex flex-col gap-3 items-start">
-                        <time className="text-[10px] md:text-xs font-bold text-white/50 uppercase tracking-widest">
+                <div className="bg-black/40 backdrop-blur-2xl border border-white/10 rounded-[1.5rem] p-4 md:p-5 transition-transform duration-500 group-hover:-translate-y-2 flex flex-col items-start text-left">
+                    <div className="flex flex-col gap-1.5 md:gap-2 items-start">
+                        <time className="text-[9px] md:text-[10px] font-bold text-white/50 uppercase tracking-widest">
                             {publishDate}
                         </time>
-                        <h2 className={`font-black tracking-tight text-white leading-tight group-hover:text-primary transition-colors ${featured ? 'text-2xl md:text-4xl' : 'text-xl md:text-2xl'
+                        <h2 className={`font-black tracking-tight text-white leading-tight group-hover:text-primary transition-colors ${featured ? 'text-xl md:text-3xl' : 'text-lg md:text-xl'
                             }`}>
                             {article.title}
                         </h2>
-                        <p className="text-sm md:text-base text-zinc-300/90 line-clamp-2 md:line-clamp-3 leading-relaxed font-medium">
+                        <p className="text-xs md:text-sm text-zinc-300/90 line-clamp-2 leading-relaxed font-medium">
                             {article.ai_summary || article.excerpt}
                         </p>
                     </div>

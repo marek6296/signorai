@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
         }
 
         // 3. Generate article with OpenAI
-        const promptSystem = `Si šéfredaktor a špičkový copywriter pre prestížny magazín o umelej inteligencii SignorAI na Slovensku. Bude ti zadaný zdrojový text z nejakého webu.
+        const promptSystem = `Si šéfredaktor a špičkový copywriter pre prestížny magazín o umelej inteligencii Postovinky na Slovensku. Bude ti zadaný zdrojový text z nejakého webu.
 Tvojou úlohou je napísať z neho prémiový, pútavý a odborne presný článok v STOPERCENTNEJ a PRIRODZENEJ SLOVENČINE.
 
 ZÁVÄZNÉ PRAVIDLÁ PRE KVALITU TEXTU:
@@ -63,7 +63,7 @@ Tvoj výstup musí byť VŽDY EXAKTNE VO FORMÁTE JSON, ktorý obsahuje nasledov
     "excerpt": "Perex: 1 až 2 veľmi pútavé odseky, ktoré čitateľa vtiahnu do deja alebo vysvetlia podstatu článku (v slovenčine).",
     "content": "Samotný dlhý článok v dokonalej slovenčine naformátovaný v HTML. Používaj <p> pre odseky, <strong> pre dôležité výrazy, a <h2> / <h3> pre podnadpisy. OBZVLÁŠŤ DÔLEŽITÉ: Musíš zachovať všetky <img> tagy z pôvodu!",
     "ai_summary": "Extrémne stručné a super-moderné zhrnutie článku (max. 2 vety). Musí byť vecné, inteligentné a štavnaté. V čistej slovenčine.",
-    "category": "Musí byť výhradne jedna z: Najnovšie, Umelá Inteligencia, Tech, Biznis, Krypto, Svet & Politika, Veda, Návody & Tipy, Newsletter"
+    "category": "Musí byť výhradne jedna z: Najnovšie, Umelá Inteligencia, Tech, Biznis, Krypto, Svet & Politika, Veda, Gaming, Návody & Tipy, Newsletter"
 }
 Nikdy nevracaj slovné omáčky okolo, vždy len vráť čistý json. Nepoužívaj ani formátovacie značky markdownu (napr. \`\`\`json).`;
 
@@ -114,6 +114,7 @@ Nikdy nevracaj slovné omáčky okolo, vždy len vráť čistý json. Nepoužív
             "Krypto",
             "Svet & Politika",
             "Veda",
+            "Gaming",
             "Návody & Tipy",
             "Newsletter"
         ];

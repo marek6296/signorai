@@ -23,7 +23,7 @@ export function Sidebar({ articles, title = "Najnovšie správy" }: SidebarProps
                             {i + 1}
                         </span>
                         <div className="flex flex-col">
-                            <span className="text-xs font-semibold text-primary mb-1">
+                            <span className="text-xs font-semibold text-primary mb-2.5">
                                 {article.category}
                             </span>
                             <Link href={`/article/${article.slug}`} className="block">

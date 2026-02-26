@@ -21,10 +21,10 @@ export default async function Home() {
   const remainingArticles = recentArticles.slice(8); // Everything else at the bottom
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 max-w-7xl">
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-8 md:pt-6 md:pb-12 max-w-7xl">
       <PageHeader
         title="Hlavné správy"
-        description="Váš denný prehľad toho najdôležitejšieho zo sveta AI, technológií a spoločnosti."
+        description="Váš denný prehľad toho najdôležitejšieho zo sveta"
         label="Magazín"
       />
 
@@ -62,7 +62,7 @@ export default async function Home() {
             )}
           </div>
 
-          <div className="mt-8 p-8 bg-muted/40 border border-border rounded-[2rem] flex flex-col items-center text-center sticky top-24 shadow-sm backdrop-blur-sm">
+          <div className="mt-8 p-8 bg-muted/40 border border-border rounded-[2rem] flex flex-col items-center text-center sticky top-48 shadow-sm backdrop-blur-sm">
             <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4 text-2xl">
               ✉️
             </div>
@@ -84,11 +84,11 @@ export default async function Home() {
 
       {/* Grid feed for all remaining mixed articles */}
       {remainingArticles.length > 0 && (
-        <div className="my-24 border-t border-white/5 pt-24 text-center">
-          <div className="flex flex-col items-center mb-16">
-            <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tight mb-4 text-center">Najnovšie príspevky</h2>
-            <div className="w-20 h-1 bg-primary mb-4 rounded-full" />
-            <p className="text-muted-foreground text-lg">Kompletný prehľad správ zoradený podľa času pridania.</p>
+        <div className="my-16 border-t border-white/5 pt-16 text-center">
+          <div className="flex flex-col items-center mb-10">
+            <h2 className="text-3xl md:text-4xl font-black uppercase tracking-tight mb-4 text-center">Najnovšie príspevky</h2>
+            <div className="w-16 h-1 bg-primary mb-4 rounded-full" />
+            <p className="text-muted-foreground text-base">Kompletný prehľad správ zoradený podľa času pridania.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 lg:gap-8 text-left">

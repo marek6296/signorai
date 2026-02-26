@@ -21,7 +21,8 @@ export const CATEGORY_MAP: Record<string, string> = {
     "krypto": "Krypto",
     "svet-politika": "Svet & Politika",
     "veda": "Veda",
-    "navody": "Návody & Tipy"
+    "navody": "Návody & Tipy",
+    "gaming": "Gaming"
 };
 
 export async function getLatestArticle(): Promise<Article | null> {
@@ -61,13 +62,17 @@ export async function getRecentArticles(excludeId?: string): Promise<Article[]> 
     return data as Article[];
 }
 
-export async function getArticleBySlug(slug: string): Promise<Article | null> {
-    const { data, error } = await supabase
+export async function getArticleBySlug(slug: string, includeDrafts: boolean = false): Promise<Article | null> {
+    let query = supabase
         .from('articles')
         .select('*')
-        .eq('status', 'published')
-        .eq('slug', slug)
-        .single();
+        .eq('slug', slug);
+
+    if (!includeDrafts) {
+        query = query.eq('status', 'published');
+    }
+
+    const { data, error } = await query.single();
 
     if (error) {
         console.error("Error fetching article by slug:", error);

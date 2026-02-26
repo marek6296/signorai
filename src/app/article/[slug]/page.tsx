@@ -9,21 +9,23 @@ import type { Metadata } from "next";
 
 interface Props {
     params: { slug: string };
+    searchParams: { preview?: string };
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-    const article = await getArticleBySlug(params.slug);
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
+    const isPreview = searchParams.preview === "make-com-webhook-secret";
+    const article = await getArticleBySlug(params.slug, isPreview);
     if (!article) return { title: "Nenájdené" };
 
     return {
-        title: `${article.title} | SignorAI`,
+        title: `${article.title} | Postovinky`,
         description: article.excerpt,
         openGraph: {
             title: article.title,
             description: article.excerpt,
             type: "article",
             publishedTime: article.published_at,
-            authors: ["SignorAI Redakcia"],
+            authors: ["Redakcia Postovinky"],
             images: [
                 {
                     url: article.main_image,
@@ -42,8 +44,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     };
 }
 
-export default async function ArticlePage({ params }: Props) {
-    const article = await getArticleBySlug(params.slug);
+export default async function ArticlePage({ params, searchParams }: Props) {
+    const isPreview = searchParams.preview === "make-com-webhook-secret";
+    const article = await getArticleBySlug(params.slug, isPreview);
 
     if (!article) {
         notFound();
@@ -58,6 +61,15 @@ export default async function ArticlePage({ params }: Props) {
 
                 {/* Main Content */}
                 <article className="col-span-1 lg:col-span-8">
+                    {article.status === 'draft' && (
+                        <div className="mb-6 bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 px-4 py-3 rounded-2xl flex items-center gap-3">
+                            <span className="relative flex h-3 w-3">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-3 w-3 bg-yellow-500"></span>
+                            </span>
+                            <span className="font-black uppercase tracking-widest text-[10px]">Režim Ukážky (DRAFT)</span>
+                        </div>
+                    )}
                     <header className="mb-8">
                         <div className="flex items-center gap-4 mb-6">
                             <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">

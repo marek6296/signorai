@@ -4,7 +4,20 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { Article } from "@/lib/data";
 import Link from "next/link";
-import { Edit, ArrowUpRight, ArrowDown, Trash2, Sparkles, Plus, Globe } from "lucide-react";
+import { Edit, ArrowUpRight, ArrowDown, Trash2, Sparkles, Plus, Globe, Search, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { ArticleCard } from "@/components/ArticleCard";
+
+type SuggestedNews = {
+    id: string;
+    url: string;
+    title: string;
+    summary: string;
+    source: string;
+    category?: string;
+    status: 'pending' | 'processed' | 'ignored';
+    created_at: string;
+};
 
 export default function AdminPage() {
     const [url, setUrl] = useState("");
@@ -12,16 +25,30 @@ export default function AdminPage() {
     const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
     const [message, setMessage] = useState("");
     const [articles, setArticles] = useState<Article[]>([]);
+    const [suggestions, setSuggestions] = useState<SuggestedNews[]>([]);
     const [loadingArticles, setLoadingArticles] = useState(true);
+    const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
     // Tab control
-    const [activeTab, setActiveTab] = useState<"create" | "manage">("manage");
+    const [activeTab, setActiveTab] = useState<"create" | "manage" | "discovery">("manage");
 
     // Authentication state
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loginError, setLoginError] = useState("");
+    const [selectedDiscoveryCategory, setSelectedDiscoveryCategory] = useState("Všetky");
+    const [selectedPublishedCategory, setSelectedPublishedCategory] = useState("Všetky");
+    const [discoveryDays, setDiscoveryDays] = useState("3");
+    const [discoveryTargetCategories, setDiscoveryTargetCategories] = useState<string[]>([]);
+
+    // Discovery Loading Modal states
+    const [isDiscoveringModalOpen, setIsDiscoveringModalOpen] = useState(false);
+    const [discoveryStage, setDiscoveryStage] = useState("Inicializácia umelej inteligencie...");
+
+    // Generating Loading Modal states
+    const [isGeneratingModalOpen, setIsGeneratingModalOpen] = useState(false);
+    const [generatingStage, setGeneratingStage] = useState("Inicializácia AI modelov...");
 
     const fetchArticles = async () => {
         setLoadingArticles(true);
@@ -36,13 +63,27 @@ export default function AdminPage() {
         setLoadingArticles(false);
     };
 
+    const fetchSuggestions = async () => {
+        setLoadingSuggestions(true);
+        const { data, error } = await supabase
+            .from("suggested_news")
+            .select("*")
+            .eq("status", "pending")
+            .order("created_at", { ascending: false });
+
+        if (!error && data) {
+            setSuggestions(data);
+        }
+        setLoadingSuggestions(false);
+    };
+
     useEffect(() => {
-        // Skontrolovať či je používateľ už prihlásený (pre jednoduchosť ukladáme do localStorage)
         if (typeof window !== "undefined") {
             const loggedInUser = localStorage.getItem("admin_logged_in");
             if (loggedInUser === "true") {
                 setIsLoggedIn(true);
                 fetchArticles();
+                fetchSuggestions();
             }
         }
     }, []);
@@ -55,6 +96,7 @@ export default function AdminPage() {
             setIsLoggedIn(true);
             localStorage.setItem("admin_logged_in", "true");
             fetchArticles();
+            fetchSuggestions();
         } else {
             setLoginError("Nesprávny e-mail alebo heslo");
         }
@@ -66,54 +108,102 @@ export default function AdminPage() {
         setArticles([]);
     };
 
+    const handleSynthesis = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const validUrls = synthesisUrls.filter(u => u.trim());
+        if (validUrls.length === 0) return;
+
+        setStatus("loading");
+        setIsGeneratingModalOpen(true);
+        setGeneratingStage("Príprava Synthesis Studia...");
+
+        const stages = [
+            "Sťahujem dáta z URL adries...",
+            "Analyzujem texty zdrojov...",
+            "Porovnávam fakty z viacerých zdrojov...",
+            "OpenAI navrhuje najlepší nadpis...",
+            "Generujem pútavý slovenský článok...",
+            "Sťahujem a optimalizujem obrázky...",
+            "Dokončujem ukladanie článku..."
+        ];
+
+        let stageIdx = 0;
+        const interval = setInterval(() => {
+            stageIdx = (stageIdx + 1) % stages.length;
+            setGeneratingStage(stages[stageIdx]);
+        }, 4000);
+
+        try {
+            const res = await fetch("/api/admin/generate-article-multi", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ urls: validUrls, secret: "make-com-webhook-secret" })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || "Nepodarilo sa vykonať syntézu");
+            setStatus("success");
+            setMessage(`Úspech! Syntéza "${data.article?.title}" bola uložená ako DRAFT.`);
+            setSynthesisUrls([""]);
+            fetchArticles();
+            setActiveTab("manage");
+        } catch (error: any) {
+            setStatus("error");
+            setMessage(error.message || "Chyba pri syntéze");
+        } finally {
+            clearInterval(interval);
+            setIsGeneratingModalOpen(false);
+        }
+    };
+
     const handleGenerate = async (e: React.FormEvent) => {
         e.preventDefault();
-
         if (!url) return;
 
         setStatus("loading");
-        setMessage("Sťahujem článok a generujem AI preklad... Môže to trvať 20-30 sekúnd.");
+        setIsGeneratingModalOpen(true);
+        setGeneratingStage("Sťahovanie zdrojového článku...");
+
+        const stages = [
+            "Analyzujem obsah pomocou AI...",
+            "Prekladám do profesionálnej slovenčiny...",
+            "Ladím štýl a formátovanie článku...",
+            "Sťahujem a optimalizujem obrázky...",
+            "Finálne úpravy a ukladanie..."
+        ];
+
+        let stageIdx = 0;
+        const interval = setInterval(() => {
+            stageIdx = (stageIdx + 1) % stages.length;
+            setGeneratingStage(stages[stageIdx]);
+        }, 3500);
 
         try {
             const res = await fetch("/api/admin/generate-article", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    url,
-                    secret: "make-com-webhook-secret" // Pevné heslo pre demo účely
-                })
+                body: JSON.stringify({ url, secret: "make-com-webhook-secret" })
             });
-
             const data = await res.json();
-
-            if (!res.ok) {
-                throw new Error(data.message || "Nepodarilo sa vygenerovať článok");
-            }
-
+            if (!res.ok) throw new Error(data.message || "Nepodarilo sa vygenerovať článok");
             setStatus("success");
             setMessage(`Úspech! Článok "${data.article?.title}" bol prijatý ako DRAFT.`);
             setUrl("");
-            fetchArticles(); // Obnov zoznam článkov
-
-        } catch (error: unknown) {
+            fetchArticles();
+            setActiveTab("manage");
+        } catch (error: any) {
             setStatus("error");
-            setMessage(error instanceof Error ? error.message : "Nepodarilo sa vygenerovať článok");
+            setMessage(error.message || "Chyba pri generovaní");
+        } finally {
+            clearInterval(interval);
+            setIsGeneratingModalOpen(false);
         }
     };
 
-
-
     const handlePublish = async (id: string, currentStatus: string) => {
         const newStatus = currentStatus === "published" ? "draft" : "published";
-        const { error } = await supabase
-            .from("articles")
-            .update({ status: newStatus })
-            .eq("id", id);
-
+        const { error } = await supabase.from("articles").update({ status: newStatus }).eq("id", id);
         if (!error) {
             fetchArticles();
-
-            // Zavolaj revalidate cache
             await fetch("/api/revalidate?secret=make-com-webhook-secret", { method: "POST" });
         } else {
             alert("Chyba pri zmene statusu: " + error.message);
@@ -122,12 +212,7 @@ export default function AdminPage() {
 
     const handleDelete = async (id: string) => {
         if (!confirm("Naozaj vymazať článok?")) return;
-
-        const { error } = await supabase
-            .from("articles")
-            .delete()
-            .eq("id", id);
-
+        const { error } = await supabase.from("articles").delete().eq("id", id);
         if (!error) {
             fetchArticles();
             await fetch("/api/revalidate?secret=make-com-webhook-secret", { method: "POST" });
@@ -136,49 +221,103 @@ export default function AdminPage() {
         }
     };
 
+    const handleDiscoverNews = async () => {
+        setStatus("loading");
+        setIsDiscoveringModalOpen(true);
+        setDiscoveryStage("Pripájam sa na zdroje dát...");
+
+        const stages = [
+            "Pripájam sa na zdroje dát...",
+            "Prehľadávam najlepšie technologické weby a RSS kanály...",
+            "Sťahujem stovky najnovších článkov z posledných dní...",
+            "AI asistent analyzuje titulky a porovnáva obsah...",
+            "Oddeľuje absolútne klenoty od zbytočného šumu...",
+            "Extrahuje kľúčové informácie a obohacuje detaily...",
+            "Pripravujem konečný zoznam tých najlepších tém...",
+            "Čakám na finálnu odpoveď od OpenAI serverov..."
+        ];
+
+        let currentStageIdx = 0;
+        const progressInterval = setInterval(() => {
+            currentStageIdx = (currentStageIdx + 1) % stages.length;
+            setDiscoveryStage(stages[currentStageIdx]);
+        }, 4000);
+
+        try {
+            const params = new URLSearchParams({
+                secret: "make-com-webhook-secret",
+                days: discoveryDays,
+            });
+            if (discoveryTargetCategories.length > 0) {
+                params.append("categories", discoveryTargetCategories.join(","));
+            }
+            const res = await fetch(`/api/admin/discover-news?${params.toString()}`);
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message);
+            setStatus("success");
+            setMessage(data.message || "Boli objavené nové témy!");
+            fetchSuggestions();
+        } catch (error: any) {
+            setStatus("error");
+            setMessage(error.message || "Chyba pri objavovaní správ");
+        } finally {
+            clearInterval(progressInterval);
+            setIsDiscoveringModalOpen(false);
+        }
+    };
+
+    const handleIgnoreSuggestion = async (id: string) => {
+        const { error } = await supabase.from("suggested_news").update({ status: 'ignored' }).eq("id", id);
+        if (!error) fetchSuggestions();
+    };
+
+    const handleClearAllSuggestions = async () => {
+        if (!confirm("Naozaj chcete zmazať VŠETKY navrhované témy? Táto akcia je nevratná.")) return;
+
+        setStatus("loading");
+        setMessage("Mažem všetky návrhy...");
+
+        const { error } = await supabase
+            .from("suggested_news")
+            .update({ status: 'ignored' })
+            .eq("status", "pending");
+
+        if (!error) {
+            setStatus("success");
+            setMessage("Všetky návrhy boli odstránené.");
+            fetchSuggestions();
+        } else {
+            setStatus("error");
+            setMessage("Chyba pri mazaní: " + error.message);
+        }
+    };
+
+    const handleProcessSuggestion = async (suggestion: SuggestedNews) => {
+        setActiveTab("create");
+        setUrl(suggestion.url);
+        await supabase.from("suggested_news").update({ status: 'processed' }).eq("id", suggestion.id);
+        fetchSuggestions();
+    };
+
     if (!isLoggedIn) {
         return (
             <div className="container mx-auto px-4 py-20 max-w-md flex-grow">
                 <div className="bg-card border rounded-2xl p-8 shadow-sm">
                     <div className="text-center mb-8">
-                        <h1 className="text-3xl font-black mb-2 uppercase tracking-widest">SignorAI</h1>
+                        <h1 className="text-3xl font-black mb-2 uppercase tracking-widest">Postovinky</h1>
                         <p className="text-muted-foreground">Len pre autorizovaných redaktorov</p>
                     </div>
-
                     <form onSubmit={handleLogin} className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium mb-1">E-mail</label>
-                            <input
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                className="w-full bg-background border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
-                                required
-                            />
+                            <label className="block text-sm font-medium mb-1 text-foreground/70">E-mail</label>
+                            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-background border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary" required />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium mb-1">Heslo</label>
-                            <input
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full bg-background border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
-                                required
-                            />
+                            <label className="block text-sm font-medium mb-1 text-foreground/70">Heslo</label>
+                            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-background border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary" required />
                         </div>
-
-                        {loginError && (
-                            <div className="p-3 rounded-lg bg-red-500/10 text-red-600 dark:text-red-400 text-sm font-medium text-center">
-                                {loginError}
-                            </div>
-                        )}
-
-                        <button
-                            type="submit"
-                            className="w-full bg-primary text-primary-foreground font-bold rounded-lg px-4 py-4 mt-4 transition-colors hover:bg-primary/90"
-                        >
-                            Prihlásiť sa do redakcie
-                        </button>
+                        {loginError && <div className="p-3 rounded-lg bg-red-500/10 text-red-600 text-sm font-medium text-center">{loginError}</div>}
+                        <button type="submit" className="w-full bg-primary text-primary-foreground font-bold rounded-lg px-4 py-4 mt-4 transition-colors hover:bg-primary/90">Prihlásiť sa do redakcie</button>
                     </form>
                 </div>
             </div>
@@ -187,281 +326,444 @@ export default function AdminPage() {
 
     return (
         <div className="container mx-auto px-4 py-12 max-w-5xl flex-grow">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12 bg-card border p-6 rounded-2xl shadow-sm">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12 bg-card border p-8 rounded-3xl shadow-sm ring-1 ring-border/50">
                 <div>
-                    <h1 className="text-3xl font-black mb-2 uppercase tracking-tight">AI Magazín Manager</h1>
-                    <p className="text-muted-foreground">Kompletný systém pre správu a tvorbu obsahu</p>
+                    <h1 className="text-4xl font-black mb-2 uppercase tracking-tight">Redakčný Systém</h1>
+                    <p className="text-muted-foreground font-medium">Správa obsahu a generovanie noviniek pomocou AI</p>
                 </div>
-                <div className="flex items-center gap-4">
-                    <button
-                        onClick={handleLogout}
-                        className="text-sm font-bold text-muted-foreground hover:text-foreground underline underline-offset-4 px-2"
-                    >
-                        Odhlásiť sa
-                    </button>
-                </div>
-            </div>
-
-            <div className="flex space-x-2 mb-8 border-b border-border pb-px">
-                <button
-                    onClick={() => setActiveTab("create")}
-                    className={`px-6 py-3 font-bold text-sm rounded-t-lg transition-colors border-b-2 ${activeTab === "create" ? "bg-card border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}
-                >
-                    Tvorba obsahu
-                </button>
-                <button
-                    onClick={() => setActiveTab("manage")}
-                    className={`px-6 py-3 font-bold text-sm rounded-t-lg transition-colors border-b-2 ${activeTab === "manage" ? "bg-card border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}
-                >
-                    Správa článkov
+                <button onClick={handleLogout} className="text-sm font-black text-muted-foreground hover:text-red-500 uppercase tracking-widest transition-colors flex items-center gap-2">
+                    Odhlásiť sa <XCircle className="w-4 h-4" />
                 </button>
             </div>
 
+            {/* Premium Admin Tabs */}
+            <div className="flex items-center justify-center mb-12">
+                <div className="flex p-1.5 bg-muted/30 rounded-[28px] border border-border/40 backdrop-blur-md shadow-inner">
+                    {[
+                        { id: "discovery", label: "Discovery", icon: Search, badge: suggestions.length },
+                        { id: "create", label: "Tvorba", icon: Sparkles },
+                        { id: "manage", label: "Správa", icon: Edit }
+                    ].map((tab) => {
+                        const isActive = activeTab === tab.id;
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id as any)}
+                                className={cn(
+                                    "relative px-10 py-4 flex items-center gap-3 rounded-[22px] font-black text-xs uppercase tracking-[0.1em] transition-all duration-500 overflow-hidden group",
+                                    isActive
+                                        ? "bg-foreground text-background shadow-2xl scale-[1.05] z-10 shadow-black/20"
+                                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                                )}
+                            >
+                                <tab.icon className={cn("w-4 h-4 transition-transform duration-500", isActive && "scale-110")} />
+                                <span>{tab.label}</span>
+
+                                {tab.badge !== undefined && tab.badge > 0 && (
+                                    <span className={cn(
+                                        "ml-1 text-[9px] px-2 py-0.5 rounded-full font-black",
+                                        isActive ? "bg-background text-foreground" : "bg-primary text-primary-foreground"
+                                    )}>
+                                        {tab.badge}
+                                    </span>
+                                )}
+
+                                {/* Hover Glow */}
+                                {!isActive && (
+                                    <span className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></span>
+                                )}
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* CREATE TAB */}
             {activeTab === "create" && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    {/* Synthesis Studio Card */}
-                    <div className="bg-card border rounded-3xl p-10 shadow-sm flex flex-col relative overflow-hidden h-full">
-                        <div className="h-[220px] flex flex-col">
-                            <div className="bg-primary/10 text-primary p-4 rounded-2xl w-fit mb-6 flex-shrink-0">
+                    <div className="bg-card border rounded-[40px] p-10 shadow-sm flex flex-col relative overflow-hidden h-full ring-1 ring-border/50">
+                        <div className="h-[200px] flex flex-col">
+                            <div className="bg-primary/10 text-primary p-4 rounded-2xl w-fit mb-6">
                                 <Sparkles className="w-8 h-8" />
                             </div>
                             <h2 className="text-3xl font-black uppercase tracking-tight mb-3">Synthesis Studio</h2>
-                            <p className="text-muted-foreground text-sm leading-relaxed">
-                                Pokročilý nástroj na tvorbu komplexných článkov z viacerých svetových zdrojov naraz.
-                            </p>
+                            <p className="text-muted-foreground text-sm font-medium leading-relaxed">Syntéza viacerých zdrojov do jedného článku.</p>
                         </div>
-
                         <div className="space-y-4 mb-8 flex-grow">
-                            <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-4">
-                                Zdroje pre syntézu
-                            </label>
                             {synthesisUrls.map((sUrl, idx) => (
                                 <div key={idx} className="flex gap-2 group">
-                                    <div className="relative flex-grow">
-                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/50">
-                                            <Globe className="w-4 h-4" />
-                                        </div>
-                                        <input
-                                            type="url"
-                                            value={sUrl}
-                                            onChange={(e) => {
-                                                const newUrls = [...synthesisUrls];
-                                                newUrls[idx] = e.target.value;
-                                                setSynthesisUrls(newUrls);
-                                            }}
-                                            placeholder="https://example.com/article..."
-                                            className="w-full bg-background border-2 border-border rounded-xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:border-primary transition-all font-medium"
-                                        />
-                                    </div>
+                                    <input
+                                        type="url"
+                                        value={sUrl}
+                                        onChange={(e) => {
+                                            const newUrls = [...synthesisUrls];
+                                            newUrls[idx] = e.target.value;
+                                            setSynthesisUrls(newUrls);
+                                        }}
+                                        placeholder="https://example.com/article..."
+                                        className="w-full bg-background border-2 border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary transition-all font-medium"
+                                    />
                                     {synthesisUrls.length > 1 && (
-                                        <button
-                                            onClick={() => setSynthesisUrls(synthesisUrls.filter((_, i) => i !== idx))}
-                                            className="p-3 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
-                                        >
-                                            <Trash2 className="w-5 h-5" />
-                                        </button>
+                                        <button onClick={() => setSynthesisUrls(synthesisUrls.filter((_, i) => i !== idx))} className="p-3 text-muted-foreground hover:text-red-500 rounded-xl transition-all"><Trash2 className="w-5 h-5" /></button>
                                     )}
                                 </div>
                             ))}
-                            <button
-                                onClick={() => setSynthesisUrls([...synthesisUrls, ""])}
-                                className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-primary hover:opacity-80 transition-opacity mt-2"
-                            >
-                                <Plus className="w-4 h-4" /> Pridať ďalší zdroj
+                            <button onClick={() => setSynthesisUrls([...synthesisUrls, ""])} className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary hover:opacity-80 transition-opacity mt-2">
+                                <Plus className="w-4 h-4" /> Pridať zdroj
                             </button>
                         </div>
-
-                        <div className="mt-auto">
-                            <Link
-                                href={{
-                                    pathname: "/admin/synthesis",
-                                    query: { urls: synthesisUrls.filter(u => u.trim()).join(',') }
-                                }}
-                                className="block w-full bg-primary text-primary-foreground text-center py-5 rounded-2xl font-black uppercase tracking-[0.15em] text-sm hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-primary/20"
-                            >
-                                Spustiť Synthesis Studio
-                            </Link>
-                        </div>
+                        <button
+                            onClick={handleSynthesis}
+                            disabled={status === "loading" || synthesisUrls.filter(u => u.trim()).length === 0}
+                            className="block w-full bg-primary text-primary-foreground text-center py-5 rounded-2xl font-black uppercase tracking-[0.15em] text-sm hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-primary/20 disabled:opacity-50"
+                        >
+                            {status === "loading" ? "Generujem..." : "Spustiť Synthesis"}
+                        </button>
                     </div>
 
-                    {/* Quick Generator Card */}
-                    <div className="bg-card border rounded-3xl p-10 shadow-sm flex flex-col h-full">
-                        <div className="h-[220px] flex flex-col">
-                            <div className="bg-muted text-foreground p-4 rounded-2xl w-fit mb-6 flex-shrink-0">
+                    <div className="bg-card border rounded-[40px] p-10 shadow-sm flex flex-col h-full ring-1 ring-border/50">
+                        <div className="h-[200px] flex flex-col">
+                            <div className="bg-muted text-foreground p-4 rounded-2xl w-fit mb-6">
                                 <Edit className="w-8 h-8" />
                             </div>
-                            <h2 className="text-3xl font-black uppercase tracking-tight mb-3">Rýchly Generátor</h2>
-                            <p className="text-muted-foreground text-sm leading-relaxed">
-                                Rýchly preklad a adaptácia jedného konkrétneho zahraničného článku do slovenčiny pomocou AI.
-                            </p>
+                            <h2 className="text-3xl font-black uppercase tracking-tight mb-3">Quick Gen</h2>
+                            <p className="text-muted-foreground text-sm font-medium leading-relaxed">Rýchla adaptácia jedného článku.</p>
                         </div>
-
                         <form onSubmit={handleGenerate} className="flex flex-col flex-grow">
                             <div className="mb-8 flex-grow">
-                                <label htmlFor="url" className="block text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-4">
-                                    Zdrojová URL adresa
-                                </label>
-                                <div className="relative">
-                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/50">
-                                        <Globe className="w-4 h-4" />
-                                    </div>
-                                    <input
-                                        type="url"
-                                        id="url"
-                                        value={url}
-                                        onChange={(e) => setUrl(e.target.value)}
-                                        placeholder="https://techcrunch.com/..."
-                                        required
-                                        disabled={status === "loading"}
-                                        className="w-full bg-background border-2 border-border rounded-xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:border-primary transition-all font-medium"
-                                    />
-                                </div>
-                                <p className="text-[10px] text-muted-foreground/60 mt-4 leading-relaxed italic">
-                                    * Stačí vložiť link a AI sa postará o zvyšok. Výsledok nájdete v sekcii Koncepty.
-                                </p>
+                                <input
+                                    type="url"
+                                    value={url}
+                                    onChange={(e) => setUrl(e.target.value)}
+                                    placeholder="https://techcrunch.com/..."
+                                    required
+                                    className="w-full bg-background border-2 border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary transition-all font-medium"
+                                />
                             </div>
-
-                            <button
-                                type="submit"
-                                disabled={status === "loading" || !url}
-                                className="w-full bg-foreground text-background py-5 rounded-2xl font-black uppercase tracking-[0.15em] text-sm hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
-                            >
+                            <button type="submit" disabled={status === "loading" || !url} className="w-full bg-foreground text-background py-5 rounded-2xl font-black uppercase tracking-[0.15em] text-sm hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50">
                                 {status === "loading" ? "Generujem..." : "Vygenerovať Draft"}
                             </button>
-
-                            {message && (
-                                <div className={`mt-4 p-4 rounded-xl text-[10px] font-black uppercase tracking-widest text-center ${status === "error" ? "bg-red-500/10 text-red-500" :
-                                    status === "success" ? "bg-green-500/10 text-green-500" :
-                                        "bg-blue-500/10 text-blue-500"
-                                    }`}>
-                                    {message}
-                                </div>
-                            )}
                         </form>
                     </div>
                 </div>
             )}
 
-            {activeTab === "manage" && (
-                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    {loadingArticles ? (
-                        <p>Načítavam články...</p>
-                    ) : articles.length === 0 ? (
-                        <p className="text-muted-foreground">Ešte žiadne články vo vašej databáze.</p>
-                    ) : (
-                        <div className="space-y-12">
-                            {/* DRAFTS SECTION */}
-                            <div>
-                                <h3 className="text-xl font-semibold mb-6 flex items-center gap-2">
-                                    <span className="bg-yellow-500/10 text-yellow-600 px-3 py-1 rounded-full text-sm">Koncepty (DRAFT)</span>
-                                </h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {articles.filter(a => a.status === 'draft').length === 0 ? (
-                                        <p className="text-muted-foreground text-sm italic col-span-full">Žiadne koncepty nečakajú na publikáciu.</p>
-                                    ) : (
-                                        articles.filter(a => a.status === 'draft').map((article) => (
-                                            <div key={article.id} className="group relative border border-border bg-card rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col h-full">
-                                                <Link href={`/article/${article.slug}`} target="_blank" className="flex flex-col flex-grow outline-none relative hover:bg-muted/30 transition-colors">
-                                                    {article.main_image && (
-                                                        <div className="w-full h-48 bg-muted overflow-hidden relative border-b border-border">
-                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                            <img src={article.main_image} alt={article.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                                                            <div className="absolute top-3 left-3">
-                                                                <span className="inline-flex items-center rounded-full bg-primary/95 backdrop-blur-md border border-primary/20 px-3 py-1 text-xs font-bold uppercase tracking-widest text-primary-foreground shadow-md">{article.category}</span>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                    <div className="p-5 flex flex-col flex-grow">
-                                                        {!article.main_image && (
-                                                            <div className="mb-3">
-                                                                <span className="inline-flex items-center rounded-full bg-primary/95 backdrop-blur-md border border-primary/20 px-3 py-1 text-xs font-bold uppercase tracking-widest text-primary-foreground shadow-md">{article.category}</span>
-                                                            </div>
-                                                        )}
-                                                        <h3 className="text-lg font-bold leading-tight mb-2 line-clamp-2 hover:underline group-hover:text-primary transition-colors">
-                                                            {article.title}
-                                                        </h3>
-                                                        <p className="text-muted-foreground text-sm line-clamp-3 mb-6 flex-grow">{article.excerpt}</p>
-                                                    </div>
-                                                </Link>
+            {/* DISCOVERY TAB */}
+            {activeTab === "discovery" && (
+                <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                        <div>
+                            <h2 className="text-3xl font-black uppercase tracking-tight">Navrhované témy</h2>
+                            <p className="text-muted-foreground font-medium">AI hľadá trendy na globálnych a lokálnych portáloch.</p>
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={handleClearAllSuggestions}
+                                disabled={status === "loading" || suggestions.length === 0}
+                                className="bg-red-500/10 text-red-600 px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all flex items-center gap-3"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                                Vymazať všetko
+                            </button>
+                            <button onClick={handleDiscoverNews} disabled={status === "loading" || loadingSuggestions} className="bg-primary text-primary-foreground px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:opacity-90 transition-all flex items-center gap-3 shadow-lg shadow-primary/20">
+                                {status === "loading" ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                                Hľadať nové témy
+                            </button>
+                        </div>
+                    </div>
 
-                                                <div className="px-5 pb-5 mt-auto">
-                                                    <div className="grid grid-cols-3 gap-2 pt-4 border-t border-border/50">
-                                                        <Link href={`/admin/edit/${article.id}`} className="flex flex-col items-center justify-center gap-1 py-3 border border-border text-xs font-semibold rounded-lg hover:bg-muted transition-colors text-foreground">
-                                                            <Edit className="w-4 h-4" />
-                                                            Upraviť
-                                                        </Link>
-                                                        <button onClick={() => handlePublish(article.id, article.status)} className="flex flex-col items-center justify-center gap-1 py-3 text-xs font-semibold rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
-                                                            <ArrowUpRight className="w-4 h-4" />
-                                                            Publikovať
-                                                        </button>
-                                                        <button onClick={() => handleDelete(article.id)} className="flex flex-col items-center justify-center gap-1 py-3 text-xs font-semibold rounded-lg bg-red-500/10 text-red-600 hover:bg-red-500/20 transition-colors">
-                                                            <Trash2 className="w-4 h-4" />
-                                                            Zmazať
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))
-                                    )}
-                                </div>
+                    {/* Discovery Settings Panel */}
+                    <div className="bg-card border border-border/50 p-8 rounded-[40px] shadow-sm ring-1 ring-border/50 grid grid-cols-1 lg:grid-cols-2 gap-10">
+                        {/* Max Age Column */}
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-2 mb-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
+                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Stárosť správ (Max Age)</label>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {[
+                                    { value: "1", label: "Posledných 24h" },
+                                    { value: "3", label: "3 dni" },
+                                    { value: "7", label: "Týždeň" },
+                                    { value: "30", label: "Všetko (Mesiac)" }
+                                ].map((opt) => (
+                                    <button
+                                        key={opt.value}
+                                        onClick={() => setDiscoveryDays(opt.value)}
+                                        className={`px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-2 ${discoveryDays === opt.value
+                                            ? "bg-foreground border-foreground text-background shadow-lg"
+                                            : "bg-background border-border/50 text-muted-foreground hover:border-primary/30 hover:text-foreground"
+                                            }`}
+                                    >
+                                        {opt.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Target Categories Column */}
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-2 mb-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
+                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Cieliť na sekcie (Viacero možností)</label>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {(() => {
+                                    const allCats = ["Umelá Inteligencia", "Tech", "Biznis", "Krypto", "Gaming", "Veda", "Návody & Tipy"];
+                                    const isAllSelected = discoveryTargetCategories.length === allCats.length;
+
+                                    return (
+                                        <>
+                                            <button
+                                                onClick={() => {
+                                                    if (isAllSelected) {
+                                                        setDiscoveryTargetCategories([]);
+                                                    } else {
+                                                        setDiscoveryTargetCategories(allCats);
+                                                    }
+                                                }}
+                                                className={`px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-2 flex items-center gap-2 ${isAllSelected
+                                                    ? "bg-primary border-primary text-primary-foreground shadow-xl scale-[1.05]"
+                                                    : "bg-background border-border/50 text-muted-foreground hover:border-primary/30 hover:text-foreground"
+                                                    }`}
+                                            >
+                                                {isAllSelected && <CheckCircle2 className="w-3.5 h-3.5" />}
+                                                VŠETKY
+                                            </button>
+
+                                            {allCats.map((cat) => {
+                                                const isSelected = discoveryTargetCategories.includes(cat);
+                                                return (
+                                                    <button
+                                                        key={cat}
+                                                        onClick={() => {
+                                                            setDiscoveryTargetCategories(prev =>
+                                                                prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
+                                                            );
+                                                        }}
+                                                        className={`px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-2 flex items-center gap-2 ${isSelected
+                                                            ? "bg-foreground border-foreground text-background shadow-xl scale-[1.05]"
+                                                            : "bg-background border-border/50 text-muted-foreground hover:border-primary/30 hover:text-foreground"
+                                                            }`}
+                                                    >
+                                                        {isSelected && <CheckCircle2 className="w-3.5 h-3.5" />}
+                                                        {cat}
+                                                    </button>
+                                                );
+                                            })}
+                                        </>
+                                    );
+                                })()}
+                            </div>
+                        </div>
+                    </div>
+
+                    {suggestions.length === 0 ? (
+                        <div className="bg-card border border-dashed rounded-[40px] p-24 text-center">
+                            <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-8 text-3xl">✨</div>
+                            <h3 className="text-2xl font-black uppercase mb-3 text-foreground/80">Všetko je spracované</h3>
+                            <p className="text-muted-foreground font-medium">Momentálne nemáte žiadne nové návrhy.</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-10">
+                            <div className="flex flex-wrap gap-2 p-1.5 bg-muted/30 rounded-2xl w-fit border border-border/50">
+                                <button onClick={() => setSelectedDiscoveryCategory("Všetky")} className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedDiscoveryCategory === "Všetky" ? "bg-primary text-primary-foreground shadow-lg" : "hover:bg-muted text-muted-foreground"}`}>Všetky ({suggestions.length})</button>
+                                {Object.entries(suggestions.reduce((acc, curr) => { const cat = curr.category || "Nezaradené"; acc[cat] = (acc[cat] || 0) + 1; return acc; }, {} as Record<string, number>)).map(([cat, count]) => (
+                                    <button key={cat} onClick={() => setSelectedDiscoveryCategory(cat)} className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedDiscoveryCategory === cat ? "bg-primary text-primary-foreground shadow-lg" : "hover:bg-muted text-muted-foreground"}`}>{cat} ({count})</button>
+                                ))}
                             </div>
 
-                            {/* PUBLISHED SECTION */}
-                            <div>
-                                <h3 className="text-xl font-semibold mb-6 flex items-center gap-2 border-t pt-10 border-border">
-                                    <span className="bg-green-500/10 text-green-600 px-3 py-1 rounded-full text-sm">Publikované na webe</span>
-                                </h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {articles.filter(a => a.status === 'published').length === 0 ? (
-                                        <p className="text-muted-foreground text-sm italic col-span-full">Zatiaľ neboli publikované žiadne články.</p>
-                                    ) : (
-                                        articles.filter(a => a.status === 'published').map((article) => (
-                                            <div key={article.id} className="group relative border border-border bg-card rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col h-full bg-opacity-50">
-                                                <Link href={`/article/${article.slug}`} target="_blank" className="flex flex-col flex-grow outline-none hover:bg-muted/10 transition-colors">
-                                                    {article.main_image && (
-                                                        <div className="w-full h-32 bg-muted overflow-hidden relative border-b border-border opacity-80 group-hover:opacity-100 transition-opacity">
-                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                            <img src={article.main_image} alt={article.title} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-300" />
-                                                            <div className="absolute top-3 left-3">
-                                                                <span className="inline-flex items-center rounded-full bg-primary/95 backdrop-blur-md border border-primary/20 px-3 py-1 text-xs font-bold uppercase tracking-widest text-primary-foreground shadow-md">{article.category}</span>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                    <div className="p-5 flex flex-col flex-grow">
-                                                        {!article.main_image && (
-                                                            <div className="mb-3">
-                                                                <span className="inline-flex items-center rounded-full bg-primary/95 backdrop-blur-md border border-primary/20 px-3 py-1 text-xs font-bold uppercase tracking-widest text-primary-foreground shadow-md">{article.category}</span>
-                                                            </div>
-                                                        )}
-                                                        <h3 className="text-base font-bold leading-tight mb-2 line-clamp-2 text-muted-foreground group-hover:text-foreground group-hover:underline transition-all">
-                                                            {article.title}
-                                                        </h3>
-                                                    </div>
-                                                </Link>
-
-                                                <div className="px-5 pb-5 mt-auto">
-                                                    <div className="grid grid-cols-3 gap-2 pt-4 border-t border-border/50">
-                                                        <Link href={`/admin/edit/${article.id}`} className="flex flex-col items-center justify-center gap-1 py-2 text-xs font-semibold rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
-                                                            <Edit className="w-4 h-4" />
-                                                            Upraviť
-                                                        </Link>
-                                                        <button onClick={() => handlePublish(article.id, article.status)} className="flex flex-col items-center justify-center gap-1 py-2 text-xs font-semibold rounded-lg hover:bg-muted text-muted-foreground transition-colors">
-                                                            <ArrowDown className="w-4 h-4" />
-                                                            Do Draftu
-                                                        </button>
-                                                        <button onClick={() => handleDelete(article.id)} className="flex flex-col items-center justify-center gap-1 py-2 text-xs font-semibold rounded-lg hover:bg-red-500/10 hover:text-red-500 text-muted-foreground transition-colors">
-                                                            <Trash2 className="w-4 h-4" />
-                                                            Zmazať
-                                                        </button>
-                                                    </div>
-                                                </div>
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                {suggestions.filter(s => {
+                                    const itemCat = s.category || "Nezaradené";
+                                    return selectedDiscoveryCategory === "Všetky" || itemCat === selectedDiscoveryCategory;
+                                }).map((suggestion) => (
+                                    <div key={suggestion.id} className="bg-card border rounded-[40px] p-10 shadow-md hover:border-primary/40 transition-all group flex flex-col h-full ring-1 ring-border/50">
+                                        <div className="flex items-start justify-between mb-8">
+                                            <div className="flex flex-wrap gap-3">
+                                                <span className="bg-primary/10 text-primary px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-primary/20">{suggestion.source}</span>
+                                                <span className="bg-muted text-muted-foreground px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-border/50">{suggestion.category || "Nezaradené"}</span>
                                             </div>
-                                        ))
-                                    )}
-                                </div>
+                                            <button onClick={() => handleIgnoreSuggestion(suggestion.id)} className="p-3 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"><XCircle className="w-6 h-6" /></button>
+                                        </div>
+                                        <h3 className="text-2xl font-black leading-tight mb-6 group-hover:text-primary transition-colors">{suggestion.title}</h3>
+                                        <p className="text-base text-muted-foreground mb-10 line-clamp-4 leading-relaxed font-medium">{suggestion.summary}</p>
+                                        <div className="mt-auto pt-8 border-t border-border/50 flex items-center justify-between">
+                                            <a href={suggestion.url} target="_blank" rel="noopener noreferrer" className="text-[11px] font-black text-muted-foreground hover:text-foreground flex items-center gap-2 uppercase tracking-widest transition-colors"><Globe className="w-4 h-4" /> Zdroj</a>
+                                            <button onClick={() => handleProcessSuggestion(suggestion)} className="bg-foreground text-background px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-[1.05] active:scale-[0.95] transition-all flex items-center gap-3 shadow-xl">Spracovať článok</button>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     )}
+                </div>
+            )}
+
+            {/* MANAGE TAB */}
+            {activeTab === "manage" && (
+                <div className="space-y-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="space-y-12">
+                        {/* DRAFTS */}
+                        <div>
+                            <h3 className="text-2xl font-black uppercase tracking-widest mb-10 flex items-center gap-4">
+                                <span className="w-3 h-10 bg-yellow-500 rounded-full"></span> Koncepty (DRAFT)
+                                <span className="text-sm bg-muted px-3 py-1 rounded-full text-muted-foreground ml-auto">{articles.filter(a => a.status === 'draft').length}</span>
+                            </h3>
+                            {loadingArticles ? <div className="p-20 text-center animate-pulse font-black uppercase tracking-widest text-muted-foreground">Načítavam...</div> :
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                    {articles.filter(a => a.status === 'draft').map((article) => (
+                                        <div key={article.id} className="bg-card border rounded-[32px] overflow-hidden flex flex-col h-full shadow-sm hover:shadow-xl transition-all ring-1 ring-border/50">
+                                            {article.main_image && <img src={article.main_image} alt="" className="w-full h-44 object-cover border-b" />}
+                                            <div className="p-6 flex-grow">
+                                                <span className="text-[9px] font-black uppercase tracking-widest text-primary mb-5 block">{article.category}</span>
+                                                <h4 className="text-lg font-black leading-tight mb-3 line-clamp-2">{article.title}</h4>
+                                                <p className="text-sm text-muted-foreground line-clamp-3 font-medium">{article.excerpt}</p>
+                                            </div>
+                                            <div className="p-6 pt-0 mt-auto flex flex-wrap gap-2">
+                                                <Link
+                                                    href={`/article/${article.slug}?preview=make-com-webhook-secret`}
+                                                    target="_blank"
+                                                    className="flex-1 min-w-[80px] bg-muted hover:bg-primary/10 hover:text-primary p-3 rounded-xl text-center text-[10px] font-black uppercase tracking-widest transition-all border border-transparent hover:border-primary/20"
+                                                >
+                                                    Náhľad
+                                                </Link>
+                                                <Link href={`/admin/edit/${article.id}`} className="flex-1 min-w-[80px] bg-muted hover:bg-primary/10 hover:text-primary p-3 rounded-xl text-center text-[10px] font-black uppercase tracking-widest transition-all border border-transparent hover:border-primary/20">Upraviť</Link>
+                                                <button onClick={() => handlePublish(article.id, article.status)} className="flex-1 min-w-[100px] bg-green-500 text-white p-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg shadow-green-500/20">Publikovať</button>
+                                                <button onClick={() => handleDelete(article.id)} className="p-3 text-red-500 hover:bg-red-500/10 rounded-xl transition-all"><Trash2 className="w-5 h-5" /></button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {articles.filter(a => a.status === 'draft').length === 0 && <div className="col-span-full p-20 text-center border-2 border-dashed rounded-[32px] text-muted-foreground font-bold uppercase tracking-widest opacity-50">Žiadne koncepty</div>}
+                                </div>
+                            }
+                        </div>
+
+                        {/* PUBLISHED */}
+                        <div className="pt-8 border-t border-border/50">
+                            <h3 className="text-2xl font-black uppercase tracking-widest mb-6 flex items-center gap-4 text-foreground/70">
+                                <span className="w-3 h-10 bg-green-500 rounded-full opacity-50"></span> Online na webe
+                                <span className="text-sm bg-muted px-3 py-1 rounded-full text-muted-foreground ml-auto">{articles.filter(a => a.status === 'published').length}</span>
+                            </h3>
+
+                            {/* Category Filter for Published Articles */}
+                            {articles.filter(a => a.status === 'published').length > 0 && (
+                                <div className="flex flex-wrap gap-2 p-1.5 bg-muted/30 rounded-2xl w-fit border border-border/50 mb-8">
+                                    <button
+                                        onClick={() => setSelectedPublishedCategory("Všetky")}
+                                        className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedPublishedCategory === "Všetky" ? "bg-primary text-primary-foreground shadow-lg" : "hover:bg-muted text-muted-foreground"}`}
+                                    >
+                                        Všetky ({articles.filter(a => a.status === 'published').length})
+                                    </button>
+                                    {Array.from(new Set(articles.filter(a => a.status === 'published').map(a => a.category || "Nezaradené"))).map(cat => {
+                                        const count = articles.filter(a => a.status === 'published' && (a.category || "Nezaradené") === cat).length;
+                                        return (
+                                            <button
+                                                key={cat}
+                                                onClick={() => setSelectedPublishedCategory(cat)}
+                                                className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedPublishedCategory === cat ? "bg-primary text-primary-foreground shadow-lg" : "hover:bg-muted text-muted-foreground"}`}
+                                            >
+                                                {cat} ({count})
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                {articles.filter(a => a.status === 'published' && (selectedPublishedCategory === "Všetky" || (a.category || "Nezaradené") === selectedPublishedCategory)).map((article) => (
+                                    <div key={article.id} className="relative group/admin">
+                                        <ArticleCard article={article} />
+
+                                        {/* Admin Overlay Actions */}
+                                        <div className="absolute top-6 right-6 z-30 flex flex-col gap-2 opacity-0 group-hover/admin:opacity-100 transition-opacity duration-300">
+                                            <Link
+                                                href={`/admin/edit/${article.id}`}
+                                                className="p-3 bg-white/20 hover:bg-white/40 backdrop-blur-md rounded-full text-white transition-all border border-white/20 shadow-2xl flex items-center gap-2 group/btn"
+                                            >
+                                                <Edit className="w-5 h-5 group-hover/btn:scale-110 transition-transform" />
+                                            </Link>
+                                            <button
+                                                onClick={() => handlePublish(article.id, article.status)}
+                                                title="Stiahnuť z webu (Zmeniť na DRAFT)"
+                                                className="p-3 bg-white/20 hover:bg-yellow-500/80 backdrop-blur-md rounded-full text-white transition-all border border-white/20 shadow-2xl flex items-center gap-2 group/btn"
+                                            >
+                                                <ArrowDown className="w-5 h-5 group-hover/btn:scale-110 transition-transform" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(article.id)}
+                                                title="Zmazať navždy"
+                                                className="p-3 bg-white/20 hover:bg-red-500/90 backdrop-blur-md rounded-full text-white transition-all border border-white/20 shadow-2xl flex items-center gap-2 group/btn"
+                                            >
+                                                <Trash2 className="w-5 h-5 group-hover/btn:scale-110 transition-transform" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                                {articles.filter(a => a.status === 'published').length === 0 && (
+                                    <div className="col-span-full py-20 text-center border-2 border-dashed rounded-[32px] text-muted-foreground font-bold uppercase tracking-widest opacity-30 italic">
+                                        Zatiaľ žiadne články vonku
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Discovery Loading Modal */}
+            {isDiscoveringModalOpen && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-background/80 backdrop-blur-xl animate-in fade-in duration-500">
+                    <div className="bg-card w-full max-w-sm border border-border/50 rounded-[40px] p-12 shadow-2xl flex flex-col items-center text-center ring-1 ring-white/10 relative overflow-hidden">
+                        {/* Animated background glow */}
+                        <div className="absolute inset-0 bg-primary/5 animate-pulse rounded-[40px]"></div>
+
+                        <div className="relative mb-10 text-primary w-24 h-24 rounded-full flex flex-col items-center justify-center bg-primary/10">
+                            <Search className="w-10 h-10 animate-pulse text-primary z-10" />
+                            {/* Spinner ring */}
+                            <div className="absolute inset-0 border-[4px] border-primary/20 border-t-primary rounded-full animate-spin"></div>
+                        </div>
+
+                        <h3 className="text-2xl font-black uppercase tracking-widest mb-4 z-10">AI Discovery</h3>
+
+                        {/* Animated Stage Text */}
+                        <div className="h-16 flex items-center justify-center overflow-hidden z-10 w-full px-2">
+                            <p key={discoveryStage} className="text-sm text-muted-foreground font-medium animate-in slide-in-from-bottom-2 fade-in duration-300">
+                                {discoveryStage}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Generating Loading Modal */}
+            {isGeneratingModalOpen && (
+                <div className="fixed inset-0 z-[210] flex items-center justify-center p-4 bg-background/80 backdrop-blur-xl animate-in fade-in duration-500">
+                    <div className="bg-card w-full max-w-sm border border-border/50 rounded-[40px] p-12 shadow-2xl flex flex-col items-center text-center ring-1 ring-white/10 relative overflow-hidden">
+                        <div className="absolute inset-0 bg-primary/5 animate-pulse rounded-[40px]"></div>
+
+                        <div className="relative mb-10 text-primary w-24 h-24 rounded-full flex flex-col items-center justify-center bg-primary/10">
+                            <Sparkles className="w-10 h-10 animate-pulse text-primary z-10" />
+                            <div className="absolute inset-0 border-[4px] border-primary/20 border-t-primary rounded-full animate-spin"></div>
+                        </div>
+
+                        <h3 className="text-2xl font-black uppercase tracking-widest mb-4 z-10 tracking-[0.2em] text-foreground/90 leading-tight">AI Studio</h3>
+
+                        <div className="h-20 flex items-center justify-center overflow-hidden z-10 w-full px-2">
+                            <p key={generatingStage} className="text-sm text-muted-foreground font-medium animate-in slide-in-from-bottom-2 fade-in duration-300">
+                                {generatingStage}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Status Messages for operations */}
+            {status === "loading" && message && !isDiscoveringModalOpen && !isGeneratingModalOpen && (
+                <div className="fixed bottom-12 left-1/2 -translate-x-1/2 bg-foreground text-background px-10 py-6 rounded-[32px] shadow-2xl flex items-center gap-4 animate-in fade-in zoom-in duration-500 z-[100] border border-white/10 ring-8 ring-black/5 whitespace-nowrap">
+                    <RefreshCw className="w-6 h-6 animate-spin text-primary" />
+                    <span className="font-black uppercase tracking-[0.1em] text-[11px] italic">{message}</span>
                 </div>
             )}
         </div>
