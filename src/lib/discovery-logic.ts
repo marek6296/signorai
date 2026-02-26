@@ -1,6 +1,10 @@
 import Parser from "rss-parser";
 import OpenAI from "openai";
 import { supabase } from "@/lib/supabase";
+import { CATEGORY_MAP } from "@/lib/data";
+
+/** Iba tieto kategórie berieme – témy mimo tohto zoznamu sa vôbec nesprácavajú. */
+const ALLOWED_CATEGORIES = Object.values(CATEGORY_MAP);
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
@@ -108,8 +112,13 @@ export async function discoverNewNews(maxDays: number, targetCategories: string[
         ...(seenSuggestions?.map(s => normalizeUrl(s.url || "")) || [])
     ]);
 
-    // 1. Fetch articles from grouped RSS feeds
+    // 1. Fetch articles len zo skupín, ktoré sú v našich kategóriách (iné vôbec neberieme)
+    const categoriesToFetch = targetCategories.length > 0
+        ? targetCategories.filter(c => ALLOWED_CATEGORIES.includes(c))
+        : [...ALLOWED_CATEGORIES];
+
     for (const [groupName, feeds] of Object.entries(FEED_GROUPS)) {
+        if (!ALLOWED_CATEGORIES.includes(groupName)) continue; // skupina nie je naša kategória – preskočiť
         if (targetCategories.length > 0 && !targetCategories.includes(groupName)) continue;
 
         newsByGroup[groupName] = [];
@@ -203,34 +212,48 @@ export async function discoverNewNews(maxDays: number, targetCategories: string[
         }
     };
 
-    const finalSelection: DiscoveryItem[] = [];
-    for (const [, candidates] of Object.entries(candidatesByGroup)) {
+    // 2b. Alespoň 3 dostupné linky na kategóriu (na základe toho potom spracujeme min. 3 návrhy na kategóriu)
+    const accessibleByGroup: Record<string, DiscoveryItem[]> = {};
+    const MIN_PER_CATEGORY = 3;
+    const MAX_ACCESSIBLE_PER_GROUP = 10;
+
+    for (const [groupName, candidates] of Object.entries(candidatesByGroup)) {
         const accessible: DiscoveryItem[] = [];
         for (const item of candidates) {
-            if (accessible.length >= 5) break; // keep up to 5 verified per category
+            if (accessible.length >= MAX_ACCESSIBLE_PER_GROUP) break;
 
             const isOk = await checkUrlAccessible(item.url);
-            if (isOk) {
-                accessible.push(item);
-            }
+            if (isOk) accessible.push(item);
         }
         if (accessible.length > 0) {
-            finalSelection.push(...accessible);
+            accessibleByGroup[groupName] = accessible;
         }
     }
 
-    if (finalSelection.length === 0) return [];
+    const allAccessible = Object.values(accessibleByGroup).flat();
+    if (allAccessible.length === 0) return [];
 
-    // 3. AI Categorization & Polishing
-    const suggestionsWithAI = [];
-    // Maintain chronological order for AI processing too
-    const pool = finalSelection.sort((a, b) => {
+    // 3. AI – do poolu dáme aspoň 3 položky z každej kategórie, aby sme mohli vrátiť min. 3 návrhy na kategóriu
+    const pool: DiscoveryItem[] = [];
+    const groupNames = Object.keys(accessibleByGroup);
+    const wantPerCategory = Math.max(MIN_PER_CATEGORY, Math.min(8, Math.floor(100 / groupNames.length)));
+
+    for (const groupName of groupNames) {
+        const items = accessibleByGroup[groupName].slice(0, wantPerCategory);
+        pool.push(...items);
+    }
+    // Zoradiť podľa dátumu (najnovšie prvé), zachovať rozumný počet
+    pool.sort((a, b) => {
         const dateA = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
         const dateB = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
         return dateB - dateA;
-    }).slice(0, 50);
+    });
+    const cappedPool = pool.slice(0, 120);
 
-    for (const item of pool) {
+    const suggestionsWithAI: { url: string; title: string; source: string; summary: string; category: string; status: string }[] = [];
+    const processedUrls = new Set<string>();
+
+    for (const item of cappedPool) {
         try {
             const completion = await openai.chat.completions.create({
                 model: "gpt-4o",
@@ -251,7 +274,8 @@ KATEGORIZÁCIA (Buď veľmi prísny a presný!):
 - Veda: Vesmír, medicína a akademický výskum.
 - Návody & Tipy: "Ako urobiť...", tutoriály.
 
-Vráť EXAKTNE JSON: {"title": "Slovenský titulok", "summary": "Slovenské zhrnutie...", "category": "Novinky SK/CZ | Umelá Inteligencia | Tech | Biznis | Krypto | Svet | Politika | Veda | Gaming | Návody & Tipy"}`
+Kategória MUSÍ byť presne jedna z: ${ALLOWED_CATEGORIES.join(" | ")}. Ak téma do žiadnej z nich nespadá, nevkladaj ju.
+Vráť EXAKTNE JSON: {"title": "Slovenský titulok", "summary": "Slovenské zhrnutie...", "category": "jedna z uvedených kategórií"}`
                     },
                     { role: "user", content: `Pôvodný titulok: ${item.title}\nUkážka: ${item.contentSnippet.substring(0, 500)}\nOdporúčaná kategória podľa zdroja: ${item.groupHint}` }
                 ],
@@ -260,17 +284,17 @@ Vráť EXAKTNE JSON: {"title": "Slovenský titulok", "summary": "Slovenské zhrn
 
             const aiData = JSON.parse(completion.choices[0].message.content || "{}");
 
-            // Final Category Match Validation
-            const validCategories = ["Novinky SK/CZ", "Umelá Inteligencia", "Tech", "Biznis", "Krypto", "Svet", "Politika", "Veda", "Gaming", "Návody & Tipy", "Newsletter"];
-            let assignedCategory = aiData.category || item.groupHint || "Tech";
-
+            // Iba naše kategórie – ak AI priradí niečo mimo zoznamu, položku vôbec neberieme
+            let assignedCategory = (aiData.category || item.groupHint || "").trim();
             const lowerAssigned = assignedCategory.toLowerCase();
-            const matchedCat = validCategories.find(c => {
-                const lowC = c.toLowerCase();
-                return lowerAssigned.includes(lowC) || lowC.includes(lowerAssigned);
-            });
+            const matchedCat = ALLOWED_CATEGORIES.find(c =>
+                c.toLowerCase() === lowerAssigned || lowerAssigned.includes(c.toLowerCase()) || c.toLowerCase().includes(lowerAssigned)
+            );
 
-            assignedCategory = matchedCat || item.groupHint || "Tech";
+            if (!matchedCat) continue; // nespadá do žiadnej našej kategórie – vôbec nenavrhujeme
+
+            assignedCategory = matchedCat;
+            processedUrls.add(normalizeUrl(item.url));
 
             suggestionsWithAI.push({
                 url: item.url,
@@ -282,6 +306,63 @@ Vráť EXAKTNE JSON: {"title": "Slovenský titulok", "summary": "Slovenské zhrn
             });
         } catch (e) {
             console.error("AI discovery error:", item.title, e);
+        }
+    }
+
+    // 4. Doplnenie: v každej kategórii chceme aspoň 3 návrhy; ak je menej, skúsime spracovať ďalšie kandidáty z danej skupiny
+    const byCategory = new Map<string, typeof suggestionsWithAI>();
+    for (const s of suggestionsWithAI) {
+        const list = byCategory.get(s.category) || [];
+        list.push(s);
+        byCategory.set(s.category, list);
+    }
+
+    const targetCats = categoriesToFetch.length > 0 ? categoriesToFetch : groupNames;
+    for (const cat of targetCats) {
+        const count = byCategory.get(cat)?.length ?? 0;
+        if (count >= MIN_PER_CATEGORY) continue;
+
+        const candidates = accessibleByGroup[cat] ?? [];
+        const toProcess = candidates.filter(c => !processedUrls.has(normalizeUrl(c.url))).slice(0, Math.max(0, MIN_PER_CATEGORY - count + 2));
+
+        for (const item of toProcess) {
+            try {
+                const completion = await openai.chat.completions.create({
+                    model: "gpt-4o",
+                    messages: [
+                        {
+                            role: "system",
+                            content: `Si profesionálny slovenský redaktor portálu POSTOVINKY. Priraď tému do PRESNE JEDNEJ kategórie.
+Kategória MUSÍ byť presne jedna z: ${ALLOWED_CATEGORIES.join(" | ")}. Ak téma do žiadnej z nich nespadá, nevkladaj ju.
+Vráť EXAKTNE JSON: {"title": "Slovenský titulok", "summary": "Slovenské zhrnutie...", "category": "jedna z uvedených kategórií"}`
+                        },
+                        { role: "user", content: `Pôvodný titulok: ${item.title}\nUkážka: ${item.contentSnippet.substring(0, 500)}\nOdporúčaná kategória: ${item.groupHint}` }
+                    ],
+                    response_format: { type: "json_object" }
+                });
+
+                const aiData = JSON.parse(completion.choices[0].message.content || "{}");
+                let assignedCategory = (aiData.category || "").trim();
+                const lowerAssigned = assignedCategory.toLowerCase();
+                const matchedCat = ALLOWED_CATEGORIES.find(c =>
+                    c.toLowerCase() === lowerAssigned || lowerAssigned.includes(c.toLowerCase()) || c.toLowerCase().includes(lowerAssigned)
+                );
+                if (!matchedCat) continue;
+
+                assignedCategory = matchedCat;
+                processedUrls.add(normalizeUrl(item.url));
+                suggestionsWithAI.push({
+                    url: item.url,
+                    title: aiData.title || item.title,
+                    source: item.source,
+                    summary: aiData.summary || "Zaujímavá téma na spracovanie.",
+                    category: assignedCategory,
+                    status: 'pending'
+                });
+                if (suggestionsWithAI.filter(s => s.category === cat).length >= MIN_PER_CATEGORY) break;
+            } catch (e) {
+                console.error("AI discovery top-up error:", item.title, e);
+            }
         }
     }
 
