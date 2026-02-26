@@ -21,7 +21,7 @@ export function PageHeader({ title, description, label = "Postovinky" }: PageHea
                 </div>
 
                 {/* Title */}
-                <h1 className="relative z-10 text-4xl md:text-5xl lg:text-5xl font-black tracking-tighter uppercase leading-[1.1] mb-4 text-foreground">
+                <h1 className="relative z-10 text-4xl md:text-5xl lg:text-5xl font-black tracking-tighter uppercase leading-[1.1] mb-4 text-foreground opacity-85">
                     {title}
                 </h1>
 
