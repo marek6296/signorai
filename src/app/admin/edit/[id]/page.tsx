@@ -107,13 +107,14 @@ export default function EditArticlePage({ params }: Props) {
     return (
         <div className="container mx-auto px-4 py-12 max-w-4xl flex-grow">
             <div className="mb-6">
-                <Link
-                    href="/admin"
+                <button
+                    type="button"
+                    onClick={() => router.back()}
                     className="inline-flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors"
                 >
                     <ArrowLeft className="w-4 h-4" />
-                    Späť na Admin
-                </Link>
+                    Späť
+                </button>
             </div>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
                 <h1 className="text-3xl font-black">Úprava článku</h1>
@@ -241,13 +242,14 @@ export default function EditArticlePage({ params }: Props) {
                         </div>
 
                         <div className="pt-6 border-t sticky bottom-0 bg-card z-10 p-4 -mx-4 rounded-b-2xl shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.3)] dark:shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.8)] flex flex-col sm:flex-row gap-3">
-                            <Link
-                                href="/admin"
+                            <button
+                                type="button"
+                                onClick={() => router.back()}
                                 className="inline-flex items-center justify-center gap-2 px-4 py-4 rounded-lg border border-border font-bold hover:bg-muted transition-colors shrink-0"
                             >
                                 <ArrowLeft className="w-4 h-4" />
                                 Späť
-                            </Link>
+                            </button>
                             <button
                                 type="submit"
                                 disabled={status === "saving"}

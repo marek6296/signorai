@@ -77,7 +77,7 @@ export default function RootLayout({
       <body className={`${inter.variable} ${syne.variable} font-sans min-h-screen flex flex-col`}>
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
+          defaultTheme="dark"
           themes={["light", "dark", "colorful"]}
           enableSystem
           disableTransitionOnChange
