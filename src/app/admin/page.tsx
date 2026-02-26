@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabase";
 import { Article } from "@/lib/data";
 import Link from "next/link";
-import { Edit, ArrowDown, Trash2, Sparkles, Plus, Globe, Search, CheckCircle2, XCircle, RefreshCw, Zap, Play, History, RotateCcw, BarChart3, Users } from "lucide-react";
+import { Edit, ArrowDown, Trash2, Sparkles, Plus, Globe, Search, CheckCircle2, XCircle, RefreshCw, Zap, Play, History, RotateCcw, BarChart3, Users, Share2, Copy, Twitter, Facebook, Instagram } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ArticleCard } from "@/components/ArticleCard";
 import Image from "next/image";
@@ -48,7 +48,13 @@ export default function AdminPage() {
     const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
     // Tab control
-    const [activeTab, setActiveTab] = useState<"create" | "manage" | "discovery" | "analytics">("manage");
+    const [activeTab, setActiveTab] = useState<"create" | "manage" | "discovery" | "analytics" | "social">("manage");
+
+    // Social Tab State
+    const [socialSelectedArticles, setSocialSelectedArticles] = useState<string[]>([]);
+    const [socialPlatform, setSocialPlatform] = useState<"Facebook" | "Instagram" | "X">("Instagram");
+    const [socialResults, setSocialResults] = useState<Record<string, string>>({});
+    const [isGeneratingSocial, setIsGeneratingSocial] = useState(false);
 
     // Authentication state
     const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -117,6 +123,52 @@ export default function AdminPage() {
         if (!error && data) {
             setAutopilotSettings(data.value as AutopilotSettings);
         }
+    };
+
+    const handleGenerateSocialPosts = async () => {
+        if (socialSelectedArticles.length === 0) return;
+        setIsGeneratingSocial(true);
+        setStatus("loading");
+        setMessage("Generujem príspevky...");
+
+        try {
+            const results: Record<string, string> = {};
+            for (const articleId of socialSelectedArticles) {
+                const article = articles.find(a => a.id === articleId);
+                if (!article) continue;
+
+                const res = await fetch("/api/admin/generate-social-post", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        title: article.title,
+                        excerpt: article.excerpt,
+                        url: `https://postovinky.news/article/${article.slug}`,
+                        platform: socialPlatform
+                    })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    results[articleId] = data.socialPost;
+                }
+            }
+            setSocialResults(prev => ({ ...prev, ...results }));
+            setStatus("success");
+            setMessage("Príspevky vygenerované!");
+        } catch (err) {
+            console.error("Failed to generate social posts:", err);
+            setStatus("error");
+            setMessage("Chyba pri generovaní príspevkov");
+        } finally {
+            setIsGeneratingSocial(false);
+            setTimeout(() => setStatus("idle"), 3000);
+        }
+    };
+
+    const copyToClipboard = (text: string) => {
+        navigator.clipboard.writeText(text);
+        alert("Skopírované!");
     };
 
     const fetchAnalytics = async () => {
@@ -683,7 +735,8 @@ export default function AdminPage() {
                             { id: "discovery", label: "Discovery", icon: Search, badge: suggestions.length },
                             { id: "create", label: "Tvorba", icon: Sparkles },
                             { id: "manage", label: "Správa", icon: Edit },
-                            { id: "analytics", label: "Navštevnosť", icon: BarChart3 }
+                            { id: "analytics", label: "Navštevnosť", icon: BarChart3 },
+                            { id: "social", label: "Sociálne siete", icon: Share2 }
                         ].map((tab) => {
                             const isActive = activeTab === tab.id;
                             return (
@@ -1284,6 +1337,131 @@ export default function AdminPage() {
                                     ))}
                                     {analytics.recentVisits.length === 0 && <p className="text-center text-muted-foreground py-10 font-medium">Zatiaľ žiadne dáta o návštevách.</p>}
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === "social" && (
+                    <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        {/* Header & Platform Selection */}
+                        <div className="bg-card border rounded-[40px] p-10 shadow-sm ring-1 ring-border/50">
+                            <h2 className="text-3xl font-black uppercase tracking-tight mb-8 flex items-center gap-4">
+                                <Share2 className="w-8 h-8 text-primary" />
+                                Social Media Generátor
+                            </h2>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                                {[
+                                    { id: "Instagram", icon: Instagram, color: "text-pink-500" },
+                                    { id: "Facebook", icon: Facebook, color: "text-blue-600" },
+                                    { id: "X", icon: Twitter, color: "text-foreground" }
+                                ].map((p) => (
+                                    <button
+                                        key={p.id}
+                                        onClick={() => setSocialPlatform(p.id as any)}
+                                        className={cn(
+                                            "flex items-center justify-center gap-4 p-6 rounded-[24px] border-2 transition-all font-black uppercase tracking-widest text-sm",
+                                            socialPlatform === p.id
+                                                ? "bg-foreground text-background border-foreground shadow-xl scale-[1.02]"
+                                                : "bg-background border-border/50 text-muted-foreground hover:border-primary/30"
+                                        )}
+                                    >
+                                        <p.icon className={cn("w-6 h-6", socialPlatform === p.id ? "text-background" : p.color)} />
+                                        {p.id}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <button
+                                onClick={handleGenerateSocialPosts}
+                                disabled={socialSelectedArticles.length === 0 || isGeneratingSocial}
+                                className="w-full bg-primary text-primary-foreground py-6 rounded-2xl font-black uppercase tracking-[0.2em] text-sm hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-primary/20 disabled:opacity-50"
+                            >
+                                {isGeneratingSocial ? "Generujem príspevky..." : `Generovať príspevky pre ${socialSelectedArticles.length} článkov`}
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                            {/* Article Selection */}
+                            <div className="bg-card border rounded-[40px] p-10 shadow-sm h-fit">
+                                <h3 className="text-xl font-black uppercase tracking-tight mb-8">Vyberte články</h3>
+                                <div className="space-y-3 max-h-[600px] overflow-y-auto pr-4 custom-scrollbar">
+                                    {articles.slice(0, 30).map((article) => {
+                                        const isSelected = socialSelectedArticles.includes(article.id);
+                                        return (
+                                            <div
+                                                key={article.id}
+                                                onClick={() => setSocialSelectedArticles(prev =>
+                                                    isSelected ? prev.filter(id => id !== article.id) : [...prev, article.id]
+                                                )}
+                                                className={cn(
+                                                    "p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-4 group",
+                                                    isSelected ? "bg-primary/5 border-primary/40" : "bg-muted/20 border-transparent hover:border-border"
+                                                )}
+                                            >
+                                                <div className={cn(
+                                                    "w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all",
+                                                    isSelected ? "bg-primary border-primary text-white" : "border-muted-foreground/30"
+                                                )}>
+                                                    {isSelected && <CheckCircle2 className="w-4 h-4" />}
+                                                </div>
+                                                <div className="flex-grow min-w-0">
+                                                    <p className="text-sm font-bold truncate">{article.title}</p>
+                                                    <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">{article.category}</p>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Generated Content Preview */}
+                            <div className="space-y-6">
+                                <h3 className="text-xl font-black uppercase tracking-tight">Náhľady príspevkov</h3>
+                                {socialSelectedArticles.length === 0 && (
+                                    <div className="bg-muted/10 border border-dashed rounded-[40px] p-20 text-center text-muted-foreground">
+                                        <Sparkles className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                                        <p className="font-bold uppercase text-xs tracking-widest">Vyberte články pre zobrazenie náhľadov</p>
+                                    </div>
+                                )}
+                                {socialSelectedArticles.map((articleId) => {
+                                    const article = articles.find(a => a.id === articleId);
+                                    const result = socialResults[articleId];
+                                    if (!article) return null;
+
+                                    return (
+                                        <div key={articleId} className="bg-card border rounded-[32px] p-8 shadow-md ring-1 ring-border/50 animate-in fade-in slide-in-from-right-4">
+                                            <div className="flex items-center justify-between mb-6">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-1.5 h-6 bg-primary rounded-full"></div>
+                                                    <p className="font-black uppercase text-xs tracking-wider line-clamp-1">{article.title}</p>
+                                                </div>
+                                                {result && (
+                                                    <button
+                                                        onClick={() => copyToClipboard(result)}
+                                                        className="p-3 bg-muted hover:bg-primary/10 hover:text-primary rounded-xl transition-all"
+                                                        title="Kopírovať text"
+                                                    >
+                                                        <Copy className="w-5 h-5" />
+                                                    </button>
+                                                )}
+                                            </div>
+
+                                            {result ? (
+                                                <div className="bg-muted/30 rounded-2xl p-6 relative group">
+                                                    <div className="whitespace-pre-wrap text-sm leading-relaxed font-medium">
+                                                        {result}
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="bg-muted/10 rounded-2xl p-12 text-center text-[10px] font-black uppercase tracking-widest text-muted-foreground italic">
+                                                    {isGeneratingSocial ? "AI premýšľa..." : "Čaká na vygenerovanie"}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     </div>
