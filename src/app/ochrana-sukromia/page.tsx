@@ -1,3 +1,20 @@
+import type { Metadata } from "next";
+
+const BASE_URL = "https://postovinky.news";
+
+export const metadata: Metadata = {
+  title: "Ochrana osobných údajov",
+  description: "Zásady ochrany osobných údajov portálu Postovinky. Ako zbierame, používame a chránime vaše údaje v súlade s GDPR.",
+  alternates: { canonical: `${BASE_URL}/ochrana-sukromia` },
+  openGraph: {
+    title: "Ochrana osobných údajov | Postovinky",
+    description: "Vaše súkromie je pre nás prioritou. Prečítajte si naše zásady spracovania osobných údajov.",
+    url: `${BASE_URL}/ochrana-sukromia`,
+    siteName: "Postovinky",
+    locale: "sk_SK",
+  },
+};
+
 export default function PrivacyPage() {
     return (
         <div className="container mx-auto max-w-4xl px-4 py-20 lg:py-32">

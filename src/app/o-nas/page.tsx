@@ -1,4 +1,20 @@
 import Link from "next/link";
+import type { Metadata } from "next";
+
+const BASE_URL = "https://postovinky.news";
+
+export const metadata: Metadata = {
+  title: "O nás",
+  description: "Sme POSTOVINKY – váš digitálny sprievodca svetom. Prinášame najrelevantnejšie správy, analýzy a trendy v slovenskom jazyku zo sveta AI a technológií.",
+  alternates: { canonical: `${BASE_URL}/o-nas` },
+  openGraph: {
+    title: "O nás | Postovinky",
+    description: "Prečo sme vznikli a čo u nás nájdete. Naša vízia digitálnej éry.",
+    url: `${BASE_URL}/o-nas`,
+    siteName: "Postovinky",
+    locale: "sk_SK",
+  },
+};
 
 export default function AboutPage() {
     return (

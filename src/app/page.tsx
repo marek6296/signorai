@@ -2,8 +2,24 @@ import { getLatestArticle, getRecentArticles } from "@/lib/data";
 import { ArticleCard } from "@/components/ArticleCard";
 import { PageHeader } from "@/components/PageHeader";
 import { NewsletterSidebar } from "@/components/NewsletterSidebar";
+import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
+
+const BASE_URL = "https://postovinky.news";
+
+export const metadata: Metadata = {
+  title: "Hlavné správy",
+  description: "Váš denný prehľad toho najdôležitejšieho zo sveta technológií, AI, biznisu a svetových udalostí. Najnovšie články a analýzy na jednom mieste.",
+  alternates: { canonical: BASE_URL },
+  openGraph: {
+    title: "Hlavné správy | Postovinky",
+    description: "Denný prehľad najdôležitejších správ – tech, AI, biznis, svet.",
+    url: BASE_URL,
+    siteName: "Postovinky",
+    locale: "sk_SK",
+  },
+};
 
 export default async function Home() {
   const latestArticle = await getLatestArticle();
@@ -35,7 +51,7 @@ export default async function Home() {
         {/* Main large articles column */}
         <section className="col-span-1 lg:col-span-8 flex flex-col gap-6 md:gap-12">
           <div className="flex flex-col gap-6 md:gap-12">
-            <ArticleCard article={latestArticle} featured={true} />
+            <ArticleCard article={latestArticle} featured={true} priority />
 
             {principalArticles.map((article) => (
               <div key={article.id} className="pt-6 md:pt-12 border-t border-border/50">

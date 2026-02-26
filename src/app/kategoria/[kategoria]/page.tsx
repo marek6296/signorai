@@ -6,17 +6,26 @@ import { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
 
+const BASE_URL = "https://postovinky.news";
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const slug = params.kategoria.toLowerCase();
     const categoryName = CATEGORY_MAP[slug] || "Kategória";
+    const canonicalUrl = `${BASE_URL}/kategoria/${slug}`;
+    const description = `Najnovšie správy a články z kategórie ${categoryName}. Sledujte aktuálne trendy a novinky.`;
 
     return {
         title: categoryName,
-        description: `Najnovšie správy a články z kategórie ${categoryName}. Sledujte aktuálne trendy a novinky.`,
+        description,
+        alternates: { canonical: canonicalUrl },
         openGraph: {
             title: `Kategória: ${categoryName} | Postovinky`,
             description: `Všetky najnovšie správy z kategórie ${categoryName} na jednom mieste.`,
-        }
+            url: canonicalUrl,
+            siteName: "Postovinky",
+            locale: "sk_SK",
+        },
+        twitter: { card: "summary_large_image", title: `${categoryName} | Postovinky`, description },
     };
 }
 

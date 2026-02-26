@@ -1,4 +1,4 @@
-import { getArticleBySlug, getRecentArticles } from "@/lib/data";
+import { getArticleBySlug, getRecentArticles, CATEGORY_MAP } from "@/lib/data";
 import { Sidebar } from "@/components/Sidebar";
 import { AdminEditButton } from "@/components/AdminEditButton";
 import Image from "next/image";
@@ -15,20 +15,36 @@ interface Props {
     searchParams: { preview?: string };
 }
 
+const BASE_URL = "https://postovinky.news";
+const META_DESC_MAX = 160;
+
+function truncateMetaDesc(text: string, max: number = META_DESC_MAX): string {
+    if (!text || text.length <= max) return text;
+    const cut = text.slice(0, max - 3).lastIndexOf(" ");
+    return (cut > 0 ? text.slice(0, cut) : text.slice(0, max - 3)) + "...";
+}
+
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
     const isPreview = searchParams.preview === "make-com-webhook-secret";
     const article = await getArticleBySlug(params.slug, isPreview);
     if (!article) return { title: "Nenájdené" };
 
+    const canonicalUrl = `${BASE_URL}/article/${article.slug}`;
+    const description = truncateMetaDesc(article.excerpt);
+
     return {
-        title: `${article.title} | Postovinky`,
-        description: article.excerpt,
+        title: article.title,
+        description,
+        alternates: { canonical: canonicalUrl },
         openGraph: {
             title: article.title,
-            description: article.excerpt,
+            description,
             type: "article",
+            url: canonicalUrl,
+            siteName: "Postovinky",
             publishedTime: article.published_at,
             authors: ["Redakcia Postovinky"],
+            section: article.category,
             images: [
                 {
                     url: article.main_image,
@@ -37,13 +53,15 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
                     alt: article.title,
                 },
             ],
+            locale: "sk_SK",
         },
         twitter: {
             card: "summary_large_image",
             title: article.title,
-            description: article.excerpt,
+            description,
             images: [article.main_image],
         },
+        robots: article.status === "draft" ? { index: false, follow: true } : undefined,
     };
 }
 
@@ -58,36 +76,41 @@ export default async function ArticlePage({ params, searchParams }: Props) {
     const recentArticles = await getRecentArticles(article.id);
     const publishDate = format(parseISO(article.published_at), "d. MMMM yyyy, HH:mm", { locale: sk });
 
-    // Article Schema (JSON-LD)
-    const jsonLd = {
+    const baseUrl = "https://postovinky.news";
+    const categorySlug = Object.entries(CATEGORY_MAP).find(([, name]) => name === article.category)?.[0] ?? "novinky";
+
+    const jsonLdArticle = {
         "@context": "https://schema.org",
         "@type": "NewsArticle",
         "headline": article.title,
         "image": [article.main_image],
         "datePublished": article.published_at,
         "dateModified": article.published_at,
+        "articleSection": article.category,
         "author": [{
             "@type": "Organization",
             "name": "Redakcia Postovinky",
-            "url": "https://postovinky.news"
+            "url": baseUrl
         }],
-        "publisher": {
-            "@type": "Organization",
-            "name": "Postovinky",
-            "logo": {
-                "@type": "ImageObject",
-                "url": "https://postovinky.news/logo/black.png"
-            }
-        },
-        "description": article.excerpt
+        "publisher": { "@id": "https://postovinky.news/#organization" },
+        "description": article.excerpt,
+        "mainEntityOfPage": { "@type": "WebPage", "@id": `${baseUrl}/article/${article.slug}` }
+    };
+
+    const jsonLdBreadcrumb = {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            { "@type": "ListItem", "position": 1, "name": "Domov", "item": baseUrl },
+            { "@type": "ListItem", "position": 2, "name": article.category, "item": `${baseUrl}/kategoria/${categorySlug}` },
+            { "@type": "ListItem", "position": 3, "name": article.title, "item": `${baseUrl}/article/${article.slug}` }
+        ]
     };
 
     return (
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 max-w-7xl">
-            <script
-                type="application/ld+json"
-                dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-            />
+            <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdArticle) }} />
+            <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdBreadcrumb) }} />
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16">
 
                 {/* Main Content */}

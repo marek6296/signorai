@@ -1,3 +1,20 @@
+import type { Metadata } from "next";
+
+const BASE_URL = "https://postovinky.news";
+
+export const metadata: Metadata = {
+  title: "Kontakt",
+  description: "Kontaktujte redakciu Postovinky. Máte otázku, nápad na spoluprácu alebo nám chcete napísať? Sme tu pre vás.",
+  alternates: { canonical: `${BASE_URL}/kontakt` },
+  openGraph: {
+    title: "Kontakt | Postovinky",
+    description: "Napíšte nám – redakcia@postovinky.sk, Bratislava.",
+    url: `${BASE_URL}/kontakt`,
+    siteName: "Postovinky",
+    locale: "sk_SK",
+  },
+};
+
 export default function ContactPage() {
     return (
         <div className="container mx-auto max-w-5xl px-4 py-20 lg:py-32">

@@ -13,9 +13,11 @@ import { supabase } from "@/lib/supabase";
 interface ArticleCardProps {
     article: Article;
     featured?: boolean;
+    /** Pre LCP: nastav true pre prvý obrázok na stránke (napr. hlavný článok na homepage) */
+    priority?: boolean;
 }
 
-export function ArticleCard({ article, featured = false }: ArticleCardProps) {
+export function ArticleCard({ article, featured = false, priority = false }: ArticleCardProps) {
     const publishDate = format(parseISO(article.published_at), "d. MMMM yyyy", { locale: sk });
 
     const [isAdmin, setIsAdmin] = useState(false);
@@ -74,6 +76,7 @@ export function ArticleCard({ article, featured = false }: ArticleCardProps) {
                     src={article.main_image}
                     alt={article.title}
                     fill
+                    priority={priority}
                     className="object-cover transition-transform duration-700 ease-out group-hover:scale-110"
                     sizes={featured ? "(max-width: 1280px) 100vw, 66vw" : "(max-width: 768px) 100vw, 33vw"}
                     unoptimized
