@@ -62,7 +62,6 @@
 
   .animate-pan-bg {
     animation: panBackground 20s ease-in-out infinite;
-    /* background-size is applied directly in inline style now so we can omit it here or leave as fallback */
   }
 
   .animate-text-shimmer {
@@ -132,41 +131,24 @@
     --ring: 240 4.9% 83.9%;
   }
 
-  /* Vibrant Colorful Theme - "Midnight Aurora" */
   .colorful {
     --background: 215 45% 8%;
-    /* Very deep rich navy/slate blue */
     --foreground: 215 15% 90%;
-    /* Icy soft white for reading */
-
     --card: 215 40% 12%;
-    /* Slightly elevated navy */
     --card-foreground: 215 15% 90%;
-
     --popover: 215 40% 12%;
     --popover-foreground: 215 15% 90%;
-
     --primary: 175 85% 50%;
-    /* Vibrant electric neon cyan */
     --primary-foreground: 215 50% 10%;
-    /* Dark text on bright primary */
-
     --secondary: 215 30% 20%;
-    /* Muted slate background for badges */
     --secondary-foreground: 215 15% 90%;
-
     --muted: 215 30% 16%;
     --muted-foreground: 215 20% 65%;
-    /* Soft slate gray for secondary text */
-
     --accent: 175 85% 50%;
     --accent-foreground: 215 50% 10%;
-
     --destructive: 350 80% 60%;
     --destructive-foreground: 0 0% 100%;
-
     --border: 215 30% 22%;
-    /* Deep but visible borders */
     --input: 215 30% 22%;
     --ring: 175 85% 50%;
   }
