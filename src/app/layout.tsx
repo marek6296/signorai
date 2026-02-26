@@ -10,8 +10,15 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const syne = Syne({ subsets: ["latin"], weight: ["400", "700", "800"], variable: "--font-syne" });
 
 export const metadata: Metadata = {
-  title: "POSTOVINKY - Najnovšie správy a trendy",
+  metadataBase: new URL("https://postovinky.news"),
+  title: {
+    default: "POSTOVINKY - Najnovšie správy a trendy",
+    template: "%s | POSTOVINKY"
+  },
   description: "Váš prémiový digitálny magazín o novinkách, technológiách a svetových trendoch.",
+  alternates: {
+    canonical: "/"
+  },
   icons: {
     icon: "/logo/black.png",
     apple: "/logo/black.png",

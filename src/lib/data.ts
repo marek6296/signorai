@@ -104,3 +104,17 @@ export async function getArticlesByCategory(slug: string): Promise<Article[]> {
     }
     return data as Article[];
 }
+
+export async function getAllArticlesForSitemap() {
+    const { data, error } = await supabase
+        .from('articles')
+        .select('slug, published_at')
+        .eq('status', 'published')
+        .order('published_at', { ascending: false });
+
+    if (error) {
+        console.error("Error fetching articles for sitemap:", error);
+        return [];
+    }
+    return data;
+}

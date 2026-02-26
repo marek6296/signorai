@@ -58,8 +58,36 @@ export default async function ArticlePage({ params, searchParams }: Props) {
     const recentArticles = await getRecentArticles(article.id);
     const publishDate = format(parseISO(article.published_at), "d. MMMM yyyy, HH:mm", { locale: sk });
 
+    // Article Schema (JSON-LD)
+    const jsonLd = {
+        "@context": "https://schema.org",
+        "@type": "NewsArticle",
+        "headline": article.title,
+        "image": [article.main_image],
+        "datePublished": article.published_at,
+        "dateModified": article.published_at,
+        "author": [{
+            "@type": "Organization",
+            "name": "Redakcia Postovinky",
+            "url": "https://postovinky.news"
+        }],
+        "publisher": {
+            "@type": "Organization",
+            "name": "Postovinky",
+            "logo": {
+                "@type": "ImageObject",
+                "url": "https://postovinky.news/logo/black.png"
+            }
+        },
+        "description": article.excerpt
+    };
+
     return (
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 max-w-7xl">
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+            />
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16">
 
                 {/* Main Content */}

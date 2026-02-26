@@ -2,8 +2,23 @@ import { getArticlesByCategory, CATEGORY_MAP } from "@/lib/data";
 import { ArticleCard } from "@/components/ArticleCard";
 import { PageHeader } from "@/components/PageHeader";
 import { notFound } from "next/navigation";
+import { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+    const slug = params.kategoria.toLowerCase();
+    const categoryName = CATEGORY_MAP[slug] || "Kategória";
+
+    return {
+        title: categoryName,
+        description: `Najnovšie správy a články z kategórie ${categoryName}. Sledujte aktuálne trendy a novinky.`,
+        openGraph: {
+            title: `Kategória: ${categoryName} | Postovinky`,
+            description: `Všetky najnovšie správy z kategórie ${categoryName} na jednom mieste.`,
+        }
+    };
+}
 
 interface Props {
     params: { kategoria: string };
