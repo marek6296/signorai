@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useRef } from 'react';
-import { toPng } from 'html-to-image';
-import { Download, Instagram } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { toPng, toBlob } from 'html-to-image';
+import { Download, Copy, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface InstagramPreviewProps {
@@ -12,14 +12,11 @@ interface InstagramPreviewProps {
 
 export function InstagramPreview({ title }: InstagramPreviewProps) {
     const previewRef = useRef<HTMLDivElement>(null);
+    const [isCopied, setIsCopied] = useState(false);
 
     const onDownload = async () => {
-        if (previewRef.current === null) {
-            return;
-        }
-
+        if (previewRef.current === null) return;
         try {
-            // Options to ensure high quality and correct size
             const dataUrl = await toPng(previewRef.current, {
                 cacheBust: true,
                 width: 1080,
@@ -35,17 +32,51 @@ export function InstagramPreview({ title }: InstagramPreviewProps) {
         }
     };
 
+    const onCopy = async () => {
+        if (previewRef.current === null) return;
+        try {
+            const blob = await toBlob(previewRef.current, {
+                cacheBust: true,
+                width: 1080,
+                height: 1080,
+                pixelRatio: 1
+            });
+            if (blob) {
+                const item = new ClipboardItem({ [blob.type]: blob });
+                await navigator.clipboard.write([item]);
+                setIsCopied(true);
+                setTimeout(() => setIsCopied(false), 2000);
+            }
+        } catch (err) {
+            console.error('Failed to copy image:', err);
+        }
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Vizuálny náhľad (1080x1080)</span>
-                <button
-                    onClick={onDownload}
-                    className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg shadow-primary/20"
-                >
-                    <Download className="w-4 h-4" />
-                    Stiahnuť obrázok
-                </button>
+                <div className="flex gap-2">
+                    <button
+                        onClick={onCopy}
+                        className={cn(
+                            "flex items-center gap-2 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg",
+                            isCopied
+                                ? "bg-green-500 text-white shadow-green-500/20"
+                                : "bg-muted hover:bg-muted/80 text-foreground shadow-black/5"
+                        )}
+                    >
+                        {isCopied ? <CheckCircle2 className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                        {isCopied ? "Skopírované!" : "Kopírovať obrázok"}
+                    </button>
+                    <button
+                        onClick={onDownload}
+                        className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg shadow-primary/20"
+                    >
+                        <Download className="w-4 h-4" />
+                        Stiahnuť
+                    </button>
+                </div>
             </div>
 
             {/* The Actual Post container - fixed size for preview */}
