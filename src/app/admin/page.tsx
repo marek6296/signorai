@@ -499,7 +499,7 @@ export default function AdminPage() {
             const res = await fetch("/api/admin/auto-pilot", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ secret: "make-com-webhook-secret", mode: 'manual' })
+                body: JSON.stringify({ secret: "make-com-webhook-secret", mode: 'automated' })
             });
 
             const data = await res.json();
@@ -532,6 +532,14 @@ export default function AdminPage() {
         if (!error) {
             setStatus("success");
             setMessage(newState ? "Autopilot bol zapnutý. Odteraz bude automaticky spracovávať novinky." : "Autopilot bol vypnutý.");
+
+            if (newState) {
+                if (confirm("Autopilot je aktivovaný! Chcete ho teraz spustiť, aby hneď vyhľadal a publikoval najnovšie správy? (Potom bude pokračovať automaticky každých 24h)")) {
+                    await executeAutopilotRun();
+                }
+            }
+
+            fetchAutopilotSettings();
             setTimeout(() => { setStatus("idle"); setMessage(""); }, 3000);
         }
     };
