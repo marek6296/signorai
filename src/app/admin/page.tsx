@@ -315,6 +315,47 @@ export default function AdminPage() {
         }
     };
 
+    const handleRefreshRecentCategories = async () => {
+        const recentIds = articles
+            .filter(a => a.status === 'published')
+            .slice(0, 20)
+            .map(a => a.id);
+
+        if (recentIds.length === 0) {
+            alert("Nájdených 0 článkov na opravu.");
+            return;
+        }
+
+        if (!confirm(`AI teraz preanalyzuje a opraví kategórie pre ${recentIds.length} posledných článkov. Pokračovať?`)) return;
+
+        setIsRefreshingCategories(true);
+        setStatus("loading");
+        try {
+            const response = await fetch("/api/admin/refresh-categories", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    secret: 'make-com-webhook-secret',
+                    articleIds: recentIds
+                })
+            });
+            const data = await response.json();
+            if (response.ok) {
+                alert(data.message);
+                fetchArticles();
+                await fetch("/api/revalidate?secret=make-com-webhook-secret", { method: "POST" });
+            } else {
+                alert("Chyba: " + data.message);
+            }
+        } catch (e: unknown) {
+            const error = e as Error;
+            alert("API chyba: " + error.message);
+        } finally {
+            setIsRefreshingCategories(false);
+            setStatus("idle");
+        }
+    };
+
     const handleDiscoverNews = async () => {
         setStatus("loading");
         setIsDiscoveringModalOpen(true);
@@ -953,15 +994,25 @@ export default function AdminPage() {
                                         <span className="text-sm bg-muted px-3 py-1 rounded-full text-muted-foreground ml-2">{articles.filter(a => a.status === 'published').length}</span>
                                     </h3>
 
-                                    <button
-                                        onClick={() => {
-                                            setIsBulkCategoryMode(!isBulkCategoryMode);
-                                            setBulkSelectedArticles([]);
-                                        }}
-                                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isBulkCategoryMode ? "bg-primary text-white shadow-lg shadow-primary/30" : "bg-muted hover:bg-muted/80 text-muted-foreground border-2 border-transparent hover:border-primary/20"}`}
-                                    >
-                                        {isBulkCategoryMode ? "Zrušiť hromadnú úpravu" : "Hromadná oprava kategórií"}
-                                    </button>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={handleRefreshRecentCategories}
+                                            disabled={isRefreshingCategories}
+                                            className="bg-primary/10 text-primary px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary/20 transition-all flex items-center gap-2 border-2 border-primary/20"
+                                        >
+                                            <RefreshCw className={cn("w-3 h-3", isRefreshingCategories && "animate-spin")} />
+                                            AI opraviť posledných 20
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setIsBulkCategoryMode(!isBulkCategoryMode);
+                                                setBulkSelectedArticles([]);
+                                            }}
+                                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isBulkCategoryMode ? "bg-primary text-white shadow-lg shadow-primary/30" : "bg-muted hover:bg-muted/80 text-muted-foreground border-2 border-transparent hover:border-primary/20"}`}
+                                        >
+                                            {isBulkCategoryMode ? "Zrušiť hromadnú úpravu" : "Hromadná oprava kategórií"}
+                                        </button>
+                                    </div>
                                 </div>
 
                                 {isBulkCategoryMode && (
