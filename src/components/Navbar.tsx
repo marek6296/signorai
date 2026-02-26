@@ -28,12 +28,12 @@ export function Navbar() {
         <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className="container mx-auto flex flex-col items-center justify-center py-2 md:py-3 relative px-4 sm:px-6 lg:px-8">
 
-                {/* Center: Brand Logo (Restored to original state) */}
-                <Link href="/" className="mb-0.5 flex items-baseline gap-2 group" onClick={() => setIsMenuOpen(false)}>
-                    <span className="font-syne font-extrabold text-4xl md:text-6xl tracking-tighter uppercase bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">
+                {/* Center: Brand Logo */}
+                <Link href="/" className="mb-0.5 flex items-baseline gap-2 group px-12 md:px-0" onClick={() => setIsMenuOpen(false)}>
+                    <span className="font-syne font-extrabold text-2xl md:text-6xl tracking-tighter uppercase bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">
                         POSTOVINKY
                     </span>
-                    <span className="text-primary font-black text-[10px] md:text-xs uppercase tracking-[0.3em] opacity-70 group-hover:opacity-100 transition-opacity translate-y-[-2px] ml-1">
+                    <span className="text-primary font-black text-[8px] md:text-xs uppercase tracking-[0.3em] opacity-70 group-hover:opacity-100 transition-opacity translate-y-[-1px] md:translate-y-[-2px] ml-1">
                         News
                     </span>
                 </Link>
