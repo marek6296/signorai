@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { Article } from "@/lib/data";
 import Link from "next/link";
-import { Edit, ArrowDown, Trash2, Sparkles, Plus, Globe, Search, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
+import { Edit, ArrowDown, Trash2, Sparkles, Plus, Globe, Search, CheckCircle2, XCircle, RefreshCw, Zap, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ArticleCard } from "@/components/ArticleCard";
 import Image from "next/image";
@@ -20,6 +20,12 @@ type SuggestedNews = {
     created_at: string;
 };
 
+type AutopilotSettings = {
+    enabled: boolean;
+    last_run: string | null;
+    processed_count: number;
+};
+
 export default function AdminPage() {
     const [url, setUrl] = useState("");
     const [synthesisUrls, setSynthesisUrls] = useState<string[]>([""]);
@@ -29,6 +35,8 @@ export default function AdminPage() {
     const [suggestions, setSuggestions] = useState<SuggestedNews[]>([]);
     const [loadingArticles, setLoadingArticles] = useState(true);
     const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+    const [autopilotSettings, setAutopilotSettings] = useState<AutopilotSettings>({ enabled: false, last_run: null, processed_count: 0 });
+    const [loadingAutopilot, setLoadingAutopilot] = useState(false);
 
     // Tab control
     const [activeTab, setActiveTab] = useState<"create" | "manage" | "discovery">("manage");
@@ -78,6 +86,20 @@ export default function AdminPage() {
         setLoadingSuggestions(false);
     };
 
+    const fetchAutopilotSettings = async () => {
+        setLoadingAutopilot(true);
+        const { data, error } = await supabase
+            .from('site_settings')
+            .select('value')
+            .eq('key', 'auto_pilot')
+            .single();
+
+        if (!error && data) {
+            setAutopilotSettings(data.value as AutopilotSettings);
+        }
+        setLoadingAutopilot(false);
+    };
+
     useEffect(() => {
         if (typeof window !== "undefined") {
             const loggedInUser = localStorage.getItem("admin_logged_in");
@@ -85,6 +107,7 @@ export default function AdminPage() {
                 setIsLoggedIn(true);
                 fetchArticles();
                 fetchSuggestions();
+                fetchAutopilotSettings();
             }
         }
     }, []);
@@ -300,6 +323,50 @@ export default function AdminPage() {
         fetchSuggestions();
     };
 
+    const handleToggleAutopilot = async () => {
+        const newState = !autopilotSettings.enabled;
+        const newSettings = { ...autopilotSettings, enabled: newState };
+
+        setAutopilotSettings(newSettings); // Optimistic update
+
+        const { error } = await supabase
+            .from('site_settings')
+            .update({ value: newSettings })
+            .eq('key', 'auto_pilot');
+
+        if (error) {
+            alert("Chyba pri ukladaní nastavení");
+            setAutopilotSettings(autopilotSettings); // Rollback
+        }
+    };
+
+    const handleRunAutopilotNow = async () => {
+        if (!confirm("Spustiť AI Autopilota teraz? Spracuje jeden článok z každej kategórie a rovno ho PUBLIKUJE.")) return;
+
+        setStatus("loading");
+        setMessage("Autopilot pracuje...");
+
+        try {
+            const res = await fetch("/api/admin/auto-pilot", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ secret: "make-com-webhook-secret" })
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message);
+
+            setStatus("success");
+            setMessage(data.message);
+            fetchSuggestions();
+            fetchArticles();
+            fetchAutopilotSettings();
+        } catch (error: unknown) {
+            setStatus("error");
+            setMessage(error instanceof Error ? error.message : "Chyba Autopilota");
+        }
+    };
+
     if (!isLoggedIn) {
         return (
             <div className="container mx-auto px-4 py-20 max-w-md flex-grow">
@@ -471,6 +538,64 @@ export default function AdminPage() {
                                 {status === "loading" ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                                 Hľadať nové témy
                             </button>
+                        </div>
+                    </div>
+
+                    {/* AI Autopilot Panel */}
+                    <div className="bg-gradient-to-br from-primary/10 via-background to-background border-2 border-primary/20 p-10 rounded-[40px] shadow-2xl relative overflow-hidden group/auto">
+                        <div className="absolute top-0 right-0 p-8 opacity-10 group-hover/auto:opacity-20 transition-opacity">
+                            <Sparkles className="w-32 h-32 text-primary" />
+                        </div>
+
+                        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-10">
+                            <div className="max-w-xl">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="bg-primary text-primary-foreground p-3 rounded-2xl">
+                                        <Zap className="w-6 h-6" />
+                                    </div>
+                                    <h3 className="text-3xl font-black uppercase tracking-tight">AI Autopilot</h3>
+                                    {autopilotSettings.enabled ? (
+                                        <span className="bg-green-500 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest animate-pulse">Aktívny</span>
+                                    ) : (
+                                        <span className="bg-muted text-muted-foreground text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">Vypnutý</span>
+                                    )}
+                                </div>
+                                <p className="text-muted-foreground font-medium text-lg leading-relaxed mb-8">
+                                    Automaticky spracuje jeden najlepší článok z každej kategórie a rovno ho publikuje na web. Šetrí čas a udržuje portál stále čerstvý.
+                                </p>
+
+                                <div className="flex flex-wrap gap-6 text-sm font-bold uppercase tracking-widest">
+                                    <div className="flex flex-col">
+                                        <span className="text-muted-foreground text-[10px] mb-1">Posledný beh</span>
+                                        <span className="text-foreground">{autopilotSettings.last_run ? new Date(autopilotSettings.last_run).toLocaleString('sk-SK') : 'Nikdy'}</span>
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="text-muted-foreground text-[10px] mb-1">Spracovaných článkov</span>
+                                        <span className="text-foreground">{autopilotSettings.processed_count}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col gap-4 min-w-[240px]">
+                                <button
+                                    onClick={handleToggleAutopilot}
+                                    className={cn(
+                                        "w-full py-5 rounded-2xl font-black uppercase tracking-[0.2em] text-xs transition-all flex items-center justify-center gap-3 shadow-xl",
+                                        autopilotSettings.enabled
+                                            ? "bg-red-500 text-white hover:bg-red-600 shadow-red-500/20"
+                                            : "bg-green-500 text-white hover:bg-green-600 shadow-green-500/20"
+                                    )}
+                                >
+                                    {autopilotSettings.enabled ? "Vypnúť Autopilota" : "Zapnúť Autopilota"}
+                                </button>
+                                <button
+                                    onClick={handleRunAutopilotNow}
+                                    disabled={status === "loading"}
+                                    className="w-full bg-foreground text-background py-5 rounded-2xl font-black uppercase tracking-[0.2em] text-xs hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 shadow-xl"
+                                >
+                                    <Play className="w-4 h-4 fill-current" /> Spustiť manuálne
+                                </button>
+                            </div>
                         </div>
                     </div>
 
