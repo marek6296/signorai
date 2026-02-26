@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { sk } from "date-fns/locale";
 import { Sparkles, Calendar, Tag } from "lucide-react";
+import { AudioPlayer } from "@/components/AudioPlayer";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
@@ -143,6 +144,12 @@ export default async function ArticlePage({ params, searchParams }: Props) {
                             {article.excerpt}
                         </p>
                     </header>
+
+                    {/* Audio Player */}
+                    <AudioPlayer
+                        title={article.title}
+                        text={`${article.title}. ${article.excerpt}. ${article.content.replace(/<\/p>| <\/h2>|<\/h3>/g, ". ").replace(/<[^>]*>/g, "")}`}
+                    />
 
                     <figure className="relative aspect-video w-full rounded-2xl overflow-hidden mb-12 border bg-muted">
                         <Image
