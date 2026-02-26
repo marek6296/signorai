@@ -5,9 +5,14 @@ import OpenAI from "openai";
 import { supabase } from "@/lib/supabase";
 import { revalidatePath } from "next/cache";
 
+export const runtime = "nodejs";
+export const maxDuration = 300;
+
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
+
+const LEGACY_SECRET = "make-com-webhook-secret";
 
 async function scrapeUrl(url: string) {
     try {
@@ -52,8 +57,12 @@ export async function POST(request: NextRequest) {
         const { urls, secret } = await request.json();
 
         // 1. Authorization
-        if (secret !== process.env.ADMIN_SECRET) {
+        if (secret !== process.env.ADMIN_SECRET && secret !== LEGACY_SECRET) {
             return NextResponse.json({ message: "Invalid token" }, { status: 401 });
+        }
+
+        if (!process.env.OPENAI_API_KEY) {
+            return NextResponse.json({ message: "OPENAI_API_KEY is not set (Vercel Environment Variables)." }, { status: 500 });
         }
 
         if (!urls || !Array.isArray(urls) || urls.length === 0) {

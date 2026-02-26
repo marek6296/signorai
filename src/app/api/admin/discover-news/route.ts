@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { discoverNewNews } from "@/lib/discovery-logic";
 
+export const runtime = "nodejs";
 export const dynamic = 'force-dynamic';
+export const maxDuration = 300;
+
+const LEGACY_SECRET = "make-com-webhook-secret";
 
 export async function GET(request: NextRequest) {
     try {
@@ -14,8 +18,16 @@ export async function GET(request: NextRequest) {
         const categoriesRaw = request.nextUrl.searchParams.get("categories");
         const targetCategories = categoriesRaw ? categoriesRaw.split(",").filter(Boolean) : [];
 
-        if (secret !== process.env.ADMIN_SECRET && authHeader !== `Bearer ${process.env.ADMIN_SECRET}`) {
+        if (
+            secret !== process.env.ADMIN_SECRET &&
+            secret !== LEGACY_SECRET &&
+            authHeader !== `Bearer ${process.env.ADMIN_SECRET}`
+        ) {
             return NextResponse.json({ message: "Invalid secret" }, { status: 401 });
+        }
+
+        if (!process.env.OPENAI_API_KEY) {
+            return NextResponse.json({ message: "OPENAI_API_KEY is not set (Vercel Environment Variables)." }, { status: 500 });
         }
 
         const newsItems = await discoverNewNews(maxDays, targetCategories);

@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { processArticleFromUrl } from "@/lib/generate-logic";
 import { discoverNewNews } from "@/lib/discovery-logic";
 
+export const runtime = "nodejs";
 export const maxDuration = 300; // Increased to 5 minutes for parallel article generation
 export const dynamic = 'force-dynamic';
 
