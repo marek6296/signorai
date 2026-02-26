@@ -37,6 +37,7 @@
     "typescript": "^5"
   },
   "overrides": {
-    "html-encoding-sniffer": "4.0.0"
+    "html-encoding-sniffer": "4.0.0",
+    "whatwg-url": "15.0.0"
   }
 }
