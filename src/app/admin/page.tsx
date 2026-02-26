@@ -356,6 +356,46 @@ export default function AdminPage() {
         }
     };
 
+    const handleRefreshAllCategories = async () => {
+        const allIds = articles
+            .filter(a => a.status === 'published')
+            .map(a => a.id);
+
+        if (allIds.length === 0) {
+            alert("Nájdených 0 článkov na opravu.");
+            return;
+        }
+
+        if (!confirm(`POZOR: AI teraz preanalyzuje a opraví kategórie pre VŠETKÝCH ${allIds.length} článkov v databáze. Toto môže trvať dlhšie. Pokračovať?`)) return;
+
+        setIsRefreshingCategories(true);
+        setStatus("loading");
+        try {
+            const response = await fetch("/api/admin/refresh-categories", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    secret: 'make-com-webhook-secret',
+                    articleIds: allIds
+                })
+            });
+            const data = await response.json();
+            if (response.ok) {
+                alert(data.message);
+                fetchArticles();
+                await fetch("/api/revalidate?secret=make-com-webhook-secret", { method: "POST" });
+            } else {
+                alert("Chyba: " + data.message);
+            }
+        } catch (e: unknown) {
+            const error = e as Error;
+            alert("API chyba: " + error.message);
+        } finally {
+            setIsRefreshingCategories(false);
+            setStatus("idle");
+        }
+    };
+
     const handleDiscoverNews = async () => {
         setStatus("loading");
         setIsDiscoveringModalOpen(true);
@@ -1001,7 +1041,15 @@ export default function AdminPage() {
                                             className="bg-primary/10 text-primary px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary/20 transition-all flex items-center gap-2 border-2 border-primary/20"
                                         >
                                             <RefreshCw className={cn("w-3 h-3", isRefreshingCategories && "animate-spin")} />
-                                            AI opraviť posledných 20
+                                            AI opraviť 20
+                                        </button>
+                                        <button
+                                            onClick={handleRefreshAllCategories}
+                                            disabled={isRefreshingCategories}
+                                            className="bg-red-500/10 text-red-500 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all flex items-center gap-2 border-2 border-red-500/20"
+                                        >
+                                            <RefreshCw className={cn("w-3 h-3", isRefreshingCategories && "animate-spin")} />
+                                            AI opraviť VŠETKO
                                         </button>
                                         <button
                                             onClick={() => {
