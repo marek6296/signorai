@@ -107,9 +107,6 @@ export function InstagramPreview({ title }: InstagramPreviewProps) {
                                 transform: 'scale(1.5)'
                             }}
                         />
-                        {/* Corner Accents */}
-                        <div className="absolute top-[60px] left-[60px] w-32 h-32 border-t-[8px] border-l-[8px] border-primary z-10" />
-                        <div className="absolute bottom-[60px] right-[60px] w-32 h-32 border-b-[8px] border-r-[8px] border-primary z-10" />
 
                         {/* Top Logo - Matched to Header */}
                         <div className="absolute top-[120px] left-0 right-0 flex items-baseline justify-center gap-3 z-10">
