@@ -23,7 +23,7 @@ export function NewsletterSidebar() {
 
             setStatus("success");
             setEmail("");
-        } catch (error) {
+        } catch {
             alert("Chyba pri prihlasovaní. Skúste to neskôr.");
             setStatus("idle");
         }
