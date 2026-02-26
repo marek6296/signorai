@@ -2,13 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
     try {
-        const { text, voiceId = "pNInz6obpgnuM07bhE4N" } = await req.json();
+        const { text, voiceId = "dlGxemPxFMTY7iXagmOj" } = await req.json();
+        console.log(">>> [TTS] Text length:", text?.length);
 
         if (!text) {
             return NextResponse.json({ error: "Text is required" }, { status: 400 });
         }
 
         const apiKey = process.env.ELEVENLABS_API_KEY;
+        console.log(">>> [TTS] API Key present:", !!apiKey);
         if (!apiKey) {
             return NextResponse.json({ error: "ELEVENLABS_API_KEY is not set" }, { status: 500 });
         }
@@ -35,6 +37,7 @@ export async function POST(req: NextRequest) {
 
         if (!response.ok) {
             const errorData = await response.json();
+            console.error(">>> [TTS] ElevenLabs Error:", response.status, errorData);
             return NextResponse.json(
                 { error: errorData.detail?.message || "Failed to generate audio" },
                 { status: response.status }
