@@ -10,15 +10,15 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const syne = Syne({ subsets: ["latin"], weight: ["400", "700", "800"], variable: "--font-syne" });
 
 export const metadata: Metadata = {
-  title: "POSTOVINKY - AI & Tech News",
-  description: "Váš prémiový digitálny magazín o umelej inteligencii",
+  title: "POSTOVINKY - Najnovšie správy a trendy",
+  description: "Váš prémiový digitálny magazín o novinkách, technológiách a svetových trendoch.",
   icons: {
     icon: "/logo/black.png",
     apple: "/logo/black.png",
   },
   openGraph: {
-    title: "POSTOVINKY - AI News Portal",
-    description: "Váš denný prehľad toho najdôležitejšieho zo sveta AI a technológií.",
+    title: "POSTOVINKY - Digitálny magazín",
+    description: "Váš denný prehľad toho najdôležitejšieho zo sveta technológií, biznisu a svetových udalostí.",
     url: "https://postovinky.news",
     siteName: "Postovinky",
     images: [
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Postovinky AI News Portal",
+        alt: "Postovinky News Portal",
       },
     ],
     locale: "sk_SK",
