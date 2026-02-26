@@ -47,7 +47,7 @@ export default async function Home() {
 
         {/* Sidebar / Recent articles */}
         <section className="col-span-1 lg:col-span-4 flex flex-col gap-6">
-          <div className="flex flex-col items-center gap-2 pb-4 border-b-2 border-primary/20 text-center">
+          <div className="flex flex-col items-center gap-2 pb-4 border-b-2 border-primary/20 text-center opacity-70">
             <h2 className="font-black text-xl uppercase tracking-[0.2em]">Ďalšie dôležité</h2>
           </div>
 
@@ -59,8 +59,8 @@ export default async function Home() {
                 </div>
               ))
             ) : (
-              <div className="p-8 bg-muted/20 rounded-2xl text-center border border-dashed border-border/50">
-                <p className="text-sm text-muted-foreground">Pripravujeme pre vás ďalšie aktuality.</p>
+              <div className="p-8 bg-muted/20 rounded-2xl text-center border border-dashed border-border/50 text-muted-foreground/60">
+                <p className="text-sm">Pripravujeme pre vás ďalšie aktuality.</p>
               </div>
             )}
           </div>
@@ -72,7 +72,7 @@ export default async function Home() {
       {/* Grid feed for all remaining mixed articles */}
       {remainingArticles.length > 0 && (
         <div className="my-16 border-t border-white/5 pt-16 text-center">
-          <div className="flex flex-col items-center mb-10">
+          <div className="flex flex-col items-center mb-10 opacity-70">
             <h2 className="text-3xl md:text-4xl font-black uppercase tracking-tight mb-4 text-center">Najnovšie príspevky</h2>
             <div className="w-16 h-1 bg-primary mb-4 rounded-full" />
             <p className="text-muted-foreground text-base">Kompletný prehľad správ zoradený podľa času pridania.</p>
