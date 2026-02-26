@@ -8,6 +8,9 @@ const nextConfig = {
             },
         ],
     },
+    experimental: {
+        serverComponentsExternalPackages: ['jsdom'],
+    },
 };
 
 export default nextConfig;
