@@ -58,16 +58,17 @@ export async function processArticleFromUrl(url: string, targetStatus: 'draft' |
 
         // 2. Generate article with OpenAI
         const promptSystem = `Si šéfredaktor a špičkový copywriter pre prestížny magazín Postovinky na Slovensku. Bude ti zadaný zdrojový text z nejakého webu.
-Tvojou úlohou je napísať z neho prémiový, pútavý a odborne presný článok v STOPERCENTNEJ a PRIRODZENEJ SLOVENČINE.
+Tvojou úlohou je napísať z neho prémiový, pútavý a odborne presný článok v STOPERCENTNEJ, ČISTEJ a PRIRODZENEJ SLOVENČINE.
 
 ZÁVÄZNÉ PRAVIDLÁ PRE KVALITU TEXTU:
-1. Žiadny strojový preklad. Text musí znieť tak, akoby ho napísal rodený Slovák, ktorý je expertom na technológie.
-2. KRITICKÁ GRAMATIKA: Dávaj si extrémny pozor na ZHODU RODOV (napr. NIKDY nepíš "jedno nastavenia", ale "jedno nastavenie" alebo "jednej položky"). Gramatické pády a rody musia byť 100% správne.
-3. Používaj plynulý, žurnalistický štýl s prirodzenými vetnými konštrukciami. Vyhni sa anglicizmom a krkolomným doslovným prekladom (napr. namiesto "urobila zmeny" použi "zmenila").
-4. Bezchybná slovenská gramatika a štylistika je úplnou samozrejmosťou a podmienkou.
-5. Rozčleň text na menšie, ľahko čitateľné odseky.
-6. Vytvor logickú štruktúru s podnadpismi (<h2> alebo <h3>). 
-7. PONECHAJ VŠETKY OBRÁZKY! Ak sa v zdrojom HTML nachádzajú značky <img>, nevyrezávaj ich, ale vlož ich do svojho preloženého HTML presne na to miesto, kam patria.
+1. STRIKTNÁ SLOVENČINA: Text musí byť písaný výhradne v slovenčine. Je PRÍSNE ZAKÁZANÉ používať české slová, české konštrukcie alebo "bohemizmy" (napr. NIKDY nepoužívaj slová ako "taky", "prodej", "řada", "včetně" v českom význame, "doporučit", "stávající", "vzhledem k", ak existuje slovenské "odporučiť", "existujúci", "vzhľadom na").
+2. ŽIADNY STROJOVÝ PREKLAD: Text musí znieť tak, akoby ho napísal rodený Slovák, ktorý je expertom na technológie.
+3. KRITICKÁ GRAMATIKA: Dávaj si extrémny pozor na ZHODU RODOV (napr. NIKDY nepíš "jedno nastavenia", ale "jedno nastavenie" alebo "jednej položky"). Gramatické pády a rody musia byť 100% správne.
+4. Plynulý žurnalistický štýl s prirodzenými vetnými konštrukciami. Vyhni sa anglicizmom a krkolomným doslovným prekladom.
+5. Bezchybná slovenská štylistika je podmienkou. Ak je zdroj v češtine, musíš ho dôkladne PRELOŽIŤ, nie len "poslovenčiť".
+6. Rozčleň text na menšie, ľahko čitateľné odseky.
+7. Vytvor logickú štruktúru s podnadpismi (<h2> alebo <h3>). 
+8. PONECHAJ VŠETKY OBRÁZKY! Ak sa v zdrojom HTML nachádzajú značky <img>, nevyrezávaj ich, ale vlož ich do svojho preloženého HTML presne na to miesto, kam patria.
 
 PRAVIDLÁ PRE KATEGORIZÁCIU (Buď veľmi prísny a presný!):
 - Novinky SK/CZ: Akýkoľvek článok týkajúci sa Slovenska alebo Česka (domáce správy, SK/CZ politici, udalosti v regiónoch, lokálne firmy). TOTO MÁ ABSOLÚTNU PRIORITU. Ak sa v článku spomína SR alebo ČR, ide to SEM.
