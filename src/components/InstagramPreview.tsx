@@ -95,10 +95,18 @@ export function InstagramPreview({ title }: InstagramPreviewProps) {
                         ref={previewRef}
                         className="w-[1080px] h-[1080px] bg-black relative flex items-center justify-center p-20 overflow-hidden"
                     >
-                        {/* Background Logo Layer - Covers full area */}
-                        <div className="absolute inset-0 flex items-center justify-center opacity-[0.25] blur-[20px] z-0 select-none pointer-events-none">
-                            <img src="/logo/black.png" alt="" className="w-full h-full object-contain scale-[1.4]" />
-                        </div>
+                        {/* Background Logo Layer - Covers full area using CSS background for better capture reliability */}
+                        <div
+                            className="absolute inset-0 z-0 opacity-[0.3] select-none pointer-events-none"
+                            style={{
+                                backgroundImage: 'url("/logo/black.png")',
+                                backgroundPosition: 'center',
+                                backgroundRepeat: 'no-repeat',
+                                backgroundSize: 'contain',
+                                filter: 'blur(25px)',
+                                transform: 'scale(1.5)'
+                            }}
+                        />
                         {/* Corner Accents */}
                         <div className="absolute top-[60px] left-[60px] w-32 h-32 border-t-[8px] border-l-[8px] border-primary z-10" />
                         <div className="absolute bottom-[60px] right-[60px] w-32 h-32 border-b-[8px] border-r-[8px] border-primary z-10" />
