@@ -7,6 +7,7 @@ const openai = new OpenAI({
 });
 
 export const maxDuration = 60; // Set maximum execution time on Vercel to 60s for bulk processing
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
     try {
