@@ -14,6 +14,7 @@ export interface DiscoveryItem {
     source: string;
     contentSnippet: string;
     groupHint: string;
+    publishedAt?: string;
 }
 
 export const FEED_GROUPS: Record<string, { name: string, url: string }[]> = {
@@ -136,18 +137,19 @@ export async function discoverNewNews(maxDays: number, targetCategories: string[
                     const normalized = normalizeUrl(item.link);
                     if (seenUrls.has(normalized)) continue;
 
+                    const pubDateObj = new Date(item.isoDate || item.pubDate || "");
+                    const pubDateStr = pubDateObj.toISOString();
+
                     // Date Filtering
-                    if (item.isoDate || item.pubDate) {
-                        const pubDate = new Date(item.isoDate || item.pubDate || "");
-                        if (now.getTime() - pubDate.getTime() > maxAgeMs) continue;
-                    }
+                    if (now.getTime() - pubDateObj.getTime() > maxAgeMs) continue;
 
                     newsByGroup[groupName].push({
                         url: item.link,
                         title: item.title || "",
                         source: feed.name,
                         contentSnippet: item.contentSnippet || item.content || "",
-                        groupHint: groupName
+                        groupHint: groupName,
+                        publishedAt: pubDateStr
                     });
 
                     // Add to current session to avoid duplicates from other feeds in same run
@@ -163,8 +165,13 @@ export async function discoverNewNews(maxDays: number, targetCategories: string[
     const candidatesByGroup: Record<string, DiscoveryItem[]> = {};
     for (const [groupName, items] of Object.entries(newsByGroup)) {
         if (items.length === 0) continue;
-        const shuffled = items.sort(() => Math.random() - 0.5);
-        candidatesByGroup[groupName] = shuffled.slice(0, 10); // get more candidates to allow for filtered ones
+        // Sort by date DESC (newest first)
+        const sorted = items.sort((a, b) => {
+            const dateA = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+            const dateB = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+            return dateB - dateA;
+        });
+        candidatesByGroup[groupName] = sorted.slice(0, 15); // get many candidates to verify accessibility
     }
 
     const checkUrlAccessible = async (url: string): Promise<boolean> => {
@@ -216,7 +223,12 @@ export async function discoverNewNews(maxDays: number, targetCategories: string[
 
     // 3. AI Categorization & Polishing
     const suggestionsWithAI = [];
-    const pool = finalSelection.sort(() => Math.random() - 0.5).slice(0, 40);
+    // Maintain chronological order for AI processing too
+    const pool = finalSelection.sort((a, b) => {
+        const dateA = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+        const dateB = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+        return dateB - dateA;
+    }).slice(0, 50);
 
     for (const item of pool) {
         try {

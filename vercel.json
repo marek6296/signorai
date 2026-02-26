@@ -1,5 +1,11 @@
 {
     "framework": "nextjs",
     "buildCommand": "npm run build",
-    "outputDirectory": ".next"
+    "outputDirectory": ".next",
+    "crons": [
+        {
+            "path": "/api/admin/auto-pilot?secret=make-com-webhook-secret",
+            "schedule": "0 5 * * *"
+        }
+    ]
 }
