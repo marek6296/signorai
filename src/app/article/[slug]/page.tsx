@@ -8,6 +8,8 @@ import { sk } from "date-fns/locale";
 import { Sparkles, Calendar, Tag } from "lucide-react";
 import type { Metadata } from "next";
 
+export const dynamic = "force-dynamic";
+
 interface Props {
     params: { slug: string };
     searchParams: { preview?: string };

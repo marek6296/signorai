@@ -3,6 +3,8 @@ import { ArticleCard } from "@/components/ArticleCard";
 import { PageHeader } from "@/components/PageHeader";
 import { notFound } from "next/navigation";
 
+export const dynamic = "force-dynamic";
+
 interface Props {
     params: { kategoria: string };
 }

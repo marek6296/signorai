@@ -3,6 +3,8 @@ import { ArticleCard } from "@/components/ArticleCard";
 import { PageHeader } from "@/components/PageHeader";
 import { NewsletterSidebar } from "@/components/NewsletterSidebar";
 
+export const dynamic = "force-dynamic";
+
 export default async function Home() {
   const latestArticle = await getLatestArticle();
 
