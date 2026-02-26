@@ -1386,7 +1386,7 @@ export default function AdminPage() {
                             {/* Article Selection */}
                             <div className="bg-card border rounded-[40px] p-10 shadow-sm h-fit">
                                 <h3 className="text-xl font-black uppercase tracking-tight mb-8">Vyberte články</h3>
-                                <div className="space-y-3 max-h-[600px] overflow-y-auto pr-4 custom-scrollbar">
+                                <div className="space-y-4 max-h-[800px] overflow-y-auto pr-4 custom-scrollbar">
                                     {articles.slice(0, 30).map((article) => {
                                         const isSelected = socialSelectedArticles.includes(article.id);
                                         return (
@@ -1396,19 +1396,44 @@ export default function AdminPage() {
                                                     isSelected ? prev.filter(id => id !== article.id) : [...prev, article.id]
                                                 )}
                                                 className={cn(
-                                                    "p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-4 group",
-                                                    isSelected ? "bg-primary/5 border-primary/40" : "bg-muted/20 border-transparent hover:border-border"
+                                                    "relative overflow-hidden group rounded-[24px] border-2 cursor-pointer transition-all flex items-center gap-5 p-2 pr-6",
+                                                    isSelected
+                                                        ? "bg-primary/5 border-primary shadow-lg scale-[1.01]"
+                                                        : "bg-muted/10 border-transparent hover:border-border/50 hover:bg-muted/20"
                                                 )}
                                             >
-                                                <div className={cn(
-                                                    "w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all",
-                                                    isSelected ? "bg-primary border-primary text-white" : "border-muted-foreground/30"
-                                                )}>
-                                                    {isSelected && <CheckCircle2 className="w-4 h-4" />}
+                                                {/* Article Image Thumbnail */}
+                                                <div className="relative w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 shadow-sm">
+                                                    <Image
+                                                        src={article.main_image}
+                                                        alt={article.title}
+                                                        fill
+                                                        className="object-cover transition-transform group-hover:scale-110"
+                                                    />
                                                 </div>
-                                                <div className="flex-grow min-w-0">
-                                                    <p className="text-sm font-bold truncate">{article.title}</p>
-                                                    <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">{article.category}</p>
+
+                                                <div className="flex-grow min-w-0 py-2">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <span className="text-[9px] font-black uppercase tracking-[0.15em] text-primary/70 bg-primary/10 px-2 py-0.5 rounded-full">
+                                                            {article.category}
+                                                        </span>
+                                                        <span className="text-[9px] font-bold text-muted-foreground">
+                                                            {new Date(article.published_at).toLocaleDateString('sk-SK')}
+                                                        </span>
+                                                    </div>
+                                                    <h4 className="text-sm font-black leading-tight line-clamp-2 uppercase tracking-tight">
+                                                        {article.title}
+                                                    </h4>
+                                                </div>
+
+                                                {/* Selection Indicator */}
+                                                <div className={cn(
+                                                    "w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0",
+                                                    isSelected
+                                                        ? "bg-primary border-primary text-white shadow-md shadow-primary/30"
+                                                        : "border-muted-foreground/20 bg-background"
+                                                )}>
+                                                    {isSelected ? <CheckCircle2 className="w-5 h-5" /> : <Plus className="w-4 h-4 text-muted-foreground/40" />}
                                                 </div>
                                             </div>
                                         );
