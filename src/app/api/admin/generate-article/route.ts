@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { processArticleFromUrl } from "@/lib/generate-logic";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -7,12 +6,12 @@ export const maxDuration = 120;
 
 const LEGACY_SECRET = "make-com-webhook-secret";
 
-export function OPTIONS() {
-    return new NextResponse(null, { status: 204, headers: { Allow: "POST", "Content-Length": "0" } });
+export async function GET() {
+    return NextResponse.json({ message: "This endpoint only accepts POST requests (Article Generation)." }, { status: 405 });
 }
 
 export async function POST(request: NextRequest) {
-    let body: { url?: string; secret?: string };
+    let body: any;
     try {
         body = await request.json();
     } catch {
@@ -29,26 +28,20 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ message: "OPENAI_API_KEY is not set (Vercel Environment Variables)." }, { status: 500 });
     }
 
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-        return NextResponse.json({ message: "Supabase environment variables are not set." }, { status: 500 });
-    }
-
     if (!url || typeof url !== "string") {
         return NextResponse.json({ message: "URL is required" }, { status: 400 });
     }
 
     try {
         console.log("Starting article generation for URL:", url);
+        // Use dynamic import to avoid loading heavy JSDOM/Readability during initial route discovery
+        const { processArticleFromUrl } = await import("@/lib/generate-logic");
         const data = await processArticleFromUrl(url, "draft");
         console.log("Article generation successful for:", url);
         return NextResponse.json({ success: true, article: data });
     } catch (error: unknown) {
-        console.error("Generate article CRITICAL error:", error);
+        console.error("Generate article error:", error);
         const msg = error instanceof Error ? error.message : "Internal server error";
-
-        return NextResponse.json({
-            message: msg,
-            error: true
-        }, { status: 500 });
+        return NextResponse.json({ message: msg, error: true }, { status: 500 });
     }
 }
