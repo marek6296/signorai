@@ -31,12 +31,12 @@ export default async function Home() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
         {/* Main large articles column */}
-        <section className="col-span-1 lg:col-span-8 flex flex-col gap-12">
-          <div className="flex flex-col gap-12">
+        <section className="col-span-1 lg:col-span-8 flex flex-col gap-6 md:gap-12">
+          <div className="flex flex-col gap-6 md:gap-12">
             <ArticleCard article={latestArticle} featured={true} />
 
             {principalArticles.map((article) => (
-              <div key={article.id} className="pt-12 border-t border-border/50">
+              <div key={article.id} className="pt-6 md:pt-12 border-t border-border/50">
                 <ArticleCard article={article} featured={true} />
               </div>
             ))}
