@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
-import { processArticleFromUrl } from "@/lib/generate-logic";
 import { discoverNewNews } from "@/lib/discovery-logic";
 
 export const runtime = "nodejs";
