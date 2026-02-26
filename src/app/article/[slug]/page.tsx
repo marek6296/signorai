@@ -135,7 +135,7 @@ export default async function ArticlePage({ params, searchParams }: Props) {
                                     let domain = trimmedUrl;
                                     try {
                                         domain = new URL(trimmedUrl).hostname.replace('www.', '');
-                                    } catch (e) {
+                                    } catch {
                                         // fallback to full URL or trimmed
                                     }
 

@@ -9,6 +9,14 @@ const openai = new OpenAI({
 
 const parser = new Parser();
 
+interface DiscoveryItem {
+    url: string;
+    title: string;
+    source: string;
+    contentSnippet: string;
+    groupHint: string;
+}
+
 // Comprehensive feeds organized by internal categories
 const FEED_GROUPS: Record<string, { name: string, url: string }[]> = {
     "Umelá Inteligencia": [
@@ -87,7 +95,7 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ message: "Invalid secret" }, { status: 401 });
         }
 
-        const newsByGroup: Record<string, any[]> = {};
+        const newsByGroup: Record<string, DiscoveryItem[]> = {};
         const now = new Date();
         const maxAgeMs = maxDays * 24 * 60 * 60 * 1000;
 
@@ -157,8 +165,8 @@ export async function GET(request: NextRequest) {
         }
 
         // 2. Select a balanced mix (Targeting ~3 per category, max 30 total)
-        const finalSelection: any[] = [];
-        for (const [groupName, items] of Object.entries(newsByGroup)) {
+        const finalSelection: DiscoveryItem[] = [];
+        for (const [_, items] of Object.entries(newsByGroup)) {
             const shuffled = items.sort(() => Math.random() - 0.5);
             finalSelection.push(...shuffled.slice(0, 4));
         }
@@ -229,11 +237,11 @@ export async function GET(request: NextRequest) {
             suggestions: suggestionsWithAI
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("News discovery error detail:", error);
         return NextResponse.json({
             message: "Chyba pri objavovaní správ.",
-            detail: error?.message || String(error)
+            detail: error instanceof Error ? error.message : String(error)
         }, { status: 500 });
     }
 }

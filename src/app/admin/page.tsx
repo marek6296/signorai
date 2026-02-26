@@ -4,9 +4,10 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { Article } from "@/lib/data";
 import Link from "next/link";
-import { Edit, ArrowUpRight, ArrowDown, Trash2, Sparkles, Plus, Globe, Search, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
+import { Edit, ArrowDown, Trash2, Sparkles, Plus, Globe, Search, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ArticleCard } from "@/components/ArticleCard";
+import Image from "next/image";
 
 type SuggestedNews = {
     id: string;
@@ -146,9 +147,9 @@ export default function AdminPage() {
             setSynthesisUrls([""]);
             fetchArticles();
             setActiveTab("manage");
-        } catch (error: any) {
+        } catch (error: unknown) {
             setStatus("error");
-            setMessage(error.message || "Chyba pri syntéze");
+            setMessage(error instanceof Error ? error.message : "Chyba pri syntéze");
         } finally {
             clearInterval(interval);
             setIsGeneratingModalOpen(false);
@@ -190,9 +191,9 @@ export default function AdminPage() {
             setUrl("");
             fetchArticles();
             setActiveTab("manage");
-        } catch (error: any) {
+        } catch (error: unknown) {
             setStatus("error");
-            setMessage(error.message || "Chyba pri generovaní");
+            setMessage(error instanceof Error ? error.message : "Chyba pri generovaní");
         } finally {
             clearInterval(interval);
             setIsGeneratingModalOpen(false);
@@ -257,9 +258,9 @@ export default function AdminPage() {
             setStatus("success");
             setMessage(data.message || "Boli objavené nové témy!");
             fetchSuggestions();
-        } catch (error: any) {
+        } catch (error: unknown) {
             setStatus("error");
-            setMessage(error.message || "Chyba pri objavovaní správ");
+            setMessage(error instanceof Error ? error.message : "Chyba pri objavovaní správ");
         } finally {
             clearInterval(progressInterval);
             setIsDiscoveringModalOpen(false);
@@ -349,7 +350,7 @@ export default function AdminPage() {
                         return (
                             <button
                                 key={tab.id}
-                                onClick={() => setActiveTab(tab.id as any)}
+                                onClick={() => setActiveTab(tab.id as "create" | "manage" | "discovery")}
                                 className={cn(
                                     "relative px-10 py-4 flex items-center gap-3 rounded-[22px] font-black text-xs uppercase tracking-[0.1em] transition-all duration-500 overflow-hidden group",
                                     isActive
@@ -615,7 +616,17 @@ export default function AdminPage() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                                     {articles.filter(a => a.status === 'draft').map((article) => (
                                         <div key={article.id} className="bg-card border rounded-[32px] overflow-hidden flex flex-col h-full shadow-sm hover:shadow-xl transition-all ring-1 ring-border/50">
-                                            {article.main_image && <img src={article.main_image} alt="" className="w-full h-44 object-cover border-b" />}
+                                            <div className="relative w-full h-44 border-b overflow-hidden">
+                                                {article.main_image && (
+                                                    <Image
+                                                        src={article.main_image}
+                                                        alt=""
+                                                        fill
+                                                        className="object-cover"
+                                                        unoptimized
+                                                    />
+                                                )}
+                                            </div>
                                             <div className="p-6 flex-grow">
                                                 <span className="text-[9px] font-black uppercase tracking-widest text-primary mb-5 block">{article.category}</span>
                                                 <h4 className="text-lg font-black leading-tight mb-3 line-clamp-2">{article.title}</h4>
