@@ -10,13 +10,8 @@ export function PageHeader({ title, description, label = "Postovinky" }: PageHea
     return (
         <div className="relative mb-6">
             {/* Box without continuous borders or backgrounds, just the corner brackets */}
-            <div className="relative py-8 px-6 md:py-10 md:px-12 flex flex-col items-center text-center">
+            <div className="relative pt-2 pb-8 px-6 md:pt-4 md:pb-10 md:px-12 flex flex-col items-center text-center">
 
-                {/* Plynulé viditeľné svetlo prispôsobené pre všetky režimy */}
-                <div
-                    className="absolute inset-0 w-full h-full pointer-events-none rounded-[1.5rem] animate-pan-bg bg-gradient-to-r from-transparent via-black/20 dark:via-white/25 [.colorful_&]:via-primary/25 to-transparent"
-                    style={{ backgroundSize: "200% 100%" }}
-                />
 
                 {/* Top Label */}
                 <div className="relative z-10 mb-6">

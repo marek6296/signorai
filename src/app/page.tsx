@@ -22,7 +22,7 @@ export default async function Home() {
   const remainingArticles = recentArticles.slice(8); // Everything else at the bottom
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-8 md:pt-6 md:pb-12 max-w-7xl">
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-8 md:pt-4 md:pb-12 max-w-7xl">
       <PageHeader
         title="Hlavné správy"
         description="Váš denný prehľad toho najdôležitejšieho zo sveta"

@@ -45,14 +45,29 @@
     }
   }
 
+  @keyframes textShimmer {
+    0% {
+      background-position: 200% center;
+    }
+
+    100% {
+      background-position: -200% center;
+    }
+  }
+
   .smooth-page-transition {
     animation: smoothPageEnter 1.8s cubic-bezier(0.1, 1, 0.1, 1) forwards;
     will-change: transform, opacity, filter;
   }
 
   .animate-pan-bg {
-    animation: panBackground 8s ease-in-out infinite;
+    animation: panBackground 20s ease-in-out infinite;
     /* background-size is applied directly in inline style now so we can omit it here or leave as fallback */
+  }
+
+  .animate-text-shimmer {
+    background-size: 200% auto;
+    animation: textShimmer 8s linear infinite;
   }
 
   :root {

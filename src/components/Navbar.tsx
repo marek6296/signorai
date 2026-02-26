@@ -18,7 +18,6 @@ const categories = [
     { name: "Veda", href: "/kategoria/veda" },
     { name: "Gaming", href: "/kategoria/gaming" },
     { name: "Návody & Tipy", href: "/kategoria/navody" },
-    { name: "Newsletter", href: "/newsletter" },
 ];
 
 export function Navbar() {
@@ -48,7 +47,9 @@ export function Navbar() {
 
                 {/* Center: Brand Logo */}
                 <Link href="/" className="mb-0.5 flex items-baseline gap-2 group px-12 md:px-0" onClick={() => setIsMenuOpen(false)}>
-                    <span className="font-syne font-extrabold text-2xl md:text-6xl tracking-tighter uppercase bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">
+                    <span className="font-syne font-extrabold text-2xl md:text-6xl tracking-tighter uppercase 
+                        bg-gradient-to-r from-foreground via-foreground/50 to-foreground 
+                        bg-clip-text text-transparent animate-text-shimmer">
                         POSTOVINKY
                     </span>
                     <span className="text-primary font-black text-[8px] md:text-xs uppercase tracking-[0.3em] opacity-70 group-hover:opacity-100 transition-opacity translate-y-[-1px] md:translate-y-[-2px] ml-1">

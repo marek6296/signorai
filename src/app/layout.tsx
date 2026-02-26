@@ -11,6 +11,10 @@ const syne = Syne({ subsets: ["latin"], weight: ["400", "700", "800"], variable:
 export const metadata: Metadata = {
   title: "POSTOVINKY",
   description: "Váš prémiový digitálny magazín o umelej inteligencii",
+  icons: {
+    icon: "/logo/black.png",
+    apple: "/logo/black.png",
+  }
 };
 
 export default function RootLayout({
