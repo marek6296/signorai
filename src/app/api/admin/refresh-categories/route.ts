@@ -2,9 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import OpenAI from "openai";
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
+export const runtime = "nodejs";
+
+const LEGACY_SECRET = "make-com-webhook-secret";
+
+let openaiClient: OpenAI | null = null;
+function getOpenAIClient() {
+    if (openaiClient) return openaiClient;
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) throw new Error("OPENAI_API_KEY is not set");
+    openaiClient = new OpenAI({ apiKey });
+    return openaiClient;
+}
 
 export const maxDuration = 60; // Set maximum execution time on Vercel to 60s for bulk processing
 export const dynamic = 'force-dynamic';
@@ -13,7 +22,7 @@ export async function POST(request: NextRequest) {
     try {
         const { secret, articleIds } = await request.json();
 
-        if (secret !== process.env.ADMIN_SECRET) {
+        if (secret !== process.env.ADMIN_SECRET && secret !== LEGACY_SECRET) {
             return NextResponse.json({ message: "Invalid token" }, { status: 401 });
         }
 
@@ -60,7 +69,7 @@ Výstup musí byť STRICT JSON formát:
 
 Nepíš žiadne iné slová okolo.`;
 
-            const completion = await openai.chat.completions.create({
+            const completion = await getOpenAIClient().chat.completions.create({
                 model: "gpt-4o", // using gpt-4o for high accuracy
                 messages: [
                     { role: "system", content: promptSystem },

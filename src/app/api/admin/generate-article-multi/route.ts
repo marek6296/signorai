@@ -8,9 +8,14 @@ import { revalidatePath } from "next/cache";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
+let openaiClient: OpenAI | null = null;
+function getOpenAIClient() {
+    if (openaiClient) return openaiClient;
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) throw new Error("OPENAI_API_KEY is not set");
+    openaiClient = new OpenAI({ apiKey });
+    return openaiClient;
+}
 
 const LEGACY_SECRET = "make-com-webhook-secret";
 
@@ -107,7 +112,7 @@ VÝSTUP MUSÍ BYŤ EXAKTNE VO FORMÁTE JSON:
 }
 Vráť len čistý JSON.`;
 
-        const completion = await openai.chat.completions.create({
+        const completion = await getOpenAIClient().chat.completions.create({
             model: "gpt-4o",
             messages: [
                 { role: "system", content: promptSystem },

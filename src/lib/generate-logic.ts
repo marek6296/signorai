@@ -4,9 +4,14 @@ import OpenAI from "openai";
 import { supabase } from "@/lib/supabase";
 import { revalidatePath } from "next/cache";
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
+let openaiClient: OpenAI | null = null;
+function getOpenAIClient() {
+    if (openaiClient) return openaiClient;
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) throw new Error("OPENAI_API_KEY is not set");
+    openaiClient = new OpenAI({ apiKey });
+    return openaiClient;
+}
 
 const VALID_CATEGORIES = [
     "Novinky SK/CZ",
@@ -85,7 +90,7 @@ Tvoj výstup musí byť VŽDY EXAKTNE VO FORMÁTE JSON:
 }
 Nikdy nevracaj žiadnu inú kategóriu. AI dávaj len ak je to jadro správy. Pred odoslaním si v duchu skontroluj, či sa v nadpise zhoduje podstatné meno s prídavným menom v správnom rode a páde.`;
 
-        const completion = await openai.chat.completions.create({
+        const completion = await getOpenAIClient().chat.completions.create({
             model: "gpt-4o",
             messages: [
                 { role: "system", content: promptSystem },

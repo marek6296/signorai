@@ -6,9 +6,14 @@ import { CATEGORY_MAP } from "@/lib/data";
 /** Iba tieto kategórie berieme – témy mimo tohto zoznamu sa vôbec nesprácavajú. */
 const ALLOWED_CATEGORIES = Object.values(CATEGORY_MAP);
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
+let openaiClient: OpenAI | null = null;
+function getOpenAIClient() {
+    if (openaiClient) return openaiClient;
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) throw new Error("OPENAI_API_KEY is not set");
+    openaiClient = new OpenAI({ apiKey });
+    return openaiClient;
+}
 
 const parser = new Parser();
 
@@ -255,7 +260,7 @@ export async function discoverNewNews(maxDays: number, targetCategories: string[
 
     for (const item of cappedPool) {
         try {
-            const completion = await openai.chat.completions.create({
+            const completion = await getOpenAIClient().chat.completions.create({
                 model: "gpt-4o",
                 messages: [
                     {
@@ -327,7 +332,7 @@ Vráť EXAKTNE JSON: {"title": "Slovenský titulok", "summary": "Slovenské zhrn
 
         for (const item of toProcess) {
             try {
-                const completion = await openai.chat.completions.create({
+                const completion = await getOpenAIClient().chat.completions.create({
                     model: "gpt-4o",
                     messages: [
                         {
