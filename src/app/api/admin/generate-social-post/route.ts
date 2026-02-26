@@ -22,11 +22,14 @@ PRAVIDLÁ:
 3. Platforma: ${platform}
 
 ŠPECIFIKÁCIE PRE PLATFORMY:
-- Facebook: Dlhší text, diskusná otázka na konci, pár emodži, link na článok.
-- Instagram: Silný háčik na začiatku, pútavý stred, skupina hashtagov na konci (8-12), link spomenúť ako "v BIO" alebo priamo.
-- X (Twitter): Krátky, úderný text, max 280 znakov (vrátane linku), 2-3 hashtagy.
+- Facebook: Dlhší text, diskusná otázka na konci, MAXIMÁLNE 2-3 emodži, link na článok na samostatnom riadku na konci.
+- Instagram: Silný háčik na začiatku, pútavý stred, MAXIMÁLNE 3-5 emodži, skupina hashtagov na konci (8-12), link.
+- X (Twitter): Krátky, úderný text, max 280 znakov (vrátane linku), 1 emodži max, 2-3 hashtagy.
 
-Vždy zahrň link na článok: ${url}`;
+DÔLEŽITÉ: 
+- Nikdy nepoužívaj Markdown formátovanie linkov (teda žiadne [text](url)). 
+- Link vlož vždy ako čistú URL adresu: ${url}
+- Buď striedmy s emodži, menej je niekedy viac.`;
 
         const promptUser = `Vytvor príspevok na ${platform} pre tento článok:
 Názov: ${title}
