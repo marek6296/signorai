@@ -102,9 +102,8 @@ export function InstagramPreview({ title }: InstagramPreviewProps) {
                                 backgroundImage: 'url("/logo/black.png")',
                                 backgroundPosition: 'center',
                                 backgroundRepeat: 'no-repeat',
-                                backgroundSize: 'contain',
-                                filter: 'blur(25px)',
-                                transform: 'scale(1.5)'
+                                backgroundSize: '80%',
+                                filter: 'blur(15px)',
                             }}
                         />
 
