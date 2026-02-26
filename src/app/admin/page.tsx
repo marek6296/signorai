@@ -9,6 +9,7 @@ import { Edit, ArrowDown, Trash2, Sparkles, Plus, Globe, Search, CheckCircle2, X
 import { cn } from "@/lib/utils";
 import { ArticleCard } from "@/components/ArticleCard";
 import Image from "next/image";
+import { InstagramPreview } from "@/components/InstagramPreview";
 
 type SuggestedNews = {
     id: string;
@@ -1474,16 +1475,17 @@ export default function AdminPage() {
                                             </div>
 
                                             {result ? (
-                                                <div className="bg-muted/30 rounded-2xl p-6 relative group">
+                                                <div className="bg-muted/30 rounded-2xl p-6 relative group mb-8">
                                                     <div className="whitespace-pre-wrap text-sm leading-relaxed font-medium">
                                                         {result}
                                                     </div>
                                                 </div>
-                                            ) : (
-                                                <div className="bg-muted/10 rounded-2xl p-12 text-center text-[10px] font-black uppercase tracking-widest text-muted-foreground italic">
-                                                    {isGeneratingSocial ? "AI premýšľa..." : "Čaká na vygenerovanie"}
-                                                </div>
-                                            )}
+                                            ) : null}
+
+                                            {/* Image Generator Preview */}
+                                            <div className="mt-4 pt-8 border-t border-border/50">
+                                                <InstagramPreview title={article.title} />
+                                            </div>
                                         </div>
                                     );
                                 })}
