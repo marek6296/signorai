@@ -136,9 +136,10 @@ PRAVIDLÁ:
 
 ŠPECIFIKÁCIE PRE PLATFORMY:
 - Facebook: Max 3 vety + otázka na vyvolanie diskusie.
-- Instagram: Krátky, estetický text, max 3-4 vety. Hashtagy daj na samostatný blok nižšie (max 5 kusov).
-- X (Twitter): Extrémne stručný news-flash.
+- Instagram: Krátky, estetický text, max 3-4 vety. Hashtagy daj na samostatný blok nižšie (max 5 kusov). HASHTAGY MUSIA BYŤ BEZ DIAKRITIKY.
+- X (Twitter): Extrémne stručný news-flash. HASHTAGY MUSIA BYŤ BEZ DIAKRITIKY.
 
+HASHTAGY: Musia byť trefné a ZÁSADNE BEZ DIAKRITIKY (napr. #technologia namiesto #technológia).
 Príspevok nesmie znieť ako reklama, ale ako správa.`;
 
                 const promptUser = `Vytvor príspevok na ${platform} pre tento článok:
