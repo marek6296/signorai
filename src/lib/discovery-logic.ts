@@ -32,7 +32,8 @@ export const FEED_GROUPS: Record<string, { name: string, url: string }[]> = {
         { name: "Aktuality Domov", url: "https://www.aktuality.sk/rss/?category=domace" },
         { name: "Denno N Domov", url: "https://dennikn.sk/sekcia/slovensko/feed/" },
         { name: "HNonline", url: "https://hnonline.sk/rss/slovensko" },
-        { name: "iDNES.cz Domácí", url: "https://servis.idnes.cz/rss.aspx?c=zpravodaj" },
+        { name: "Seznam Zprávy", url: "https://www.seznamzpravy.cz/rss" },
+        { name: "iRozhlas.cz", url: "https://www.irozhlas.cz/rss/irozhlas" },
         { name: "Novinky.cz", url: "https://www.novinky.cz/rss" }
     ],
     "Umelá Inteligencia": [
