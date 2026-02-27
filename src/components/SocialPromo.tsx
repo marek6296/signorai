@@ -47,17 +47,16 @@ export function SocialPromo() {
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
             </div>
 
-            {/* Content Overlay - Minimalist */}
+            {/* Header - Top Center */}
+            <div className="absolute top-10 left-0 w-full z-20 flex flex-col items-center">
+                <h2 className="font-black tracking-[0.4em] text-white leading-none text-sm md:text-base uppercase italic opacity-80 group-hover:opacity-100 transition-opacity">
+                    PRIDAJ SA
+                </h2>
+            </div>
+
+            {/* Content Overlay - Minimalist Bottom */}
             <div className="mt-auto relative z-20 w-full p-6">
                 <div className="flex flex-col items-center text-center gap-6">
-                    <div className="flex flex-col gap-1 items-center">
-                        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary/80">
-                            KOMUNITA
-                        </span>
-                        <h2 className="font-black tracking-widest text-white leading-none text-xl md:text-2xl uppercase italic">
-                            PRIDAJ SA
-                        </h2>
-                    </div>
 
                     {/* Larger Social Buttons Grid */}
                     <div className="flex items-center justify-center gap-6">
