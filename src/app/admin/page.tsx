@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabase";
 import { Article } from "@/lib/data";
 import Link from "next/link";
-import { Edit, ArrowDown, Trash2, Sparkles, Plus, Globe, Search, CheckCircle2, XCircle, RefreshCw, Zap, Play, History, RotateCcw, BarChart3, Users, Share2, Copy, Facebook, Instagram, Calendar, Clock } from "lucide-react";
+import { Edit, ArrowDown, Trash2, Sparkles, Plus, Globe, Search, CheckCircle2, XCircle, RefreshCw, Zap, Play, History, RotateCcw, BarChart3, Users, Share2, Copy, Facebook, Instagram, Calendar, Clock, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ArticleCard } from "@/components/ArticleCard";
 import Image from "next/image";
@@ -133,6 +133,7 @@ export default function AdminPage() {
     const [plannedPosts, setPlannedPosts] = useState<SocialPost[]>([]);
     const [isSocialAutopilotGenerating, setIsSocialAutopilotGenerating] = useState(false);
     const [plannedCategoryFilter, setPlannedCategoryFilter] = useState<string>("all");
+    const [isPlannerOpen, setIsPlannerOpen] = useState(true);
 
     const fetchArticles = async () => {
         setLoadingArticles(true);
@@ -1538,216 +1539,237 @@ export default function AdminPage() {
                                     <span className="leading-tight">AI Planner & <br className="md:hidden" /> História postov</span>
                                 </h3>
 
-                                <button
-                                    onClick={fetchPlannedPosts}
-                                    className="flex items-center gap-3 px-6 py-3 bg-muted hover:bg-primary/10 hover:text-primary rounded-2xl transition-all group self-start md:self-auto border border-border/50 shadow-sm"
-                                >
-                                    <RefreshCw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-500" />
-                                    <span className="text-[10px] font-black uppercase tracking-[0.1em]">Obnoviť dáta</span>
-                                </button>
-                            </div>
+                                <div className="flex items-center gap-3 self-start md:self-auto">
+                                    <button
+                                        onClick={() => setIsPlannerOpen(!isPlannerOpen)}
+                                        className={cn(
+                                            "flex items-center gap-3 px-6 py-3 rounded-2xl transition-all border shadow-sm",
+                                            isPlannerOpen
+                                                ? "bg-muted hover:bg-muted/80 text-foreground border-border/50"
+                                                : "bg-primary text-primary-foreground border-primary hover:scale-105"
+                                        )}
+                                    >
+                                        {isPlannerOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                        <span className="text-[10px] font-black uppercase tracking-[0.1em]">
+                                            {isPlannerOpen ? 'Zabaliť sekciu' : 'Rozbaliť sekciu'}
+                                        </span>
+                                    </button>
 
-                            {/* Header Row 2: Category Filters */}
-                            <div className="mb-10 p-2 bg-muted/30 rounded-[28px] border border-border/50">
-                                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 md:pb-0 px-2">
-                                    {['all', 'Umelá Inteligencia', 'Tech', 'Biznis', 'Krypto', 'Svet', 'Politika', 'Veda', 'Gaming', 'Návody & Tipy'].map((cat) => (
-                                        <button
-                                            key={cat}
-                                            onClick={() => setPlannedCategoryFilter(cat)}
-                                            className={cn(
-                                                "px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border-2 border-transparent",
-                                                plannedCategoryFilter === cat
-                                                    ? "bg-foreground text-background shadow-xl scale-105"
-                                                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                                            )}
-                                        >
-                                            {cat === 'all' ? 'Všetky Príspevky' : cat}
-                                        </button>
-                                    ))}
+                                    <button
+                                        onClick={fetchPlannedPosts}
+                                        className="flex items-center gap-3 px-6 py-3 bg-muted hover:bg-primary/10 hover:text-primary rounded-2xl transition-all group border border-border/50 shadow-sm"
+                                    >
+                                        <RefreshCw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-500" />
+                                        <span className="text-[10px] font-black uppercase tracking-[0.1em]">Obnoviť</span>
+                                    </button>
                                 </div>
                             </div>
 
-                            <div className="space-y-6">
-                                {plannedPosts.length === 0 ? (
-                                    <div className="py-20 text-center border-2 border-dashed rounded-[32px] text-muted-foreground">
-                                        <Clock className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                                        <p className="font-bold uppercase text-xs tracking-widest">Zatiaľ žiadne naplánované príspevky</p>
+                            {isPlannerOpen && (
+                                <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+                                    {/* Header Row 2: Category Filters */}
+                                    <div className="mb-10 p-2 bg-muted/30 rounded-[28px] border border-border/50">
+                                        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 md:pb-0 px-2">
+                                            {['all', 'Umelá Inteligencia', 'Tech', 'Biznis', 'Krypto', 'Svet', 'Politika', 'Veda', 'Gaming', 'Návody & Tipy'].map((cat) => (
+                                                <button
+                                                    key={cat}
+                                                    onClick={() => setPlannedCategoryFilter(cat)}
+                                                    className={cn(
+                                                        "px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border-2 border-transparent",
+                                                        plannedCategoryFilter === cat
+                                                            ? "bg-foreground text-background shadow-xl scale-105"
+                                                            : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                                    )}
+                                                >
+                                                    {cat === 'all' ? 'Všetky Príspevky' : cat}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
-                                ) : (
-                                    <div className="grid grid-cols-1 gap-4">
-                                        {(() => {
-                                            // Group posts by article_id
-                                            const grouped: Record<string, typeof plannedPosts> = {};
 
-                                            // Filter by category first
-                                            const filteredPosts = plannedCategoryFilter === 'all'
-                                                ? plannedPosts
-                                                : plannedPosts.filter(p => p.articles?.category === plannedCategoryFilter);
+                                    <div className="space-y-6">
+                                        {plannedPosts.length === 0 ? (
+                                            <div className="py-20 text-center border-2 border-dashed rounded-[32px] text-muted-foreground">
+                                                <Clock className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                                                <p className="font-bold uppercase text-xs tracking-widest">Zatiaľ žiadne naplánované príspevky</p>
+                                            </div>
+                                        ) : (
+                                            <div className="grid grid-cols-1 gap-4">
+                                                {(() => {
+                                                    // Group posts by article_id
+                                                    const grouped: Record<string, typeof plannedPosts> = {};
 
-                                            filteredPosts.forEach(post => {
-                                                const id = post.article_id || 'unknown';
-                                                if (!grouped[id]) grouped[id] = [];
-                                                grouped[id].push(post);
-                                            });
+                                                    // Filter by category first
+                                                    const filteredPosts = plannedCategoryFilter === 'all'
+                                                        ? plannedPosts
+                                                        : plannedPosts.filter(p => p.articles?.category === plannedCategoryFilter);
 
-                                            const groups = Object.entries(grouped);
+                                                    filteredPosts.forEach(post => {
+                                                        const id = post.article_id || 'unknown';
+                                                        if (!grouped[id]) grouped[id] = [];
+                                                        grouped[id].push(post);
+                                                    });
 
-                                            if (groups.length === 0) {
-                                                return (
-                                                    <div className="py-20 text-center border-2 border-dashed rounded-[32px] text-muted-foreground">
-                                                        <Sparkles className="w-12 h-12 mx-auto mb-4 opacity-10" />
-                                                        <p className="font-bold uppercase text-xs tracking-widest">Žiadne príspevky v kategórii &quot;{plannedCategoryFilter}&quot;</p>
-                                                    </div>
-                                                );
-                                            }
+                                                    const groups = Object.entries(grouped);
 
-                                            return groups.map(([articleId, posts]) => {
-                                                const firstPost = posts[0];
-                                                const articleTitle = firstPost.articles?.title || "Neznámy článok";
-                                                const articleCategory = firstPost.articles?.category || "Novinka";
-
-                                                return (
-                                                    <div key={articleId} className="bg-card border-2 border-primary/5 rounded-[40px] overflow-hidden shadow-sm hover:shadow-xl transition-all mb-6">
-                                                        {/* Article Header (Always Visible) */}
-                                                        <div className="p-8 md:p-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 bg-muted/5">
-                                                            <div className="flex items-center gap-6 flex-grow min-w-0">
-                                                                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                                                                    <Sparkles className="w-8 h-8 text-primary" />
-                                                                </div>
-                                                                <div className="min-w-0">
-                                                                    <div className="flex items-center gap-2 mb-1">
-                                                                        <span className="text-[10px] font-black uppercase tracking-widest text-primary">{articleCategory}</span>
-                                                                        <span className="text-[10px] text-muted-foreground">•</span>
-                                                                        <span className="text-[10px] font-bold text-muted-foreground uppercase">{posts.length} sociálne formáty</span>
-                                                                    </div>
-                                                                    <h4 className="text-xl md:text-2xl font-black tracking-tight">{articleTitle}</h4>
-                                                                    <div className="flex flex-wrap gap-2 mt-3">
-                                                                        {posts.map(p => (
-                                                                            <span key={p.id} className={cn(
-                                                                                "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5",
-                                                                                p.status === 'posted' ? "bg-green-500/10 text-green-500" : "bg-muted text-muted-foreground"
-                                                                            )}>
-                                                                                {p.platform === 'Instagram' && <Instagram size={10} />}
-                                                                                {p.platform === 'Facebook' && <Facebook size={10} />}
-                                                                                {p.platform === 'X' && <XIcon size={10} />}
-                                                                                {p.platform}
-                                                                                {p.status === 'posted' && <CheckCircle2 size={10} />}
-                                                                            </span>
-                                                                        ))}
-                                                                    </div>
-                                                                </div>
+                                                    if (groups.length === 0) {
+                                                        return (
+                                                            <div className="py-20 text-center border-2 border-dashed rounded-[32px] text-muted-foreground">
+                                                                <Sparkles className="w-12 h-12 mx-auto mb-4 opacity-10" />
+                                                                <p className="font-bold uppercase text-xs tracking-widest">Žiadne príspevky v kategórii &quot;{plannedCategoryFilter}&quot;</p>
                                                             </div>
-                                                            <div className="flex flex-col items-center gap-4 w-full lg:w-[190px] flex-shrink-0">
-                                                                <div className="flex items-center justify-center gap-3 px-5 py-2.5 bg-background/50 rounded-2xl border border-border/50 shadow-inner h-[50px] min-w-[120px]">
-                                                                    {['Instagram', 'Facebook', 'X'].filter(platform => posts.some(p => p.platform === platform)).map(platform => {
-                                                                        const post = posts.find(p => p.platform === platform);
-                                                                        const isPosted = post?.status === 'posted';
-                                                                        return (
-                                                                            <div key={platform} className={cn(
-                                                                                "flex items-center gap-1.5 transition-all",
-                                                                                isPosted ? "opacity-100 scale-110" : "opacity-40 scale-90"
-                                                                            )}>
-                                                                                <div className={cn(
-                                                                                    "w-7 h-7 rounded-lg flex items-center justify-center text-white shadow-sm",
-                                                                                    platform === 'Instagram' ? "bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600" :
-                                                                                        platform === 'Facebook' ? "bg-blue-600" : "bg-black border border-white/20"
-                                                                                )}>
-                                                                                    {platform === 'Instagram' && <Instagram size={14} />}
-                                                                                    {platform === 'Facebook' && <Facebook size={14} />}
-                                                                                    {platform === 'X' && <XIcon size={14} />}
-                                                                                </div>
+                                                        );
+                                                    }
+
+                                                    return groups.map(([articleId, posts]) => {
+                                                        const firstPost = posts[0];
+                                                        const articleTitle = firstPost.articles?.title || "Neznámy článok";
+                                                        const articleCategory = firstPost.articles?.category || "Novinka";
+
+                                                        return (
+                                                            <div key={articleId} className="bg-card border-2 border-primary/5 rounded-[40px] overflow-hidden shadow-sm hover:shadow-xl transition-all mb-6">
+                                                                {/* Article Header (Always Visible) */}
+                                                                <div className="p-8 md:p-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 bg-muted/5">
+                                                                    <div className="flex items-center gap-6 flex-grow min-w-0">
+                                                                        <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                                                            <Sparkles className="w-8 h-8 text-primary" />
+                                                                        </div>
+                                                                        <div className="min-w-0">
+                                                                            <div className="flex items-center gap-2 mb-1">
+                                                                                <span className="text-[10px] font-black uppercase tracking-widest text-primary">{articleCategory}</span>
+                                                                                <span className="text-[10px] text-muted-foreground">•</span>
+                                                                                <span className="text-[10px] font-bold text-muted-foreground uppercase">{posts.length} sociálne formáty</span>
                                                                             </div>
-                                                                        );
-                                                                    })}
-                                                                </div>
-                                                                <button
-                                                                    onClick={() => {
-                                                                        const el = document.getElementById(`article-details-${articleId}`);
-                                                                        if (el) el.classList.toggle('hidden');
-                                                                    }}
-                                                                    className="w-full bg-foreground text-background px-8 py-4 rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] shadow-xl hover:scale-105 active:scale-95 transition-all text-center whitespace-nowrap"
-                                                                >
-                                                                    Rozbaliť možnosti
-                                                                </button>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Expandable Content Area */}
-                                                        <div id={`article-details-${articleId}`} className="hidden border-t border-border/50">
-                                                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-0">
-                                                                {/* Platforms Column */}
-                                                                <div className="p-4 md:p-8 space-y-6 bg-muted/5 border-r border-border/50">
-                                                                    {posts.map((post) => (
-                                                                        <div key={post.id} className={cn(
-                                                                            "rounded-3xl border-2 p-6 transition-all",
-                                                                            post.status === 'posted' ? "bg-muted/10 border-green-500/20" : "bg-background border-primary/10 shadow-lg"
-                                                                        )}>
-                                                                            <div className="flex items-center justify-between mb-6">
-                                                                                <div className="flex items-center gap-3">
-                                                                                    <div className={cn(
-                                                                                        "w-10 h-10 rounded-xl flex items-center justify-center text-white",
-                                                                                        post.platform === 'Instagram' ? "bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600" :
-                                                                                            post.platform === 'Facebook' ? "bg-blue-600" : "bg-foreground"
+                                                                            <h4 className="text-xl md:text-2xl font-black tracking-tight">{articleTitle}</h4>
+                                                                            <div className="flex flex-wrap gap-2 mt-3">
+                                                                                {posts.map(p => (
+                                                                                    <span key={p.id} className={cn(
+                                                                                        "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5",
+                                                                                        p.status === 'posted' ? "bg-green-500/10 text-green-500" : "bg-muted text-muted-foreground"
                                                                                     )}>
-                                                                                        {post.platform === 'Instagram' && <Instagram size={18} />}
-                                                                                        {post.platform === 'Facebook' && <Facebook size={18} />}
-                                                                                        {post.platform === 'X' && <XIcon size={18} />}
-                                                                                    </div>
-                                                                                    <span className="text-sm font-black uppercase tracking-widest">{post.platform}</span>
-                                                                                </div>
-                                                                                <div className="flex gap-2">
-                                                                                    <button
-                                                                                        onClick={() => handleToggleSocialPosted(post)}
-                                                                                        className={cn(
-                                                                                            "p-2 rounded-lg transition-all",
-                                                                                            post.status === 'posted' ? "bg-green-500 text-white" : "bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary"
-                                                                                        )}
-                                                                                        title={post.status === 'posted' ? "Onačené ako postnuté" : "Označiť ako postnuté"}
-                                                                                    >
-                                                                                        <CheckCircle2 size={18} />
-                                                                                    </button>
-                                                                                    <button
-                                                                                        onClick={() => handleDeleteSocialPost(post.id)}
-                                                                                        className="p-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg transition-all"
-                                                                                    >
-                                                                                        <Trash2 size={18} />
-                                                                                    </button>
-                                                                                </div>
-                                                                            </div>
-
-                                                                            <div className="space-y-4">
-                                                                                <div className="flex items-center justify-between">
-                                                                                    <span className="text-[10px] font-black uppercase text-muted-foreground">Text príspevku</span>
-                                                                                    <button
-                                                                                        onClick={() => { copyToClipboard(post.content); alert(`${post.platform} text skopírovaný!`); }}
-                                                                                        className="text-[10px] font-black uppercase text-primary hover:underline flex items-center gap-1"
-                                                                                    >
-                                                                                        <Copy size={12} /> Skopírovať
-                                                                                    </button>
-                                                                                </div>
-                                                                                <div className="bg-background/50 border rounded-xl p-4 text-xs font-semibold leading-relaxed max-h-[150px] overflow-y-auto whitespace-pre-wrap">
-                                                                                    {post.content}
-                                                                                </div>
+                                                                                        {p.platform === 'Instagram' && <Instagram size={10} />}
+                                                                                        {p.platform === 'Facebook' && <Facebook size={10} />}
+                                                                                        {p.platform === 'X' && <XIcon size={10} />}
+                                                                                        {p.platform}
+                                                                                        {p.status === 'posted' && <CheckCircle2 size={10} />}
+                                                                                    </span>
+                                                                                ))}
                                                                             </div>
                                                                         </div>
-                                                                    ))}
+                                                                    </div>
+                                                                    <div className="flex flex-col items-center gap-4 w-full lg:w-[190px] flex-shrink-0">
+                                                                        <div className="flex items-center justify-center gap-3 px-5 py-2.5 bg-background/50 rounded-2xl border border-border/50 shadow-inner h-[50px] min-w-[120px]">
+                                                                            {['Instagram', 'Facebook', 'X'].filter(platform => posts.some(p => p.platform === platform)).map(platform => {
+                                                                                const post = posts.find(p => p.platform === platform);
+                                                                                const isPosted = post?.status === 'posted';
+                                                                                return (
+                                                                                    <div key={platform} className={cn(
+                                                                                        "flex items-center gap-1.5 transition-all",
+                                                                                        isPosted ? "opacity-100 scale-110" : "opacity-40 scale-90"
+                                                                                    )}>
+                                                                                        <div className={cn(
+                                                                                            "w-7 h-7 rounded-lg flex items-center justify-center text-white shadow-sm",
+                                                                                            platform === 'Instagram' ? "bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600" :
+                                                                                                platform === 'Facebook' ? "bg-blue-600" : "bg-black border border-white/20"
+                                                                                        )}>
+                                                                                            {platform === 'Instagram' && <Instagram size={14} />}
+                                                                                            {platform === 'Facebook' && <Facebook size={14} />}
+                                                                                            {platform === 'X' && <XIcon size={14} />}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                );
+                                                                            })}
+                                                                        </div>
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                const el = document.getElementById(`article-details-${articleId}`);
+                                                                                if (el) el.classList.toggle('hidden');
+                                                                            }}
+                                                                            className="w-full bg-foreground text-background px-8 py-4 rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] shadow-xl hover:scale-105 active:scale-95 transition-all text-center whitespace-nowrap"
+                                                                        >
+                                                                            Rozbaliť možnosti
+                                                                        </button>
+                                                                    </div>
                                                                 </div>
 
-                                                                {/* Visual Preview Column (for the last selected or featured) */}
-                                                                <div className="p-4 md:p-8 bg-muted/10 flex items-center justify-center">
-                                                                    <div className="w-full max-w-[400px]">
-                                                                        <InstagramPreview title={articleTitle} />
+                                                                {/* Expandable Content Area */}
+                                                                <div id={`article-details-${articleId}`} className="hidden border-t border-border/50">
+                                                                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-0">
+                                                                        {/* Platforms Column */}
+                                                                        <div className="p-4 md:p-8 space-y-6 bg-muted/5 border-r border-border/50">
+                                                                            {posts.map((post) => (
+                                                                                <div key={post.id} className={cn(
+                                                                                    "rounded-3xl border-2 p-6 transition-all",
+                                                                                    post.status === 'posted' ? "bg-muted/10 border-green-500/20" : "bg-background border-primary/10 shadow-lg"
+                                                                                )}>
+                                                                                    <div className="flex items-center justify-between mb-6">
+                                                                                        <div className="flex items-center gap-3">
+                                                                                            <div className={cn(
+                                                                                                "w-10 h-10 rounded-xl flex items-center justify-center text-white",
+                                                                                                post.platform === 'Instagram' ? "bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600" :
+                                                                                                    post.platform === 'Facebook' ? "bg-blue-600" : "bg-foreground"
+                                                                                            )}>
+                                                                                                {post.platform === 'Instagram' && <Instagram size={18} />}
+                                                                                                {post.platform === 'Facebook' && <Facebook size={18} />}
+                                                                                                {post.platform === 'X' && <XIcon size={18} />}
+                                                                                            </div>
+                                                                                            <span className="text-sm font-black uppercase tracking-widest">{post.platform}</span>
+                                                                                        </div>
+                                                                                        <div className="flex gap-2">
+                                                                                            <button
+                                                                                                onClick={() => handleToggleSocialPosted(post)}
+                                                                                                className={cn(
+                                                                                                    "p-2 rounded-lg transition-all",
+                                                                                                    post.status === 'posted' ? "bg-green-500 text-white" : "bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                                                                                                )}
+                                                                                                title={post.status === 'posted' ? "Onačené ako postnuté" : "Označiť ako postnuté"}
+                                                                                            >
+                                                                                                <CheckCircle2 size={18} />
+                                                                                            </button>
+                                                                                            <button
+                                                                                                onClick={() => handleDeleteSocialPost(post.id)}
+                                                                                                className="p-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg transition-all"
+                                                                                            >
+                                                                                                <Trash2 size={18} />
+                                                                                            </button>
+                                                                                        </div>
+                                                                                    </div>
+
+                                                                                    <div className="space-y-4">
+                                                                                        <div className="flex items-center justify-between">
+                                                                                            <span className="text-[10px] font-black uppercase text-muted-foreground">Text príspevku</span>
+                                                                                            <button
+                                                                                                onClick={() => { copyToClipboard(post.content); alert(`${post.platform} text skopírovaný!`); }}
+                                                                                                className="text-[10px] font-black uppercase text-primary hover:underline flex items-center gap-1"
+                                                                                            >
+                                                                                                <Copy size={12} /> Skopírovať
+                                                                                            </button>
+                                                                                        </div>
+                                                                                        <div className="bg-background/50 border rounded-xl p-4 text-xs font-semibold leading-relaxed max-h-[150px] overflow-y-auto whitespace-pre-wrap">
+                                                                                            {post.content}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+
+                                                                        {/* Visual Preview Column (for the last selected or featured) */}
+                                                                        <div className="p-4 md:p-8 bg-muted/10 flex items-center justify-center">
+                                                                            <div className="w-full max-w-[400px]">
+                                                                                <InstagramPreview title={articleTitle} />
+                                                                            </div>
+                                                                        </div>
                                                                     </div>
                                                                 </div>
                                                             </div>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            });
-                                        })()}
+                                                        );
+                                                    });
+                                                })()}
+                                            </div>
+                                        )}
                                     </div>
-                                )}
-                            </div>
+                                </div>
+                            )}
                         </div>
 
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
