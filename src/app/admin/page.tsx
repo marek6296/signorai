@@ -83,6 +83,10 @@ export default function AdminPage() {
             visitor_id: string,
             country: string,
             city: string,
+            region: string,
+            timezone: string,
+            latitude: string,
+            longitude: string,
             device: string,
             browser: string,
             os: string,
@@ -339,7 +343,7 @@ export default function AdminPage() {
         try {
             const { data: allData, error: allDataError } = await supabase
                 .from('site_visits')
-                .select('path, visitor_id, country, city, device, browser, os, created_at, user_agent, referrer');
+                .select('path, visitor_id, country, city, region, timezone, latitude, longitude, device, browser, os, created_at, user_agent, referrer');
 
             if (allDataError) throw allDataError;
 

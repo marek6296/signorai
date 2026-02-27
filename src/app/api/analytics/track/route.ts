@@ -20,6 +20,10 @@ export async function POST(req: NextRequest) {
         // Get geo info from Vercel headers
         const country = req.headers.get('x-vercel-ip-country') || 'Unknown';
         const city = req.headers.get('x-vercel-ip-city') || 'Unknown';
+        const region = req.headers.get('x-vercel-ip-region') || 'Unknown';
+        const timezone = req.headers.get('x-vercel-ip-timezone') || 'Unknown';
+        const latitude = req.headers.get('x-vercel-ip-latitude') || 'Unknown';
+        const longitude = req.headers.get('x-vercel-ip-longitude') || 'Unknown';
 
         const { error } = await supabase.from("site_visits").insert({
             path,
@@ -30,7 +34,11 @@ export async function POST(req: NextRequest) {
             os,
             device,
             country,
-            city
+            city,
+            region,
+            timezone,
+            latitude,
+            longitude
         });
 
         if (error) {
