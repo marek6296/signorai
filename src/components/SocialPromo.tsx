@@ -48,8 +48,8 @@ export function SocialPromo() {
             </div>
 
             {/* Header - Top Center */}
-            <div className="absolute top-6 left-0 w-full z-20 flex flex-col items-center">
-                <h2 className="font-black tracking-[0.4em] text-white leading-none text-lg md:text-xl uppercase italic opacity-80 group-hover:opacity-100 transition-opacity">
+            <div className="absolute top-8 left-0 w-full z-20 flex flex-col items-center">
+                <h2 className="font-syne font-extrabold tracking-tighter text-white leading-none text-2xl md:text-3xl uppercase opacity-90 group-hover:opacity-100 transition-opacity">
                     PRIDAJ SA
                 </h2>
             </div>
