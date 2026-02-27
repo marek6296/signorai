@@ -74,6 +74,8 @@ export default function AdminPage() {
     const [analytics, setAnalytics] = useState<{
         totalVisits: number,
         uniqueVisitors: number,
+        todayVisits: number,
+        todayUnique: number,
         topPages: { path: string, count: number }[],
         countries: { name: string, count: number }[],
         devices: { name: string, count: number }[],
@@ -94,7 +96,7 @@ export default function AdminPage() {
             user_agent: string,
             referrer: string | null
         }[]
-    }>({ totalVisits: 0, uniqueVisitors: 0, topPages: [], countries: [], devices: [], browsers: [], recentVisits: [] });
+    }>({ totalVisits: 0, uniqueVisitors: 0, todayVisits: 0, todayUnique: 0, topPages: [], countries: [], devices: [], browsers: [], recentVisits: [] });
     const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
     // Tab control – obnovíme z localStorage pri refreshi (prvý zápis preskočíme, aby sme neprepísali obnovenú kartu)
@@ -350,6 +352,12 @@ export default function AdminPage() {
             const totalVisits = allData?.length || 0;
             const uniqueVisitors = new Set(allData?.map(v => v.visitor_id).filter(Boolean)).size;
 
+            // Today's stats
+            const todayStr = new Date().toISOString().split('T')[0];
+            const todayData = allData?.filter(v => v.created_at.startsWith(todayStr)) || [];
+            const todayVisits = todayData.length;
+            const todayUnique = new Set(todayData.map(v => v.visitor_id).filter(Boolean)).size;
+
             // Page stats
             const pageCounts: Record<string, number> = {};
             // Country stats
@@ -394,6 +402,8 @@ export default function AdminPage() {
             setAnalytics({
                 totalVisits,
                 uniqueVisitors,
+                todayVisits,
+                todayUnique,
                 topPages,
                 countries,
                 devices,
@@ -1470,28 +1480,55 @@ export default function AdminPage() {
                 {activeTab === "analytics" && (
                     <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
                         {/* Summary Cards */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div className="bg-card border rounded-[32px] p-8 shadow-sm flex flex-col gap-2">
-                                <div className="flex items-center gap-3 text-muted-foreground mb-2">
-                                    <Users className="w-5 h-5 text-primary" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest">Celkový počet videní</span>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+                            <div className="bg-card border rounded-[32px] p-6 shadow-sm flex flex-col gap-2 relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                                    <Zap className="w-12 h-12" />
                                 </div>
-                                <div className="text-4xl font-black">{analytics.totalVisits.toLocaleString('sk-SK')}</div>
-                            </div>
-                            <div className="bg-card border rounded-[32px] p-8 shadow-sm flex flex-col gap-2">
-                                <div className="flex items-center gap-3 text-muted-foreground mb-2">
-                                    <Sparkles className="w-5 h-5 text-primary" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest">Unikátni návštevníci</span>
+                                <div className="flex items-center gap-3 text-muted-foreground mb-1">
+                                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-foreground">Dnes videní</span>
                                 </div>
-                                <div className="text-4xl font-black">{analytics.uniqueVisitors.toLocaleString('sk-SK')}</div>
+                                <div className="text-3xl font-black">{analytics.todayVisits.toLocaleString('sk-SK')}</div>
+                                <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight">Kliknutia za posledných 24h</div>
                             </div>
+
+                            <div className="bg-card border rounded-[32px] p-6 shadow-sm flex flex-col gap-2 relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                                    <Sparkles className="w-12 h-12" />
+                                </div>
+                                <div className="flex items-center gap-3 text-muted-foreground mb-1">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-foreground">Dnes unikátov</span>
+                                </div>
+                                <div className="text-3xl font-black">{analytics.todayUnique.toLocaleString('sk-SK')}</div>
+                                <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight">Noví ľudia na webe dnes</div>
+                            </div>
+
+                            <div className="bg-card border rounded-[32px] p-6 shadow-sm flex flex-col gap-2 bg-muted/20">
+                                <div className="flex items-center gap-3 text-muted-foreground mb-1">
+                                    <Users className="w-4 h-4" />
+                                    <span className="text-[10px] font-black uppercase tracking-widest">Celkovo videní</span>
+                                </div>
+                                <div className="text-3xl font-black opacity-60">{analytics.totalVisits.toLocaleString('sk-SK')}</div>
+                                <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight">História od začiatku</div>
+                            </div>
+
+                            <div className="bg-card border rounded-[32px] p-6 shadow-sm flex flex-col gap-2 bg-muted/20">
+                                <div className="flex items-center gap-3 text-muted-foreground mb-1">
+                                    <BarChart3 className="w-4 h-4" />
+                                    <span className="text-[10px] font-black uppercase tracking-widest">Celkovo unikátov</span>
+                                </div>
+                                <div className="text-3xl font-black opacity-60">{analytics.uniqueVisitors.toLocaleString('sk-SK')}</div>
+                                <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight">Unikátne identity v DB</div>
+                            </div>
+
                             <button
                                 onClick={fetchAnalytics}
                                 disabled={loadingAnalytics}
-                                className="md:col-span-1 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 rounded-[32px] p-8 flex flex-col items-center justify-center gap-2 transition-all group"
+                                className="bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 rounded-[32px] p-6 flex flex-col items-center justify-center gap-2 transition-all group lg:col-span-1"
                             >
-                                <RefreshCw className={cn("w-8 h-8", loadingAnalytics && "animate-spin")} />
-                                <span className="text-[10px] font-black uppercase tracking-widest">Obnoviť dáta</span>
+                                <RefreshCw className={cn("w-6 h-6", loadingAnalytics && "animate-spin")} />
+                                <span className="text-[10px] font-black uppercase tracking-widest text-center">Aktualizovať</span>
                             </button>
                         </div>
 
