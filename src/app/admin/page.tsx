@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabase";
 import { Article } from "@/lib/data";
 import Link from "next/link";
-import { Edit, ArrowDown, Trash2, Sparkles, Plus, Globe, Search, CheckCircle2, XCircle, RefreshCw, Zap, Play, History, RotateCcw, BarChart3, Users, Share2, Copy, Facebook, Instagram, Calendar, Clock, ChevronDown, ChevronUp } from "lucide-react";
+import { Edit, ArrowDown, Trash2, Sparkles, Plus, Globe, Search, CheckCircle2, XCircle, RefreshCw, Zap, Play, History, RotateCcw, BarChart3, Users, Share2, Copy, Facebook, Instagram, Calendar, Clock, ChevronDown, ChevronUp, Smartphone, Monitor } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ArticleCard } from "@/components/ArticleCard";
 import Image from "next/image";
@@ -71,7 +71,26 @@ export default function AdminPage() {
     const [loadingArticles, setLoadingArticles] = useState(true);
     const [loadingSuggestions, setLoadingSuggestions] = useState(false);
     const [autopilotSettings, setAutopilotSettings] = useState<AutopilotSettings>({ enabled: false, last_run: null, processed_count: 0 });
-    const [analytics, setAnalytics] = useState<{ totalVisits: number, uniqueVisitors: number, topPages: { path: string, count: number }[], recentVisits: { path: string, created_at: string, referrer: string | null }[] }>({ totalVisits: 0, uniqueVisitors: 0, topPages: [], recentVisits: [] });
+    const [analytics, setAnalytics] = useState<{
+        totalVisits: number,
+        uniqueVisitors: number,
+        topPages: { path: string, count: number }[],
+        countries: { name: string, count: number }[],
+        devices: { name: string, count: number }[],
+        browsers: { name: string, count: number }[],
+        recentVisits: {
+            path: string,
+            visitor_id: string,
+            country: string,
+            city: string,
+            device: string,
+            browser: string,
+            os: string,
+            created_at: string,
+            user_agent: string,
+            referrer: string | null
+        }[]
+    }>({ totalVisits: 0, uniqueVisitors: 0, topPages: [], countries: [], devices: [], browsers: [], recentVisits: [] });
     const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
     // Tab control – obnovíme z localStorage pri refreshi (prvý zápis preskočíme, aby sme neprepísali obnovenú kartu)
@@ -318,41 +337,64 @@ export default function AdminPage() {
     const fetchAnalytics = async () => {
         setLoadingAnalytics(true);
         try {
-            const { count: totalCount } = await supabase
+            const { data: allData, error: allDataError } = await supabase
                 .from('site_visits')
-                .select('*', { count: 'exact', head: true });
+                .select('path, visitor_id, country, city, device, browser, os, created_at, user_agent, referrer');
 
-            const { data: pageData } = await supabase
-                .from('site_visits')
-                .select('path');
+            if (allDataError) throw allDataError;
 
-            const counts: Record<string, number> = {};
-            pageData?.forEach(v => {
-                counts[v.path] = (counts[v.path] || 0) + 1;
+            const totalVisits = allData?.length || 0;
+            const uniqueVisitors = new Set(allData?.map(v => v.visitor_id).filter(Boolean)).size;
+
+            // Page stats
+            const pageCounts: Record<string, number> = {};
+            // Country stats
+            const countryCounts: Record<string, number> = {};
+            // Device stats
+            const deviceCounts: Record<string, number> = {};
+            // Browser stats
+            const browserCounts: Record<string, number> = {};
+
+            allData?.forEach(v => {
+                pageCounts[v.path] = (pageCounts[v.path] || 0) + 1;
+                const c = v.country || 'Unknown';
+                countryCounts[c] = (countryCounts[c] || 0) + 1;
+                const d = v.device || 'desktop';
+                deviceCounts[d] = (deviceCounts[d] || 0) + 1;
+                const b = v.browser || 'Other';
+                browserCounts[b] = (browserCounts[b] || 0) + 1;
             });
-            const topPages = Object.entries(counts)
+
+            const topPages = Object.entries(pageCounts)
                 .map(([path, count]) => ({ path, count }))
                 .sort((a, b) => b.count - a.count)
                 .slice(0, 10);
 
-            const { data: recentVisits } = await supabase
-                .from('site_visits')
-                .select('*')
-                .order('created_at', { ascending: false })
-                .limit(20);
+            const countries = Object.entries(countryCounts)
+                .map(([name, count]) => ({ name, count }))
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 10);
 
-            // Get all unique visitor_ids
-            const { data: visitorData } = await supabase
-                .from('site_visits')
-                .select('visitor_id');
+            const devices = Object.entries(deviceCounts)
+                .map(([name, count]) => ({ name, count }))
+                .sort((a, b) => b.count - a.count);
 
-            const uniqueVisitors = new Set(visitorData?.map(v => v.visitor_id).filter(Boolean)).size;
+            const browsers = Object.entries(browserCounts)
+                .map(([name, count]) => ({ name, count }))
+                .sort((a, b) => b.count - a.count);
+
+            const recentVisits = [...(allData || [])]
+                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                .slice(0, 30);
 
             setAnalytics({
-                totalVisits: totalCount || 0,
+                totalVisits,
                 uniqueVisitors,
                 topPages,
-                recentVisits: recentVisits || []
+                countries,
+                devices,
+                browsers,
+                recentVisits
             });
         } catch (err) {
             console.error("Analytics fetch error:", err);
@@ -1464,23 +1506,104 @@ export default function AdminPage() {
                                 </div>
                             </div>
 
-                            {/* Recent Activity */}
+                            {/* Geo Traffic */}
                             <div className="bg-card border rounded-[40px] p-10 shadow-sm">
-                                <h3 className="text-xl font-black uppercase tracking-tight mb-8">Posledná aktivita</h3>
-                                <div className="space-y-4 overflow-y-auto max-h-[500px] pr-2">
-                                    {analytics.recentVisits.map((visit, idx) => (
-                                        <div key={idx} className="flex flex-col gap-1 p-4 bg-muted/20 rounded-2xl border border-border/40 text-[10px]">
-                                            <div className="flex justify-between font-black uppercase tracking-widest text-muted-foreground mb-1">
-                                                <span className="text-primary">{visit.path}</span>
-                                                <span>{new Date(visit.created_at).toLocaleString('sk-SK')}</span>
+                                <h3 className="text-xl font-black uppercase tracking-tight mb-8 px-2 flex items-center gap-3">
+                                    <Globe className="w-6 h-6 text-primary" />
+                                    Geografia (Krajiny)
+                                </h3>
+                                <div className="space-y-4">
+                                    {analytics.countries.map((c, idx) => (
+                                        <div key={idx} className="flex items-center justify-between p-4 bg-muted/20 rounded-2xl">
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-lg">{c.name === 'SK' ? '🇸🇰' : c.name === 'CZ' ? '🇨🇿' : c.name === 'US' ? '🇺🇸' : '🌍'}</span>
+                                                <span className="text-sm font-bold uppercase tracking-widest">{c.name}</span>
                                             </div>
-                                            <div className="text-muted-foreground truncate opacity-60">Ref: {visit.referrer || 'Priamy prístup'}</div>
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-32 h-2 bg-muted rounded-full overflow-hidden hidden sm:block">
+                                                    <div className="h-full bg-primary" style={{ width: `${(c.count / analytics.totalVisits) * 100}%` }}></div>
+                                                </div>
+                                                <span className="bg-primary/10 text-primary px-3 py-1 rounded-lg text-[10px] font-black">{c.count}</span>
+                                            </div>
                                         </div>
                                     ))}
-                                    {analytics.recentVisits.length === 0 && <p className="text-center text-muted-foreground py-10 font-medium">Zatiaľ žiadne dáta o návštevách.</p>}
+                                    {analytics.countries.length === 0 && <p className="text-center text-muted-foreground py-10 font-medium italic opacity-50">Čakám na prvé geo-dáta...</p>}
                                 </div>
                             </div>
                         </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                            {/* Device Breakdown */}
+                            <div className="bg-card border rounded-[40px] p-8 shadow-sm">
+                                <h4 className="text-xs font-black uppercase tracking-[0.2em] mb-6 text-muted-foreground">Zariadenia</h4>
+                                <div className="space-y-4">
+                                    {analytics.devices.map((d, i) => (
+                                        <div key={i} className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                {d.name === 'mobile' ? <Smartphone className="w-4 h-4" /> : <Monitor className="w-4 h-4" />}
+                                                <span className="text-[10px] font-bold uppercase">{d.name}</span>
+                                            </div>
+                                            <span className="text-[10px] font-black">{Math.round((d.count / analytics.totalVisits) * 100)}%</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Browser Breakdown */}
+                            <div className="bg-card border rounded-[40px] p-8 shadow-sm">
+                                <h4 className="text-xs font-black uppercase tracking-[0.2em] mb-6 text-muted-foreground">Prehliadače</h4>
+                                <div className="space-y-4">
+                                    {analytics.browsers.map((b, i) => (
+                                        <div key={i} className="flex items-center justify-between">
+                                            <span className="text-[10px] font-bold uppercase">{b.name}</span>
+                                            <span className="text-[10px] font-black">{b.count}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Visitor ID stats - Optional additional info */}
+                            <div className="bg-card border rounded-[40px] p-8 shadow-sm flex flex-col justify-center items-center text-center">
+                                <div className="text-2xl font-black mb-1">{analytics.uniqueVisitors}</div>
+                                <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Unikátnych identít</div>
+                                <p className="text-[10px] mt-4 leading-relaxed opacity-60 font-medium">Každý prehliadač má pridelený unikátny ID kľúč pre presné meranie bez cookies tretích strán.</p>
+                            </div>
+                        </div>
+
+                        <div className="bg-card border rounded-[40px] p-10 shadow-sm">
+                            <h3 className="text-xl font-black uppercase tracking-tight mb-8 px-2">Posledná aktivita v reálnom čase</h3>
+                            <div className="space-y-3 overflow-y-auto max-h-[600px] pr-4 custom-scrollbar">
+                                {analytics.recentVisits.map((visit, idx) => (
+                                    <div key={idx} className="flex items-center justify-between p-5 bg-muted/10 hover:bg-muted/20 rounded-[24px] border border-border/40 transition-all group">
+                                        <div className="flex items-center gap-4 min-w-0">
+                                            <div className="w-10 h-10 rounded-xl bg-background flex items-center justify-center border border-border/50 group-hover:scale-110 transition-transform">
+                                                {visit.device === 'mobile' ? <Smartphone size={16} /> : <Monitor size={16} />}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="text-primary font-black text-[10px] uppercase tracking-wider">{visit.path === '/' ? 'HOME' : visit.path}</span>
+                                                    <span className="text-muted-foreground text-[10px]">•</span>
+                                                    <span className="text-[10px] font-bold text-muted-foreground">{visit.country || '??'} ({visit.city || '?'})</span>
+                                                </div>
+                                                <div className="text-[11px] font-medium text-muted-foreground truncate opacity-70">
+                                                    {visit.browser} na {visit.os} • Ref: {visit.referrer || 'Priamy prístup'}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="text-right flex-shrink-0">
+                                            <div className="text-[10px] font-black uppercase text-muted-foreground mb-1">
+                                                {new Date(visit.created_at).toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' })}
+                                            </div>
+                                            <div className="text-[9px] font-bold text-primary/60">
+                                                {new Date(visit.created_at).toLocaleDateString('sk-SK')}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                                {analytics.recentVisits.length === 0 && <p className="text-center text-muted-foreground py-10 font-medium">Zatiaľ žiadne dáta o návštevách.</p>}
+                            </div>
+                        </div>
+
                     </div>
                 )}
 

@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { supabase } from "@/lib/supabase";
 
 export function AnalyticsTracker() {
     const pathname = usePathname();
@@ -10,25 +9,22 @@ export function AnalyticsTracker() {
     useEffect(() => {
         const trackVisit = async () => {
             try {
-                // Get or create unique visitor_id
                 let visitorId = localStorage.getItem("site_visitor_id");
                 if (!visitorId) {
                     visitorId = crypto.randomUUID();
                     localStorage.setItem("site_visitor_id", visitorId);
                 }
 
-                const { error } = await supabase.from("site_visits").insert({
-                    path: pathname,
-                    referrer: document.referrer || null,
-                    user_agent: navigator.userAgent,
-                    visitor_id: visitorId
+                await fetch("/api/analytics/track", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        path: pathname,
+                        referrer: document.referrer || null,
+                        user_agent: navigator.userAgent,
+                        visitor_id: visitorId
+                    })
                 });
-
-                if (error) {
-                    console.error("Failed to track visit:", error);
-                } else {
-                    console.log(`Visit tracked: ${pathname} (Visitor: ${visitorId})`);
-                }
             } catch (err) {
                 console.error("Analytics error:", err);
             }
