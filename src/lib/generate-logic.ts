@@ -68,7 +68,8 @@ ZÁVÄZNÉ PRAVIDLÁ PRE KVALITU TEXTU:
 5. Bezchybná slovenská štylistika je podmienkou. Ak je zdroj v češtine, musíš ho dôkladne PRELOŽIŤ, nie len "poslovenčiť".
 6. Rozčleň text na menšie, ľahko čitateľné odseky.
 7. Vytvor logickú štruktúru s podnadpismi (<h2> alebo <h3>). 
-8. PONECHAJ VŠETKY OBRÁZKY! Ak sa v zdrojom HTML nachádzajú značky <img>, nevyrezávaj ich, ale vlož ich do svojho preloženého HTML presne na to miesto, kam patria.
+8. ZÁKAZ DOSLOVNÉHO KOPÍROVANIA: Článok nesmie byť doslovným prekladom alebo kópiou zdrojového textu. Tvojou úlohou je informácie pochopiť, SYNTETIZOVAŤ a napísať ÚPLNE NOVÝ, ORIGINÁLNY TEXT pri zachovaní faktov. Meň poradie informácií, pridávaj kontext a používaj vlastnú slovnú zásobu. Vyhni sa kopírovaniu celých viet zo zdroja.
+9. PONECHAJ VŠETKY OBRÁZKY! Ak sa v zdrojom HTML nachádzajú značky <img>, nevyrezávaj ich, ale vlož ich do svojho preloženého HTML presne na to miesto, kam patria.
 
 PRAVIDLÁ PRE KATEGORIZÁCIU (Buď veľmi prísny a presný!):
 - Novinky SK/CZ: Akýkoľvek článok týkajúci sa Slovenska alebo Česka (domáce správy, SK/CZ politici, udalosti v regiónoch, lokálne firmy). TOTO MÁ ABSOLÚTNU PRIORITU. Ak sa v článku spomína SR alebo ČR, ide to SEM.
