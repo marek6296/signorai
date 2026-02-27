@@ -1349,17 +1349,17 @@ export default function AdminPage() {
                                         <button
                                             onClick={handleRefreshRecentCategories}
                                             disabled={refreshingType !== "none"}
-                                            className="bg-primary/10 text-primary px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary/20 transition-all flex items-center gap-2 border-2 border-primary/20"
+                                            className="bg-zinc-800/80 text-zinc-100 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-700 transition-all flex items-center gap-2 border border-white/10"
                                         >
-                                            <RefreshCw className={cn("w-3 h-3", refreshingType === "recent" && "animate-spin")} />
+                                            <RefreshCw className={cn("w-3.5 h-3.5", refreshingType === "recent" && "animate-spin")} />
                                             AI opraviť 20
                                         </button>
                                         <button
                                             onClick={handleRefreshAllCategories}
                                             disabled={refreshingType !== "none"}
-                                            className="bg-red-500/10 text-red-500 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all flex items-center gap-2 border-2 border-red-500/20"
+                                            className="bg-red-500/15 text-red-400 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500/25 transition-all flex items-center gap-2 border border-red-500/30"
                                         >
-                                            <RefreshCw className={cn("w-3 h-3", refreshingType === "all" && "animate-spin")} />
+                                            <RefreshCw className={cn("w-3.5 h-3.5", refreshingType === "all" && "animate-spin")} />
                                             AI opraviť VŠETKO
                                         </button>
                                         <button
@@ -1367,7 +1367,9 @@ export default function AdminPage() {
                                                 setIsBulkCategoryMode(!isBulkCategoryMode);
                                                 setBulkSelectedArticles([]);
                                             }}
-                                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isBulkCategoryMode ? "bg-primary text-white shadow-lg shadow-primary/30" : "bg-muted hover:bg-muted/80 text-muted-foreground border-2 border-transparent hover:border-primary/20"}`}
+                                            className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl ${isBulkCategoryMode
+                                                ? "bg-white text-black hover:bg-zinc-200 border-2 border-white"
+                                                : "bg-primary text-primary-foreground border-2 border-primary/20 hover:scale-[1.02]"}`}
                                         >
                                             {isBulkCategoryMode ? "Zrušiť hromadnú úpravu" : "Hromadná oprava kategórií"}
                                         </button>
@@ -1375,19 +1377,21 @@ export default function AdminPage() {
                                 </div>
 
                                 {isBulkCategoryMode && (
-                                    <div className="w-full bg-primary/10 border border-primary/20 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 mb-8">
-                                        <div className="flex items-center gap-3 text-primary">
-                                            <RefreshCw className={`w-5 h-5 ${refreshingType === "bulk" ? "animate-spin" : ""}`} />
-                                            <span className="font-bold text-sm tracking-wide">
-                                                Vybraných článkov pre AI kontrolu: <span className="text-lg font-black">{bulkSelectedArticles.length}</span>
+                                    <div className="w-full bg-zinc-900/90 border border-white/10 rounded-[2rem] p-6 flex flex-col md:flex-row items-center justify-between gap-6 mb-10 shadow-2xl ring-1 ring-white/5 animate-in slide-in-from-top-4 duration-300">
+                                        <div className="flex items-center gap-4 text-white">
+                                            <div className="bg-primary/20 p-3 rounded-2xl">
+                                                <RefreshCw className={`w-5 h-5 text-primary ${refreshingType === "bulk" ? "animate-spin" : ""}`} />
+                                            </div>
+                                            <span className="font-black text-sm uppercase tracking-widest">
+                                                Vybraných článkov pre AI kontrolu: <span className="text-2xl ml-2 text-primary">{bulkSelectedArticles.length}</span>
                                             </span>
                                         </div>
                                         <button
                                             onClick={handleRefreshCategories}
                                             disabled={bulkSelectedArticles.length === 0 || refreshingType !== "none"}
-                                            className="w-full md:w-auto px-6 py-3 bg-primary text-white rounded-xl text-xs font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg shadow-primary/30 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center gap-2 justify-center"
+                                            className="w-full md:w-auto px-8 py-4 bg-white text-black rounded-2xl text-[10px] font-black uppercase tracking-[0.15em] hover:scale-[1.05] active:scale-[0.95] transition-all shadow-2xl disabled:bg-zinc-800 disabled:text-zinc-600 disabled:opacity-100 disabled:cursor-not-allowed flex items-center gap-3 justify-center border border-white/10"
                                         >
-                                            {refreshingType === "bulk" ? "AI analyzuje články..." : "Zistiť a opraviť kategórie s AI"}
+                                            {refreshingType === "bulk" ? "AI ANALYZUJE..." : "SPUSTIŤ AI OPRAVU"}
                                         </button>
                                     </div>
                                 )}
