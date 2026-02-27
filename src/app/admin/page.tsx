@@ -133,7 +133,7 @@ export default function AdminPage() {
     const [plannedPosts, setPlannedPosts] = useState<SocialPost[]>([]);
     const [isSocialAutopilotGenerating, setIsSocialAutopilotGenerating] = useState(false);
     const [plannedCategoryFilter, setPlannedCategoryFilter] = useState<string>("all");
-    const [isPlannerOpen, setIsPlannerOpen] = useState(true);
+    const [isPlannerOpen, setIsPlannerOpen] = useState(false);
 
     const fetchArticles = async () => {
         setLoadingArticles(true);
