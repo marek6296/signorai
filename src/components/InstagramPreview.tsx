@@ -126,7 +126,7 @@ export function InstagramPreview({ title }: InstagramPreviewProps) {
                         {/* Centered Content */}
                         <div className="relative z-10 text-center max-w-[850px]">
                             <div className="w-32 h-1.5 bg-primary mb-16 mx-auto rounded-full" />
-                            <h2 className="text-[70px] font-black leading-[1.1] text-white uppercase tracking-tighter">
+                            <h2 className="text-[70px] font-black leading-[1.1] text-white uppercase tracking-[-0.02em] [word-spacing:0.3em]">
                                 {title}
                             </h2>
                             <div className="w-32 h-1.5 bg-primary mt-16 mx-auto rounded-full" />
