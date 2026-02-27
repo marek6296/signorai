@@ -514,9 +514,8 @@ export default function AdminPage() {
         }
     };
 
-    const handleGenerate = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!url) return;
+    const triggerArticleGeneration = async (targetUrl: string) => {
+        if (!targetUrl) return;
 
         setStatus("loading");
         setIsGeneratingModalOpen(true);
@@ -540,7 +539,7 @@ export default function AdminPage() {
             const res = await fetch("/api/admin/generate-article", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ url, secret: "make-com-webhook-secret" })
+                body: JSON.stringify({ url: targetUrl, secret: "make-com-webhook-secret" })
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.message || "Nepodarilo sa vygenerovať článok");
@@ -556,6 +555,11 @@ export default function AdminPage() {
             clearInterval(interval);
             setIsGeneratingModalOpen(false);
         }
+    };
+
+    const handleGenerate = async (e: React.FormEvent) => {
+        e.preventDefault();
+        await triggerArticleGeneration(url);
     };
 
     const handlePublish = async (id: string, currentStatus: string) => {
@@ -771,10 +775,12 @@ export default function AdminPage() {
     };
 
     const handleProcessSuggestion = async (suggestion: SuggestedNews) => {
-        setActiveTab("create");
-        setUrl(suggestion.url);
+        // Mark as processed in DB immediately
         await supabase.from("suggested_news").update({ status: 'processed' }).eq("id", suggestion.id);
         fetchSuggestions();
+
+        // Start generation directly
+        await triggerArticleGeneration(suggestion.url);
     };
 
     const executeAutopilotRun = async () => {
