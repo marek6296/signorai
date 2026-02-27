@@ -11,15 +11,6 @@ const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-interface Article {
-    id: string;
-    title: string;
-    excerpt: string;
-    category: string;
-    slug: string;
-    published_at: string;
-}
-
 interface SocialPost {
     article_id: string;
     platform: string;
@@ -52,7 +43,7 @@ export async function POST(req: Request) {
         if (articlesError) throw articlesError;
 
         // 2. Fetch ALL existing social posts with article titles to check for near-duplicates
-        const { data: allExistingPosts, error: postsError } = await supabase
+        const { data: allExistingPostsRaw, error: postsError } = await supabase
             .from("social_posts")
             .select(`
                 article_id, 
@@ -64,6 +55,7 @@ export async function POST(req: Request) {
             `);
 
         if (postsError) throw postsError;
+        const allExistingPosts = allExistingPostsRaw as unknown as SocialPost[];
 
         // 3. Filter out articles:
         // - Exclude if the article ID is already in the planner
@@ -75,7 +67,7 @@ export async function POST(req: Request) {
 
             // 2. Check by Title (to avoid suggesting the same story if it was re-published with new ID)
             const existsByTitle = allExistingPosts?.some(p => {
-                const articlesData = p.articles as any;
+                const articlesData = p.articles;
                 const t = Array.isArray(articlesData) ? articlesData[0]?.title : articlesData?.title;
                 return t?.trim().toLowerCase() === article.title.trim().toLowerCase();
             });
