@@ -11,6 +11,26 @@ const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+interface Article {
+    id: string;
+    title: string;
+    excerpt: string;
+    category: string;
+    slug: string;
+    published_at: string;
+}
+
+interface SocialPost {
+    article_id: string;
+    platform: string;
+    status: string;
+    articles?: {
+        title: string;
+    } | {
+        title: string;
+    }[];
+}
+
 export async function POST(req: Request) {
     try {
         const { platforms } = await req.json();
@@ -55,7 +75,8 @@ export async function POST(req: Request) {
 
             // 2. Check by Title (to avoid suggesting the same story if it was re-published with new ID)
             const existsByTitle = allExistingPosts?.some(p => {
-                const t = Array.isArray(p.articles) ? (p.articles as any)[0]?.title : (p.articles as any)?.title;
+                const articlesData = p.articles as any;
+                const t = Array.isArray(articlesData) ? articlesData[0]?.title : articlesData?.title;
                 return t?.trim().toLowerCase() === article.title.trim().toLowerCase();
             });
             if (existsByTitle) return false;
@@ -104,7 +125,7 @@ ODPOVEDAJ LEN VO FORMÁTE JSON:
         for (const article of selectedArticles) {
             for (const platform of platforms) {
                 // Check if already posted to THIS platform
-                const alreadyPosted = allExistingPosts?.some((p: any) => p.article_id === article.id && p.platform === platform);
+                const alreadyPosted = allExistingPosts?.some((p: SocialPost) => p.article_id === article.id && p.platform === platform);
                 if (alreadyPosted) continue;
 
                 const url = `https://postovinky.news/article/${article.slug}`;
@@ -164,8 +185,9 @@ Perex: ${article.excerpt}`;
 
         return NextResponse.json({ posts: generatedPosts });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Social autopilot failed:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        return NextResponse.json({ error: errorMessage }, { status: 500 });
     }
 }

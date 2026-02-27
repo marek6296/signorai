@@ -22,8 +22,9 @@ export async function GET() {
 
         if (error) throw error;
         return NextResponse.json(posts);
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        return NextResponse.json({ error: errorMessage }, { status: 500 });
     }
 }
 
@@ -37,8 +38,9 @@ export async function POST(req: Request) {
 
         if (error) throw error;
         return NextResponse.json(data);
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        return NextResponse.json({ error: errorMessage }, { status: 500 });
     }
 }
 
@@ -58,8 +60,9 @@ export async function PATCH(req: Request) {
 
         if (error) throw error;
         return NextResponse.json(data);
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        return NextResponse.json({ error: errorMessage }, { status: 500 });
     }
 }
 
@@ -73,7 +76,8 @@ export async function DELETE(req: Request) {
 
         if (error) throw error;
         return NextResponse.json({ success: true });
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        return NextResponse.json({ error: errorMessage }, { status: 500 });
     }
 }

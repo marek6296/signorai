@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabase";
 import { Article } from "@/lib/data";
 import Link from "next/link";
-import { Edit, ArrowDown, Trash2, Sparkles, Plus, Globe, Search, CheckCircle2, XCircle, RefreshCw, Zap, Play, History, RotateCcw, BarChart3, Users, Share2, Copy, Twitter, Facebook, Instagram, Calendar, Clock } from "lucide-react";
+import { Edit, ArrowDown, Trash2, Sparkles, Plus, Globe, Search, CheckCircle2, XCircle, RefreshCw, Zap, Play, History, RotateCcw, BarChart3, Users, Share2, Copy, Facebook, Instagram, Calendar, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ArticleCard } from "@/components/ArticleCard";
 import Image from "next/image";
@@ -45,6 +45,20 @@ type AutopilotSettings = {
     enabled: boolean;
     last_run: string | null;
     processed_count: number;
+};
+
+type SocialPost = {
+    id: string;
+    article_id: string;
+    platform: 'Instagram' | 'Facebook' | 'X';
+    content: string;
+    status: 'draft' | 'posted';
+    created_at: string;
+    articles?: {
+        title: string;
+        slug: string;
+        category: string;
+    };
 };
 
 export default function AdminPage() {
@@ -116,7 +130,7 @@ export default function AdminPage() {
     const [isBulkCategoryMode, setIsBulkCategoryMode] = useState(false);
     const [bulkSelectedArticles, setBulkSelectedArticles] = useState<string[]>([]);
     const [refreshingType, setRefreshingType] = useState<"none" | "bulk" | "recent" | "all">("none");
-    const [plannedPosts, setPlannedPosts] = useState<any[]>([]);
+    const [plannedPosts, setPlannedPosts] = useState<SocialPost[]>([]);
     const [isSocialAutopilotGenerating, setIsSocialAutopilotGenerating] = useState(false);
     const [plannedCategoryFilter, setPlannedCategoryFilter] = useState<string>("all");
 
@@ -191,7 +205,7 @@ export default function AdminPage() {
         }
     };
 
-    const handleToggleSocialPosted = async (post: any) => {
+    const handleToggleSocialPosted = async (post: SocialPost) => {
         const newStatus = post.status === 'posted' ? 'draft' : 'posted';
         try {
             await fetch("/api/admin/social-posts", {
@@ -1469,7 +1483,7 @@ export default function AdminPage() {
                                     { id: "Facebook", icon: Facebook, color: "text-blue-600" },
                                     { id: "X", icon: XIcon, color: "text-foreground" }
                                 ].map((p) => {
-                                    const isSelected = socialPlatforms.includes(p.id as any);
+                                    const isSelected = socialPlatforms.includes(p.id as SocialPost['platform']);
                                     return (
                                         <button
                                             key={p.id}
@@ -1477,7 +1491,7 @@ export default function AdminPage() {
                                                 setSocialPlatforms(prev =>
                                                     isSelected
                                                         ? prev.filter(id => id !== p.id)
-                                                        : [...prev, p.id as any]
+                                                        : [...prev, p.id as SocialPost['platform']]
                                                 );
                                             }}
                                             className={cn(
@@ -1582,7 +1596,7 @@ export default function AdminPage() {
                                                 return (
                                                     <div className="py-20 text-center border-2 border-dashed rounded-[32px] text-muted-foreground">
                                                         <Sparkles className="w-12 h-12 mx-auto mb-4 opacity-10" />
-                                                        <p className="font-bold uppercase text-xs tracking-widest">Žiadne príspevky v kategórii "{plannedCategoryFilter}"</p>
+                                                        <p className="font-bold uppercase text-xs tracking-widest">Žiadne príspevky v kategórii &quot;{plannedCategoryFilter}&quot;</p>
                                                     </div>
                                                 );
                                             }
@@ -1591,8 +1605,6 @@ export default function AdminPage() {
                                                 const firstPost = posts[0];
                                                 const articleTitle = firstPost.articles?.title || "Neznámy článok";
                                                 const articleCategory = firstPost.articles?.category || "Novinka";
-                                                const isAnyPosted = posts.some(p => p.status === 'posted');
-                                                const allPlatforms = posts.map(p => p.platform);
 
                                                 return (
                                                     <div key={articleId} className="bg-card border-2 border-primary/5 rounded-[40px] overflow-hidden shadow-sm hover:shadow-xl transition-all mb-6">
