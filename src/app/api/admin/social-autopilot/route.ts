@@ -82,11 +82,16 @@ export async function POST(req: Request) {
             return NextResponse.json({ message: "Všetky aktuálne témy už máš v plánovači.", posts: [] });
         }
 
-        // 4. Use AI to select the most interesting articles
-        const selectionPrompt = `Si elitný sociálny stratég pre technologický portál. Z nasledujúceho zoznamu správ za posledných 24 hodín vyber PRESNE 4 témy, ktoré sú najviac "clickbait" (majú najväčší potenciál zaujať).
+        // 4. Use AI to select the most relevant articles
+        const selectionPrompt = `Si elitný sociálny stratég pre technologický portál Postovinky. Z nasledujúceho zoznamu správ za posledných 24 hodín vyber PRESNE 4 témy, ktoré sú momentálne NAJVYŠŠOU PRIORITOU.
         
+Hľadaj témy, ktoré:
+1. Sú najviac relevantné k aktuálnemu svetovému dianiu a technologickým trendom (to, čo sa práve teraz najviac rieši).
+2. Majú najväčší informačný prínos a zároveň virálny potenciál.
+3. Reprezentujú dôležité míľniky v AI, techu alebo biznise.
+
 DÔLEŽITÉ PRAVIDLÁ:
-1. Vyber 4 ROZLIČNÉ témy. Ak je v zozname viac správ o tej istej veci (napr. 2 správy o tom istom politikovi alebo tej istej kauze), vyber z nich len tú najlepšiu.
+1. Vyber 4 ROZLIČNÉ témy. Ak je v zozname viac správ o tej istej veci, vyber len tú najzásadnejšiu.
 2. Odpovedaj len v JSON formáte.
 
 Zoznam článkov:
