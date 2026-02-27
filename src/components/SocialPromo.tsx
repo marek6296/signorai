@@ -31,37 +31,31 @@ export function SocialPromo() {
         : "/logo/white.png";
 
     return (
-        <div className="group relative overflow-hidden rounded-[2.5rem] bg-zinc-950 shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all duration-500 hover:shadow-primary/30 border border-white/10 flex flex-col h-[400px] md:h-[450px]">
-            {/* Background Accents (replacing image) */}
-            <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
-                <div className="absolute top-[-10%] right-[-10%] w-[70%] h-[70%] bg-primary/20 blur-[120px] rounded-full group-hover:bg-primary/30 transition-all duration-1000" />
-                <div className="absolute bottom-[-10%] left-[-10%] w-[60%] h-[60%] bg-blue-500/10 blur-[100px] rounded-full" />
-            </div>
-
-            {/* Logo Center */}
-            <div className="flex-grow flex items-center justify-center p-12 relative z-10">
+        <div className="group relative overflow-hidden rounded-[2.5rem] bg-zinc-950 shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all duration-500 hover:shadow-primary/30 border border-white/10 flex flex-col h-[300px] md:h-[350px]">
+            {/* Logo as Full Background */}
+            <div className="absolute inset-0 z-0 pointer-events-none opacity-20 group-hover:opacity-30 transition-opacity duration-700">
                 {mounted && (
-                    <div className="relative w-full max-w-[280px] aspect-[4/1] transition-transform duration-700 group-hover:scale-110">
-                        <Image
-                            src={logoSrc}
-                            alt="Postovinky Logo"
-                            fill
-                            className="object-contain"
-                            priority
-                        />
-                    </div>
+                    <Image
+                        src={logoSrc}
+                        alt="Postovinky Logo Background"
+                        fill
+                        className="object-cover transition-transform duration-1000 group-hover:scale-110"
+                        priority
+                    />
                 )}
+                {/* Dark Vignette Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
             </div>
 
-            {/* Content Overlay - High Contrast */}
+            {/* Content Overlay - Minimalist */}
             <div className="mt-auto relative z-20 w-full p-6">
-                <div className="bg-white/5 backdrop-blur-3xl border border-white/10 rounded-[2rem] p-6 md:p-8 flex flex-col items-center text-center gap-6 shadow-2xl transition-transform duration-500 group-hover:-translate-y-2">
-                    <div className="flex flex-col gap-2 items-center">
-                        <span className="text-[14px] md:text-[16px] font-black uppercase tracking-[0.4em] text-primary animate-pulse whitespace-nowrap">
-                            NEWSLETTER & COMMUNITY
+                <div className="flex flex-col items-center text-center gap-6">
+                    <div className="flex flex-col gap-1 items-center">
+                        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary/80">
+                            KOMUNITA
                         </span>
-                        <h2 className="font-black tracking-tighter text-white leading-none text-3xl md:text-5xl uppercase italic whitespace-nowrap">
-                            SLEDUJ SVET S NAMI
+                        <h2 className="font-black tracking-widest text-white leading-none text-xl md:text-2xl uppercase italic">
+                            PRIDAJ SA
                         </h2>
                     </div>
 
@@ -71,28 +65,28 @@ export function SocialPromo() {
                             href="https://www.instagram.com/postovinky.news/"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/20 hover:scale-110 active:scale-90 transition-all shadow-[0_0_20px_rgba(255,255,255,0.05)] group/icon"
+                            className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/20 hover:scale-110 active:scale-90 transition-all shadow-xl group/icon"
                             title="Instagram"
                         >
-                            <Instagram className="w-8 h-8 text-white group-hover/icon:text-white" />
+                            <Instagram className="w-7 h-7 text-white" />
                         </a>
                         <a
                             href="https://www.facebook.com/profile.php?id=61564215815848"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/20 hover:scale-110 active:scale-90 transition-all shadow-[0_0_20px_rgba(255,255,255,0.05)] group/icon"
+                            className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/20 hover:scale-110 active:scale-90 transition-all shadow-xl group/icon"
                             title="Facebook"
                         >
-                            <Facebook className="w-8 h-8 text-white group-hover/icon:text-white" />
+                            <Facebook className="w-7 h-7 text-white" />
                         </a>
                         <a
                             href="https://x.com/POSTOVINKY"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/20 hover:scale-110 active:scale-90 transition-all shadow-[0_0_20px_rgba(255,255,255,0.05)] group/icon"
+                            className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/20 hover:scale-110 active:scale-90 transition-all shadow-xl group/icon"
                             title="Twitter / X"
                         >
-                            <XIcon size={32} className="text-white group-hover/icon:text-white" />
+                            <XIcon size={28} className="text-white" />
                         </a>
                     </div>
                 </div>
