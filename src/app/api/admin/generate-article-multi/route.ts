@@ -98,10 +98,12 @@ ZÁVÄZNÉ PRAVIDLÁ PRE KVALITU A ŠTRUKTÚRU:
 3. VIZUÁLNA BOHATOSŤ (OBRÁZKY): Toto je kritické. Dostaneš zoznam URL adries obrázkov z pôvodných zdrojov. MUSÍŠ ich vložiť priamo do kľúča "content" pomocou značky <img src="URL">. Rozmiestni ich rovnomerne a logicky medzi odseky (aspoň jeden obrázok každých 2-3 odseky, ak sú dostupné). Používaj len URL zo zoznamu.
 4. TRUTH EXTRACTION: Ak zdroje hovoria o tom istom, zjednoť to. Ak sa rozchádzajú, vysvetli oba pohľady.
 5. POUŽÍVAJ HTML: Pre formátovanie používaj výhradne <p>, <h2>, <h3>, <strong> a <img>.
+6. CLICKBAIT STRATÉGIA: Nadpis musí byť extrémne pútavý, v štýle moderných virálnych médií (tzv. clickbait), aby maximalizoval mieru prekliku. Musí však čestne odkazovať na tému článku. Používaj silné slovesá, zvedavosť alebo prekvapivé fakty.
+
 
 VÝSTUP MUSÍ BYŤ EXAKTNE VO FORMÁTE JSON:
 {
-    "title": "Úderný nadpis v dokonalej slovenčine",
+    "title": "Virálny clickbait nadpis, ktorý však čestne odráža tému v dokonalej slovenčine",
     "slug": "url-friendly-nazov",
     "excerpt": "Perex v slovenčine (1-2 pútavé odseky).",
     "content": "Samotný syntetizovaný článok v HTML. Obsahuje text aj <img> značky s obrázkami zo zoznamu!",

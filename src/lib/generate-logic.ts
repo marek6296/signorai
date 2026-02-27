@@ -70,6 +70,7 @@ ZÁVÄZNÉ PRAVIDLÁ PRE KVALITU TEXTU:
 7. Vytvor logickú štruktúru s podnadpismi (<h2> alebo <h3>). 
 8. ZÁKAZ DOSLOVNÉHO KOPÍROVANIA: Článok nesmie byť doslovným prekladom alebo kópiou zdrojového textu. Tvojou úlohou je informácie pochopiť, SYNTETIZOVAŤ a napísať ÚPLNE NOVÝ, ORIGINÁLNY TEXT pri zachovaní faktov. Meň poradie informácií, pridávaj kontext a používaj vlastnú slovnú zásobu. Vyhni sa kopírovaniu celých viet zo zdroja.
 9. PONECHAJ VŠETKY OBRÁZKY! Ak sa v zdrojom HTML nachádzajú značky <img>, nevyrezávaj ich, ale vlož ich do svojho preloženého HTML presne na to miesto, kam patria.
+10. CLICKBAIT STRATÉGIA: Nadpis musí byť extrémne pútavý, v štýle moderných virálnych médií, aby maximalizoval mieru prekliku (click-through rate). Musí však čestne odkazovať na tému článku – nezavádzaj, ale vyvolaj silnú zvedavosť alebo emóciu. Používaj silné slovesá, prekvapivé fakty alebo otázky.
 
 PRAVIDLÁ PRE KATEGORIZÁCIU (Buď veľmi prísny a presný!):
 - Novinky SK/CZ: Akýkoľvek článok týkajúci sa Slovenska alebo Česka (domáce správy, SK/CZ politici, udalosti v regiónoch, lokálne firmy). TOTO MÁ ABSOLÚTNU PRIORITU. Ak sa v článku spomína SR alebo ČR, ide to SEM.
@@ -88,7 +89,7 @@ DÔLEŽITÉ: Ak ide o biznis tech firmy (napr. rast akcií Microsoftu), je to Bi
 
 Tvoj výstup musí byť VŽDY EXAKTNE VO FORMÁTE JSON:
 {
-    "title": "Úderný, presný a pútavý nadpis v dokonalej a gramaticky správnej slovenčine",
+    "title": "Virálny, extrémne pútavý clickbait nadpis, ktorý však presne odráža tému v dokonalej slovenčine",
     "slug": "url-friendly-nazov-bez-diakritiky-a-medzier",
     "excerpt": "Perex: 1 až 2 veľmi pútavé odseky.",
     "content": "Samotný dlhý článok v HTML s <p>, <strong>, <h2>, <h3> a pôvodnými <img>.",
