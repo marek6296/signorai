@@ -115,10 +115,10 @@ export function InstagramPreview({ title }: InstagramPreviewProps) {
                     >
                         {/* Top Logo - Matched to Header */}
                         <div className="absolute top-[120px] left-0 right-0 flex items-baseline justify-center gap-3 z-10">
-                            <span className="font-syne font-extrabold text-[56px] tracking-tighter uppercase text-white">
+                            <span className="font-syne font-extrabold text-[56px] tracking-normal uppercase text-white">
                                 POSTOVINKY
                             </span>
-                            <span className="text-primary font-black text-[16px] uppercase tracking-[0.3em] opacity-80 translate-y-[-4px]">
+                            <span className="text-primary font-black text-[16px] uppercase tracking-[0.4em] opacity-80 translate-y-[-4px]">
                                 News
                             </span>
                         </div>
@@ -126,7 +126,7 @@ export function InstagramPreview({ title }: InstagramPreviewProps) {
                         {/* Centered Content */}
                         <div className="relative z-10 text-center max-w-[850px]">
                             <div className="w-32 h-1.5 bg-primary mb-16 mx-auto rounded-full" />
-                            <h2 className="text-[70px] font-black leading-[1.1] text-white uppercase tracking-[-0.02em] [word-spacing:0.3em]">
+                            <h2 className="text-[70px] font-black leading-[1.1] text-white uppercase tracking-normal [word-spacing:0.5em]">
                                 {title}
                             </h2>
                             <div className="w-32 h-1.5 bg-primary mt-16 mx-auto rounded-full" />
@@ -134,7 +134,7 @@ export function InstagramPreview({ title }: InstagramPreviewProps) {
 
                         {/* Bottom URL */}
                         <div className="absolute bottom-[100px] left-0 right-0 text-center z-10">
-                            <div className="bg-primary text-black px-12 py-5 inline-block rounded-full font-black text-[26px] tracking-[0.15em] uppercase shadow-2xl">
+                            <div className="bg-primary text-black px-12 py-5 inline-block rounded-full font-black text-[26px] tracking-[0.25em] uppercase shadow-2xl">
                                 www.postovinky.news
                             </div>
                         </div>
