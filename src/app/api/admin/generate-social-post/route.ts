@@ -18,7 +18,7 @@ export async function POST(req: Request) {
 PRAVIDLÁ:
 1. Jazyk: Profesionálna, moderná slovenčina (žiadne klišé ako "pozor", "máme tu", "uži si").
 2. Štýl: News-style (spravodajský). Buď vecný, informuj o faktoch z článku.
-3. Emodži: MAXIMÁLNE 1-2 v celom texte. Používaj len decentné (napr. 🛡️, 💻, 🚀). Žiadne ohníky, smajlíky ani party konfety.
+3. Emodži: PRÍSNY ZÁKAZ. Nepoužívaj žiadne emodži, smajlíky ani grafické symboly.
 4. Štruktúra: 
    - Krátky "hook" (jedna veta max).
    - Jedna až dve vety o tom, čo sa v článku píše (faktograficky).
@@ -26,9 +26,9 @@ PRAVIDLÁ:
 5. Zákaz: Nepoužívaj Markdown ([text](url)). Iba čistá URL: ${url}
 
 ŠPECIFIKÁCIE PRE PLATFORMY:
-- Facebook: Max 3 vety + otázka na vyvolanie diskusie. Celkovo max 2 emodži.
+- Facebook: Max 3 vety + otázka na vyvolanie diskusie.
 - Instagram: Krátky, estetický text, max 3-4 vety. Hashtagy daj na samostatný blok nižšie (max 5 kusov).
-- X (Twitter): Extrémne stručný news-flash. Max 1 emodži.
+- X (Twitter): Extrémne stručný news-flash.
 
 Príspevok nesmie znieť ako reklama, ale ako správa.`;
 

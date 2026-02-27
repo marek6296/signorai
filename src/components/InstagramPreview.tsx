@@ -12,7 +12,26 @@ interface InstagramPreviewProps {
 
 export function InstagramPreview({ title }: InstagramPreviewProps) {
     const previewRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
     const [isCopied, setIsCopied] = useState(false);
+    const [scale, setScale] = React.useState(0.37037);
+
+    React.useEffect(() => {
+        const updateScale = () => {
+            if (containerRef.current) {
+                const width = containerRef.current.offsetWidth;
+                setScale(width / 1080);
+            }
+        };
+
+        const resizeObserver = new ResizeObserver(updateScale);
+        if (containerRef.current) {
+            resizeObserver.observe(containerRef.current);
+        }
+
+        updateScale();
+        return () => resizeObserver.disconnect();
+    }, []);
 
     const onDownload = async () => {
         if (previewRef.current === null) return;
@@ -21,7 +40,7 @@ export function InstagramPreview({ title }: InstagramPreviewProps) {
                 cacheBust: true,
                 width: 1080,
                 height: 1080,
-                pixelRatio: 1
+                pixelRatio: 1,
             });
             const link = document.createElement('a');
             link.download = `postovinky-social-${Date.now()}.png`;
@@ -39,7 +58,7 @@ export function InstagramPreview({ title }: InstagramPreviewProps) {
                 cacheBust: true,
                 width: 1080,
                 height: 1080,
-                pixelRatio: 1
+                pixelRatio: 1,
             });
             if (blob) {
                 const item = new ClipboardItem({ [blob.type]: blob });
@@ -60,33 +79,32 @@ export function InstagramPreview({ title }: InstagramPreviewProps) {
                     <button
                         onClick={onCopy}
                         className={cn(
-                            "flex items-center gap-2 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg",
+                            "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold uppercase tracking-wide transition-all shadow-sm",
                             isCopied
-                                ? "bg-green-500 text-white shadow-green-500/20"
-                                : "bg-muted hover:bg-muted/80 text-foreground shadow-black/5"
+                                ? "bg-green-500 text-white"
+                                : "bg-muted hover:bg-muted/80 text-foreground"
                         )}
                     >
-                        {isCopied ? <CheckCircle2 className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                        {isCopied ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                         {isCopied ? "Skopírované!" : "Kopírovať obrázok"}
                     </button>
                     <button
                         onClick={onDownload}
-                        className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg shadow-primary/20"
+                        className="flex items-center gap-1.5 bg-primary text-primary-foreground px-2.5 py-1.5 rounded-lg text-[11px] font-semibold uppercase tracking-wide hover:opacity-90 transition-all shadow-sm"
                     >
-                        <Download className="w-4 h-4" />
+                        <Download className="w-3.5 h-3.5" />
                         Stiahnuť
                     </button>
                 </div>
             </div>
 
             {/* The Actual Post container - fixed size for preview */}
-            <div className="relative overflow-hidden rounded-[40px] border shadow-2xl bg-black aspect-square max-w-[400px] mx-auto ring-1 ring-white/10">
-                {/* 
-                    This wrapper handles the scaling for display.
-                    The inner div (previewRef) stays at 1080x1080 so html-to-image captures it correctly.
-                */}
+            <div
+                ref={containerRef}
+                className="relative overflow-hidden rounded-[40px] border shadow-2xl bg-black aspect-square max-w-[400px] mx-auto ring-1 ring-white/10"
+            >
                 <div style={{
-                    transform: 'scale(0.37037)', // 400 / 1080
+                    transform: `scale(${scale})`,
                     transformOrigin: 'top left',
                     width: '1080px',
                     height: '1080px'
@@ -95,18 +113,6 @@ export function InstagramPreview({ title }: InstagramPreviewProps) {
                         ref={previewRef}
                         className="w-[1080px] h-[1080px] bg-black relative flex items-center justify-center p-20 overflow-hidden"
                     >
-                        {/* Background Logo Layer - Covers full area using CSS background for better capture reliability */}
-                        <div
-                            className="absolute inset-0 z-0 opacity-[0.3] select-none pointer-events-none"
-                            style={{
-                                backgroundImage: 'url("/logo/black.png")',
-                                backgroundPosition: 'center',
-                                backgroundRepeat: 'no-repeat',
-                                backgroundSize: '80%',
-                                filter: 'blur(15px)',
-                            }}
-                        />
-
                         {/* Top Logo - Matched to Header */}
                         <div className="absolute top-[120px] left-0 right-0 flex items-baseline justify-center gap-3 z-10">
                             <span className="font-syne font-extrabold text-[56px] tracking-tighter uppercase text-white">
@@ -119,7 +125,6 @@ export function InstagramPreview({ title }: InstagramPreviewProps) {
 
                         {/* Centered Content */}
                         <div className="relative z-10 text-center max-w-[850px]">
-
                             <div className="w-32 h-1.5 bg-primary mb-16 mx-auto rounded-full" />
                             <h2 className="text-[70px] font-black leading-[1.1] text-white uppercase tracking-tighter">
                                 {title}

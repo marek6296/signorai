@@ -1,15 +1,27 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabase";
 import { Article } from "@/lib/data";
 import Link from "next/link";
-import { Edit, ArrowDown, Trash2, Sparkles, Plus, Globe, Search, CheckCircle2, XCircle, RefreshCw, Zap, Play, History, RotateCcw, BarChart3, Users, Share2, Copy, Twitter, Facebook, Instagram } from "lucide-react";
+import { Edit, ArrowDown, Trash2, Sparkles, Plus, Globe, Search, CheckCircle2, XCircle, RefreshCw, Zap, Play, History, RotateCcw, BarChart3, Users, Share2, Copy, Twitter, Facebook, Instagram, Calendar, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ArticleCard } from "@/components/ArticleCard";
 import Image from "next/image";
 import { InstagramPreview } from "@/components/InstagramPreview";
+
+const XIcon = ({ size = 24, className = "" }: { size?: number, className?: string }) => (
+    <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        className={className}
+    >
+        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
+);
 
 type SuggestedNews = {
     id: string;
@@ -48,11 +60,29 @@ export default function AdminPage() {
     const [analytics, setAnalytics] = useState<{ totalVisits: number, uniqueVisitors: number, topPages: { path: string, count: number }[], recentVisits: { path: string, created_at: string, referrer: string | null }[] }>({ totalVisits: 0, uniqueVisitors: 0, topPages: [], recentVisits: [] });
     const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
-    // Tab control
+    // Tab control – obnovíme z localStorage pri refreshi (prvý zápis preskočíme, aby sme neprepísali obnovenú kartu)
     const [activeTab, setActiveTab] = useState<"create" | "manage" | "discovery" | "analytics" | "social">("manage");
+    const skipNextSaveRef = useRef(true);
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        const saved = localStorage.getItem("admin-active-tab");
+        if (saved && ["create", "manage", "discovery", "analytics", "social"].includes(saved)) {
+            setActiveTab(saved as typeof activeTab);
+            skipNextSaveRef.current = true;
+        }
+    }, []);
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        if (skipNextSaveRef.current) {
+            skipNextSaveRef.current = false;
+            return;
+        }
+        localStorage.setItem("admin-active-tab", activeTab);
+    }, [activeTab]);
 
     // Social Tab State
     const [socialSelectedArticles, setSocialSelectedArticles] = useState<string[]>([]);
+    const [socialArticleSearch, setSocialArticleSearch] = useState("");
     const [socialPlatforms, setSocialPlatforms] = useState<("Facebook" | "Instagram" | "X")[]>(["Instagram"]);
     const [socialResults, setSocialResults] = useState<Record<string, Record<string, string>>>({});
     const [isGeneratingSocial, setIsGeneratingSocial] = useState(false);
@@ -86,6 +116,9 @@ export default function AdminPage() {
     const [isBulkCategoryMode, setIsBulkCategoryMode] = useState(false);
     const [bulkSelectedArticles, setBulkSelectedArticles] = useState<string[]>([]);
     const [refreshingType, setRefreshingType] = useState<"none" | "bulk" | "recent" | "all">("none");
+    const [plannedPosts, setPlannedPosts] = useState<any[]>([]);
+    const [isSocialAutopilotGenerating, setIsSocialAutopilotGenerating] = useState(false);
+    const [plannedCategoryFilter, setPlannedCategoryFilter] = useState<string>("all");
 
     const fetchArticles = async () => {
         setLoadingArticles(true);
@@ -112,6 +145,82 @@ export default function AdminPage() {
             setSuggestions(data);
         }
         setLoadingSuggestions(false);
+    };
+
+    const fetchPlannedPosts = async () => {
+        try {
+            const res = await fetch("/api/admin/social-posts");
+            const data = await res.json();
+            console.log("Fetched planned posts:", data);
+            if (!data.error) setPlannedPosts(data);
+        } catch (e) {
+            console.error("Failed to fetch planned posts", e);
+        }
+    };
+
+    const handleSocialAutopilot = async () => {
+        setIsSocialAutopilotGenerating(true);
+        setStatus("loading");
+        setGeneratingStage("AI analyzuje články a vyberá témy pre sociálne siete...");
+        setIsGeneratingModalOpen(true);
+
+        try {
+            const res = await fetch("/api/admin/social-autopilot", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ platforms: ['Instagram', 'Facebook', 'X'] }),
+            });
+            const data = await res.json();
+
+            if (data.posts && data.posts.length > 0) {
+                await fetchPlannedPosts();
+                setStatus("success");
+                setMessage("AI Automatizátor úspešne naplánoval nové príspevky!");
+            } else {
+                setMessage(data.message || "Žiadne nové zaujímavé články na spracovanie.");
+                setStatus("success");
+            }
+        } catch (e) {
+            console.error(e);
+            setStatus("error");
+            setMessage("Chyba pri AI automatizácii.");
+        } finally {
+            setIsSocialAutopilotGenerating(false);
+            setIsGeneratingModalOpen(false);
+            setTimeout(() => setStatus("idle"), 3000);
+        }
+    };
+
+    const handleToggleSocialPosted = async (post: any) => {
+        const newStatus = post.status === 'posted' ? 'draft' : 'posted';
+        try {
+            await fetch("/api/admin/social-posts", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id: post.id,
+                    status: newStatus,
+                    posted_at: newStatus === 'posted' ? new Date().toISOString() : null
+                }),
+            });
+            await fetchPlannedPosts();
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    const handleDeleteSocialPost = async (id: string) => {
+        if (!confirm("Naozaj chcete zmazať tento naplánovaný príspevok?")) return;
+        try {
+            await fetch("/api/admin/social-posts", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id }),
+            });
+            await fetchPlannedPosts();
+        } catch (e) {
+            console.error(e);
+        }
     };
 
     const fetchAutopilotSettings = async () => {
@@ -231,6 +340,7 @@ export default function AdminPage() {
                 fetchSuggestions();
                 fetchAutopilotSettings();
                 fetchAnalytics();
+                fetchPlannedPosts();
             }
         }
     }, []);
@@ -733,9 +843,9 @@ export default function AdminPage() {
                     </button>
                 </div>
 
-                {/* Premium Admin Tabs */}
-                <div className="flex items-center justify-center mb-10 md:mb-12">
-                    <div className="flex w-full md:w-fit p-1 md:p-1.5 bg-muted/30 rounded-2xl md:rounded-[28px] border border-border/40 backdrop-blur-md shadow-inner overflow-x-auto no-scrollbar">
+                {/* Premium Admin Tabs – zalamovanie, bez bočného scrollu */}
+                <div className="w-full mb-10 md:mb-12">
+                    <div className="flex flex-wrap justify-center gap-2 p-2 bg-muted/30 rounded-2xl md:rounded-[28px] border border-border/40 backdrop-blur-md shadow-inner">
                         {[
                             { id: "discovery", label: "Discovery", icon: Search, badge: suggestions.length },
                             { id: "create", label: "Tvorba", icon: Sparkles },
@@ -747,29 +857,26 @@ export default function AdminPage() {
                             return (
                                 <button
                                     key={tab.id}
-                                    onClick={() => setActiveTab(tab.id as "create" | "manage" | "discovery")}
+                                    onClick={() => setActiveTab(tab.id as typeof activeTab)}
                                     className={cn(
-                                        "relative flex-1 md:flex-none px-4 md:px-10 py-3 md:py-4 flex items-center justify-center gap-2 md:gap-3 rounded-xl md:rounded-[22px] font-black text-[10px] md:text-xs uppercase tracking-[0.1em] transition-all duration-500 overflow-hidden group min-w-fit",
+                                        "relative flex items-center justify-center gap-2 px-4 py-2.5 md:px-6 md:py-3 rounded-xl md:rounded-[20px] font-black text-[11px] md:text-xs uppercase tracking-wide transition-all duration-200 overflow-hidden group",
                                         isActive
-                                            ? "bg-foreground text-background shadow-lg md:shadow-2xl md:scale-[1.05] z-10 shadow-black/20"
-                                            : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                                            ? "bg-foreground text-background shadow-lg z-10"
+                                            : "text-muted-foreground hover:text-foreground hover:bg-muted/50 bg-background/50"
                                     )}
                                 >
-                                    <tab.icon className={cn("w-3.5 h-3.5 md:w-4 h-4 transition-transform duration-500", isActive && "scale-110")} />
+                                    <tab.icon className={cn("w-4 h-4 shrink-0", isActive && "text-background")} />
                                     <span className="whitespace-nowrap">{tab.label}</span>
-
                                     {tab.badge !== undefined && tab.badge > 0 && (
                                         <span className={cn(
-                                            "ml-1 text-[8px] md:text-[9px] px-1.5 md:px-2 py-0.5 rounded-full font-black",
+                                            "text-[9px] px-1.5 py-0.5 rounded-full font-black shrink-0",
                                             isActive ? "bg-background text-foreground" : "bg-primary text-primary-foreground"
                                         )}>
                                             {tab.badge}
                                         </span>
                                     )}
-
-                                    {/* Hover Glow */}
                                     {!isActive && (
-                                        <span className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></span>
+                                        <span className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                                     )}
                                 </button>
                             );
@@ -1360,7 +1467,7 @@ export default function AdminPage() {
                                 {[
                                     { id: "Instagram", icon: Instagram, color: "text-pink-500" },
                                     { id: "Facebook", icon: Facebook, color: "text-blue-600" },
-                                    { id: "X", icon: Twitter, color: "text-foreground" }
+                                    { id: "X", icon: XIcon, color: "text-foreground" }
                                 ].map((p) => {
                                     const isSelected = socialPlatforms.includes(p.id as any);
                                     return (
@@ -1387,71 +1494,334 @@ export default function AdminPage() {
                                 })}
                             </div>
 
-                            <button
-                                onClick={handleGenerateSocialPosts}
-                                disabled={socialSelectedArticles.length === 0 || isGeneratingSocial}
-                                className="w-full bg-primary text-primary-foreground py-6 rounded-2xl font-black uppercase tracking-[0.2em] text-sm hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-primary/20 disabled:opacity-50"
-                            >
-                                {isGeneratingSocial ? "Generujem príspevky..." : `Generovať príspevky pre ${socialSelectedArticles.length} článkov`}
-                            </button>
+                            <div className="flex flex-col md:flex-row gap-4">
+                                <button
+                                    onClick={handleGenerateSocialPosts}
+                                    disabled={socialSelectedArticles.length === 0 || socialPlatforms.length === 0 || isGeneratingSocial}
+                                    className="flex-1 bg-foreground text-background py-6 rounded-2xl font-black uppercase tracking-[0.2em] text-sm hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-black/10 disabled:opacity-50"
+                                >
+                                    {isGeneratingSocial ? "Generujem príspevky..." : `Generovať príspevky pre články (${socialSelectedArticles.length})`}
+                                </button>
+                                <button
+                                    onClick={handleSocialAutopilot}
+                                    disabled={isSocialAutopilotGenerating}
+                                    className="flex-1 bg-primary text-primary-foreground py-6 rounded-2xl font-black uppercase tracking-[0.2em] text-sm hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-primary/20 disabled:opacity-50 flex items-center justify-center gap-3"
+                                >
+                                    <Sparkles className="w-5 h-5" />
+                                    {isSocialAutopilotGenerating ? "AI Analyzuje..." : "AI Automatizátor postov"}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Social Media Planner Section */}
+                        <div className="bg-card border rounded-[40px] p-8 md:p-12 shadow-sm ring-1 ring-border/50">
+                            {/* Header Row 1: Title & Refresh */}
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+                                <h3 className="text-2xl md:text-3xl font-black uppercase tracking-tight flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                                        <Calendar className="w-6 h-6" />
+                                    </div>
+                                    <span className="leading-tight">AI Planner & <br className="md:hidden" /> História postov</span>
+                                </h3>
+
+                                <button
+                                    onClick={fetchPlannedPosts}
+                                    className="flex items-center gap-3 px-6 py-3 bg-muted hover:bg-primary/10 hover:text-primary rounded-2xl transition-all group self-start md:self-auto border border-border/50 shadow-sm"
+                                >
+                                    <RefreshCw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-500" />
+                                    <span className="text-[10px] font-black uppercase tracking-[0.1em]">Obnoviť dáta</span>
+                                </button>
+                            </div>
+
+                            {/* Header Row 2: Category Filters */}
+                            <div className="mb-10 p-2 bg-muted/30 rounded-[28px] border border-border/50">
+                                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 md:pb-0 px-2">
+                                    {['all', 'Umelá Inteligencia', 'Tech', 'Biznis', 'Krypto', 'Svet', 'Politika', 'Veda', 'Gaming', 'Návody & Tipy'].map((cat) => (
+                                        <button
+                                            key={cat}
+                                            onClick={() => setPlannedCategoryFilter(cat)}
+                                            className={cn(
+                                                "px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border-2 border-transparent",
+                                                plannedCategoryFilter === cat
+                                                    ? "bg-foreground text-background shadow-xl scale-105"
+                                                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                            )}
+                                        >
+                                            {cat === 'all' ? 'Všetky Príspevky' : cat}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="space-y-6">
+                                {plannedPosts.length === 0 ? (
+                                    <div className="py-20 text-center border-2 border-dashed rounded-[32px] text-muted-foreground">
+                                        <Clock className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                                        <p className="font-bold uppercase text-xs tracking-widest">Zatiaľ žiadne naplánované príspevky</p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 gap-4">
+                                        {(() => {
+                                            // Group posts by article_id
+                                            const grouped: Record<string, typeof plannedPosts> = {};
+
+                                            // Filter by category first
+                                            const filteredPosts = plannedCategoryFilter === 'all'
+                                                ? plannedPosts
+                                                : plannedPosts.filter(p => p.articles?.category === plannedCategoryFilter);
+
+                                            filteredPosts.forEach(post => {
+                                                const id = post.article_id || 'unknown';
+                                                if (!grouped[id]) grouped[id] = [];
+                                                grouped[id].push(post);
+                                            });
+
+                                            const groups = Object.entries(grouped);
+
+                                            if (groups.length === 0) {
+                                                return (
+                                                    <div className="py-20 text-center border-2 border-dashed rounded-[32px] text-muted-foreground">
+                                                        <Sparkles className="w-12 h-12 mx-auto mb-4 opacity-10" />
+                                                        <p className="font-bold uppercase text-xs tracking-widest">Žiadne príspevky v kategórii "{plannedCategoryFilter}"</p>
+                                                    </div>
+                                                );
+                                            }
+
+                                            return groups.map(([articleId, posts]) => {
+                                                const firstPost = posts[0];
+                                                const articleTitle = firstPost.articles?.title || "Neznámy článok";
+                                                const articleCategory = firstPost.articles?.category || "Novinka";
+                                                const isAnyPosted = posts.some(p => p.status === 'posted');
+                                                const allPlatforms = posts.map(p => p.platform);
+
+                                                return (
+                                                    <div key={articleId} className="bg-card border-2 border-primary/5 rounded-[40px] overflow-hidden shadow-sm hover:shadow-xl transition-all mb-6">
+                                                        {/* Article Header (Always Visible) */}
+                                                        <div className="p-8 md:p-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 bg-muted/5">
+                                                            <div className="flex items-center gap-6 flex-grow min-w-0">
+                                                                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                                                    <Sparkles className="w-8 h-8 text-primary" />
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <div className="flex items-center gap-2 mb-1">
+                                                                        <span className="text-[10px] font-black uppercase tracking-widest text-primary">{articleCategory}</span>
+                                                                        <span className="text-[10px] text-muted-foreground">•</span>
+                                                                        <span className="text-[10px] font-bold text-muted-foreground uppercase">{posts.length} sociálne formáty</span>
+                                                                    </div>
+                                                                    <h4 className="text-xl md:text-2xl font-black tracking-tight">{articleTitle}</h4>
+                                                                    <div className="flex flex-wrap gap-2 mt-3">
+                                                                        {posts.map(p => (
+                                                                            <span key={p.id} className={cn(
+                                                                                "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5",
+                                                                                p.status === 'posted' ? "bg-green-500/10 text-green-500" : "bg-muted text-muted-foreground"
+                                                                            )}>
+                                                                                {p.platform === 'Instagram' && <Instagram size={10} />}
+                                                                                {p.platform === 'Facebook' && <Facebook size={10} />}
+                                                                                {p.platform === 'X' && <XIcon size={10} />}
+                                                                                {p.platform}
+                                                                                {p.status === 'posted' && <CheckCircle2 size={10} />}
+                                                                            </span>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex flex-col items-center gap-4 w-full lg:w-[190px] flex-shrink-0">
+                                                                <div className="flex items-center justify-center gap-3 px-5 py-2.5 bg-background/50 rounded-2xl border border-border/50 shadow-inner h-[50px] min-w-[120px]">
+                                                                    {['Instagram', 'Facebook', 'X'].filter(platform => posts.some(p => p.platform === platform)).map(platform => {
+                                                                        const post = posts.find(p => p.platform === platform);
+                                                                        const isPosted = post?.status === 'posted';
+                                                                        return (
+                                                                            <div key={platform} className={cn(
+                                                                                "flex items-center gap-1.5 transition-all",
+                                                                                isPosted ? "opacity-100 scale-110" : "opacity-40 scale-90"
+                                                                            )}>
+                                                                                <div className={cn(
+                                                                                    "w-7 h-7 rounded-lg flex items-center justify-center text-white shadow-sm",
+                                                                                    platform === 'Instagram' ? "bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600" :
+                                                                                        platform === 'Facebook' ? "bg-blue-600" : "bg-black border border-white/20"
+                                                                                )}>
+                                                                                    {platform === 'Instagram' && <Instagram size={14} />}
+                                                                                    {platform === 'Facebook' && <Facebook size={14} />}
+                                                                                    {platform === 'X' && <XIcon size={14} />}
+                                                                                </div>
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        const el = document.getElementById(`article-details-${articleId}`);
+                                                                        if (el) el.classList.toggle('hidden');
+                                                                    }}
+                                                                    className="w-full bg-foreground text-background px-8 py-4 rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] shadow-xl hover:scale-105 active:scale-95 transition-all text-center whitespace-nowrap"
+                                                                >
+                                                                    Rozbaliť možnosti
+                                                                </button>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Expandable Content Area */}
+                                                        <div id={`article-details-${articleId}`} className="hidden border-t border-border/50">
+                                                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-0">
+                                                                {/* Platforms Column */}
+                                                                <div className="p-4 md:p-8 space-y-6 bg-muted/5 border-r border-border/50">
+                                                                    {posts.map((post) => (
+                                                                        <div key={post.id} className={cn(
+                                                                            "rounded-3xl border-2 p-6 transition-all",
+                                                                            post.status === 'posted' ? "bg-muted/10 border-green-500/20" : "bg-background border-primary/10 shadow-lg"
+                                                                        )}>
+                                                                            <div className="flex items-center justify-between mb-6">
+                                                                                <div className="flex items-center gap-3">
+                                                                                    <div className={cn(
+                                                                                        "w-10 h-10 rounded-xl flex items-center justify-center text-white",
+                                                                                        post.platform === 'Instagram' ? "bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600" :
+                                                                                            post.platform === 'Facebook' ? "bg-blue-600" : "bg-foreground"
+                                                                                    )}>
+                                                                                        {post.platform === 'Instagram' && <Instagram size={18} />}
+                                                                                        {post.platform === 'Facebook' && <Facebook size={18} />}
+                                                                                        {post.platform === 'X' && <XIcon size={18} />}
+                                                                                    </div>
+                                                                                    <span className="text-sm font-black uppercase tracking-widest">{post.platform}</span>
+                                                                                </div>
+                                                                                <div className="flex gap-2">
+                                                                                    <button
+                                                                                        onClick={() => handleToggleSocialPosted(post)}
+                                                                                        className={cn(
+                                                                                            "p-2 rounded-lg transition-all",
+                                                                                            post.status === 'posted' ? "bg-green-500 text-white" : "bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                                                                                        )}
+                                                                                        title={post.status === 'posted' ? "Onačené ako postnuté" : "Označiť ako postnuté"}
+                                                                                    >
+                                                                                        <CheckCircle2 size={18} />
+                                                                                    </button>
+                                                                                    <button
+                                                                                        onClick={() => handleDeleteSocialPost(post.id)}
+                                                                                        className="p-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg transition-all"
+                                                                                    >
+                                                                                        <Trash2 size={18} />
+                                                                                    </button>
+                                                                                </div>
+                                                                            </div>
+
+                                                                            <div className="space-y-4">
+                                                                                <div className="flex items-center justify-between">
+                                                                                    <span className="text-[10px] font-black uppercase text-muted-foreground">Text príspevku</span>
+                                                                                    <button
+                                                                                        onClick={() => { copyToClipboard(post.content); alert(`${post.platform} text skopírovaný!`); }}
+                                                                                        className="text-[10px] font-black uppercase text-primary hover:underline flex items-center gap-1"
+                                                                                    >
+                                                                                        <Copy size={12} /> Skopírovať
+                                                                                    </button>
+                                                                                </div>
+                                                                                <div className="bg-background/50 border rounded-xl p-4 text-xs font-semibold leading-relaxed max-h-[150px] overflow-y-auto whitespace-pre-wrap">
+                                                                                    {post.content}
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+
+                                                                {/* Visual Preview Column (for the last selected or featured) */}
+                                                                <div className="p-4 md:p-8 bg-muted/10 flex items-center justify-center">
+                                                                    <div className="w-full max-w-[400px]">
+                                                                        <InstagramPreview title={articleTitle} />
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            });
+                                        })()}
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                             {/* Article Selection */}
-                            <div className="bg-card border rounded-[40px] p-10 shadow-sm h-fit">
-                                <h3 className="text-xl font-black uppercase tracking-tight mb-8">Vyberte články</h3>
-                                <div className="space-y-4 max-h-[800px] overflow-y-auto pr-4 custom-scrollbar">
-                                    {articles.slice(0, 30).map((article) => {
-                                        const isSelected = socialSelectedArticles.includes(article.id);
-                                        return (
-                                            <div
-                                                key={article.id}
-                                                onClick={() => setSocialSelectedArticles(prev =>
-                                                    isSelected ? prev.filter(id => id !== article.id) : [...prev, article.id]
-                                                )}
-                                                className={cn(
-                                                    "relative overflow-hidden group rounded-[24px] border-2 cursor-pointer transition-all flex items-center gap-5 p-2 pr-6",
-                                                    isSelected
-                                                        ? "bg-primary/5 border-primary shadow-lg scale-[1.01]"
-                                                        : "bg-muted/10 border-transparent hover:border-border/50 hover:bg-muted/20"
-                                                )}
-                                            >
-                                                {/* Article Image Thumbnail */}
-                                                <div className="relative w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 shadow-sm">
-                                                    <Image
-                                                        src={article.main_image}
-                                                        alt={article.title}
-                                                        fill
-                                                        className="object-cover transition-transform group-hover:scale-110"
-                                                    />
-                                                </div>
-
-                                                <div className="flex-grow min-w-0 py-2">
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <span className="text-[9px] font-black uppercase tracking-[0.15em] text-primary/70 bg-primary/10 px-2 py-0.5 rounded-full">
-                                                            {article.category}
-                                                        </span>
-                                                        <span className="text-[9px] font-bold text-muted-foreground">
-                                                            {new Date(article.published_at).toLocaleDateString('sk-SK')}
-                                                        </span>
+                            <div className="bg-card border rounded-[40px] p-8 md:p-10 shadow-sm h-fit">
+                                <h3 className="text-xl font-black uppercase tracking-tight mb-6">Vyberte články</h3>
+                                <p className="text-sm text-muted-foreground mb-4">Kliknite na článok pre výber. Vybrané články môžete použiť na generovanie príspevkov.</p>
+                                <div className="relative mb-4">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                                    <input
+                                        type="text"
+                                        placeholder="Hľadať podľa názvu alebo kategórie..."
+                                        value={socialArticleSearch}
+                                        onChange={(e) => setSocialArticleSearch(e.target.value)}
+                                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                                    />
+                                </div>
+                                <div className="space-y-3 max-h-[min(75vh,620px)] overflow-y-auto pr-2 custom-scrollbar">
+                                    {(() => {
+                                        const q = socialArticleSearch.trim().toLowerCase();
+                                        const filtered = q
+                                            ? articles.filter((a) =>
+                                                a.title.toLowerCase().includes(q) ||
+                                                (a.category?.toLowerCase().includes(q) ?? false)
+                                            )
+                                            : articles;
+                                        const toShow = filtered.slice(0, 50);
+                                        if (toShow.length === 0) {
+                                            return (
+                                                <p className="py-8 text-center text-muted-foreground text-sm">
+                                                    {q ? "Žiadny článok nevyhovuje hľadaniu. Skúste iný výraz." : "Žiadne články."}
+                                                </p>
+                                            );
+                                        }
+                                        return toShow.map((article) => {
+                                            const isSelected = socialSelectedArticles.includes(article.id);
+                                            return (
+                                                <div
+                                                    key={article.id}
+                                                    onClick={() => setSocialSelectedArticles(prev =>
+                                                        isSelected ? prev.filter(id => id !== article.id) : [...prev, article.id]
+                                                    )}
+                                                    className={cn(
+                                                        "relative overflow-hidden group rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-4 p-4",
+                                                        isSelected
+                                                            ? "bg-primary/10 border-primary shadow-lg shadow-primary/10"
+                                                            : "bg-muted/10 border-border/40 hover:border-primary/40 hover:bg-muted/20"
+                                                    )}
+                                                >
+                                                    {/* Article Image Thumbnail */}
+                                                    <div className="relative w-24 h-24 md:w-28 md:h-28 rounded-xl overflow-hidden flex-shrink-0 shadow-md">
+                                                        <Image
+                                                            src={article.main_image}
+                                                            alt={article.title}
+                                                            fill
+                                                            className="object-cover transition-transform group-hover:scale-105"
+                                                        />
                                                     </div>
-                                                    <h4 className="text-sm font-black leading-tight line-clamp-2 uppercase tracking-tight">
-                                                        {article.title}
-                                                    </h4>
-                                                </div>
 
-                                                {/* Selection Indicator */}
-                                                <div className={cn(
-                                                    "w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0",
-                                                    isSelected
-                                                        ? "bg-primary border-primary text-white shadow-md shadow-primary/30"
-                                                        : "border-muted-foreground/20 bg-background"
-                                                )}>
-                                                    {isSelected ? <CheckCircle2 className="w-5 h-5" /> : <Plus className="w-4 h-4 text-muted-foreground/40" />}
+                                                    <div className="flex-grow min-w-0">
+                                                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                                            <span className="text-xs font-bold uppercase tracking-wide text-primary bg-primary/15 px-2.5 py-1 rounded-full">
+                                                                {article.category}
+                                                            </span>
+                                                            <span className="text-xs text-muted-foreground">
+                                                                {new Date(article.published_at).toLocaleDateString('sk-SK')}
+                                                            </span>
+                                                        </div>
+                                                        <h4 className="text-base font-bold leading-snug line-clamp-2 text-foreground">
+                                                            {article.title}
+                                                        </h4>
+                                                    </div>
+
+                                                    {/* Selection Indicator */}
+                                                    <div className={cn(
+                                                        "w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0",
+                                                        isSelected
+                                                            ? "bg-primary border-primary text-primary-foreground"
+                                                            : "border-muted-foreground/30 bg-background"
+                                                    )}>
+                                                        {isSelected ? <CheckCircle2 className="w-5 h-5" /> : <Plus className="w-5 h-5 text-muted-foreground/50" />}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        );
-                                    })}
+                                            );
+                                        });
+                                    })()}
                                 </div>
                             </div>
 
@@ -1480,7 +1850,7 @@ export default function AdminPage() {
                                                                 <div className="flex items-center gap-2">
                                                                     {platform === "Instagram" && <Instagram className="w-3.5 h-3.5 text-pink-500" />}
                                                                     {platform === "Facebook" && <Facebook className="w-3.5 h-3.5 text-blue-600" />}
-                                                                    {platform === "X" && <Twitter className="w-3.5 h-3.5" />}
+                                                                    {platform === "X" && <XIcon size={14} />}
                                                                     <span className="text-[10px] font-black uppercase tracking-widest">{platform} príspevok</span>
                                                                 </div>
                                                                 {platformResult && (
