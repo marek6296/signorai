@@ -258,6 +258,8 @@ export default function AdminPage() {
 
         try {
             const results: Record<string, Record<string, string>> = { ...socialResults };
+            const postsToSave: Omit<SocialPost, 'id' | 'created_at' | 'articles'>[] = [];
+
             for (const articleId of socialSelectedArticles) {
                 const article = articles.find(a => a.id === articleId);
                 if (!article) continue;
@@ -279,12 +281,25 @@ export default function AdminPage() {
                     if (res.ok) {
                         const data = await res.json();
                         results[articleId][platform] = data.socialPost;
+                        postsToSave.push({
+                            article_id: articleId,
+                            platform: platform,
+                            content: data.socialPost,
+                            status: 'draft'
+                        });
                     }
                 }
             }
+
+            if (postsToSave.length > 0) {
+                const { error } = await supabase.from('social_posts').insert(postsToSave);
+                if (error) console.error("Chyba pri ukladaní postov:", error);
+                fetchPlannedPosts();
+            }
+
             setSocialResults(results);
             setStatus("success");
-            setMessage("Príspevky vygenerované!");
+            setMessage("Príspevky uložené do plánovača!");
         } catch (err) {
             console.error("Failed to generate social posts:", err);
             setStatus("error");
