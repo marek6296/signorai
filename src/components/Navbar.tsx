@@ -47,25 +47,25 @@ export function Navbar() {
             <div className="container mx-auto flex flex-col items-center justify-center py-2 md:py-3 relative px-4 sm:px-6 lg:px-8">
 
                 {/* Center: Brand Logo */}
-                <Link href="/" className="mb-0.5 flex items-baseline gap-2 group px-12 md:px-0" onClick={() => setIsMenuOpen(false)}>
+                <Link href="/" className="flex items-baseline gap-2 group px-8 md:px-0" onClick={() => setIsMenuOpen(false)}>
                     <span className="font-syne font-extrabold text-2xl md:text-6xl tracking-tighter uppercase 
                         bg-gradient-to-r from-foreground via-foreground/50 to-foreground 
-                        bg-clip-text text-transparent animate-text-shimmer">
+                        bg-clip-text text-transparent animate-text-shimmer leading-none">
                         POSTOVINKY
                     </span>
-                    <span className="text-primary font-black text-[8px] md:text-xs uppercase tracking-[0.3em] opacity-70 group-hover:opacity-100 transition-opacity translate-y-[-1px] md:translate-y-[-2px] ml-1">
+                    <span className="text-primary font-black text-[8px] md:text-xs uppercase tracking-[0.3em] opacity-70 group-hover:opacity-100 transition-opacity translate-y-[-1px] md:translate-y-[-2.5px] ml-1">
                         News
                     </span>
                 </Link>
 
                 {/* Mobile Menu Toggle (Left) */}
-                <div className="md:hidden absolute left-4 sm:left-6 top-4 flex items-center">
+                <div className="md:hidden absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 flex items-center">
                     <button
                         onClick={() => setIsMenuOpen(!isMenuOpen)}
-                        className="p-2 -ml-2 text-foreground hover:bg-muted rounded-md transition-colors"
+                        className="p-2 text-foreground hover:bg-muted rounded-md transition-colors"
                         aria-label="Toggle Menu"
                     >
-                        {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                        {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
                     </button>
                 </div>
 
@@ -115,7 +115,7 @@ export function Navbar() {
                 </nav>
 
                 {/* Top Right: Actions */}
-                <div className="absolute right-4 sm:right-6 lg:right-8 top-4 flex items-center gap-2">
+                <div className="absolute right-2 sm:right-4 lg:right-8 top-1/2 -translate-y-1/2 flex items-center gap-2 scale-90 md:scale-100 origin-right">
                     <ThemeToggle />
                 </div>
             </div>
