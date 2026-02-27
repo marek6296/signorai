@@ -31,9 +31,13 @@ export function SocialPromo() {
         : "/logo/white.png";
 
     return (
-        <div className="group relative overflow-hidden rounded-[2.5rem] bg-zinc-950 shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all duration-500 hover:shadow-primary/30 border border-white/10 flex flex-col h-[300px] md:h-[350px]">
+        <div className={`group relative overflow-hidden rounded-[2.5rem] transition-all duration-500 hover:shadow-primary/30 border flex flex-col h-[300px] md:h-[350px] ${mounted && resolvedTheme === "light"
+            ? "bg-white border-zinc-200 shadow-[0_10px_30px_rgba(0,0,0,0.05)]"
+            : "bg-zinc-950 border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
+            }`}>
             {/* Logo as Full Background */}
-            <div className="absolute inset-0 z-0 pointer-events-none opacity-20 group-hover:opacity-30 transition-opacity duration-700">
+            <div className={`absolute inset-0 z-0 pointer-events-none transition-opacity duration-700 ${mounted && resolvedTheme === "light" ? "opacity-30 group-hover:opacity-40" : "opacity-40 group-hover:opacity-50"
+                }`}>
                 {mounted && (
                     <Image
                         src={logoSrc}
@@ -43,13 +47,17 @@ export function SocialPromo() {
                         priority
                     />
                 )}
-                {/* Dark Vignette Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+                {/* Gradient Overlay for Readability */}
+                <div className={`absolute inset-0 ${mounted && resolvedTheme === "light"
+                    ? "bg-gradient-to-t from-white via-white/20 to-transparent"
+                    : "bg-gradient-to-t from-black via-black/40 to-transparent"
+                    }`} />
             </div>
 
             {/* Header - Top Center */}
-            <div className="absolute top-5 left-0 w-full z-20 flex flex-col items-center">
-                <h2 className="font-syne font-extrabold tracking-tighter text-white leading-none text-2xl md:text-3xl uppercase opacity-90 group-hover:opacity-100 transition-opacity">
+            <div className="absolute top-2 left-0 w-full z-20 flex flex-col items-center">
+                <h2 className={`font-syne font-extrabold tracking-tighter leading-none text-2xl md:text-3xl uppercase opacity-90 group-hover:opacity-100 transition-opacity ${mounted && resolvedTheme === "light" ? "text-zinc-900" : "text-white"
+                    }`}>
                     PRIDAJ SA
                 </h2>
             </div>
@@ -64,35 +72,44 @@ export function SocialPromo() {
                             href="https://www.instagram.com/postovinky.news/"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/20 hover:scale-110 active:scale-90 transition-all shadow-xl group/icon"
+                            className={`w-14 h-14 rounded-2xl border flex items-center justify-center hover:scale-110 active:scale-90 transition-all shadow-xl group/icon ${mounted && resolvedTheme === "light"
+                                ? "bg-zinc-100 border-zinc-200 text-zinc-900 hover:bg-zinc-200"
+                                : "bg-white/5 border-white/10 text-white hover:bg-white/20"
+                                }`}
                             title="Instagram"
                         >
-                            <Instagram className="w-7 h-7 text-white" />
+                            <Instagram className="w-7 h-7" />
                         </a>
                         <a
                             href="https://www.facebook.com/profile.php?id=61564215815848"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/20 hover:scale-110 active:scale-90 transition-all shadow-xl group/icon"
+                            className={`w-14 h-14 rounded-2xl border flex items-center justify-center hover:scale-110 active:scale-90 transition-all shadow-xl group/icon ${mounted && resolvedTheme === "light"
+                                ? "bg-zinc-100 border-zinc-200 text-zinc-900 hover:bg-zinc-200"
+                                : "bg-white/5 border-white/10 text-white hover:bg-white/20"
+                                }`}
                             title="Facebook"
                         >
-                            <Facebook className="w-7 h-7 text-white" />
+                            <Facebook className="w-7 h-7" />
                         </a>
                         <a
                             href="https://x.com/POSTOVINKY"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/20 hover:scale-110 active:scale-90 transition-all shadow-xl group/icon"
+                            className={`w-14 h-14 rounded-2xl border flex items-center justify-center hover:scale-110 active:scale-90 transition-all shadow-xl group/icon ${mounted && resolvedTheme === "light"
+                                ? "bg-zinc-100 border-zinc-200 text-zinc-900 hover:bg-zinc-200"
+                                : "bg-white/5 border-white/10 text-white hover:bg-white/20"
+                                }`}
                             title="Twitter / X"
                         >
-                            <XIcon size={28} className="text-white" />
+                            <XIcon size={28} />
                         </a>
                     </div>
                 </div>
             </div>
 
             {/* Premium Inner Glow */}
-            <div className="absolute inset-0 border-2 border-primary/0 rounded-[2.5rem] transition-all duration-700 group-hover:border-primary/40 group-hover:bg-primary/5 pointer-events-none" />
+            <div className={`absolute inset-0 border-2 border-primary/0 rounded-[2.5rem] transition-all duration-700 group-hover:border-primary/40 group-hover:bg-primary/5 pointer-events-none`} />
         </div>
     );
 }
