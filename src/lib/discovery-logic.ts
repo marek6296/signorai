@@ -29,12 +29,13 @@ export interface DiscoveryItem {
 export const FEED_GROUPS: Record<string, { name: string, url: string }[]> = {
     "Novinky SK/CZ": [
         { name: "SME Domov", url: "https://rss.sme.sk/rss/sme-sekcia-slovensko.xml" },
-        { name: "Aktuality Domov", url: "https://www.aktuality.sk/rss/?category=domace" },
         { name: "Denno N Domov", url: "https://dennikn.sk/sekcia/slovensko/feed/" },
         { name: "HNonline", url: "https://hnonline.sk/rss/slovensko" },
         { name: "Seznam Zprávy", url: "https://www.seznamzpravy.cz/rss" },
         { name: "iRozhlas.cz", url: "https://www.irozhlas.cz/rss/irozhlas" },
-        { name: "Novinky.cz", url: "https://www.novinky.cz/rss" }
+        { name: "Novinky.cz", url: "https://www.novinky.cz/rss" },
+        { name: "Živé.sk", url: "https://zive.aktuality.sk/rss/" },
+        { name: "Živé.cz", url: "https://www.zive.cz/rss/sc-47/" }
     ],
     "Umelá Inteligencia": [
         { name: "The Verge AI", url: "https://www.theverge.com/ai-artificial-intelligence/rss/index.xml" },
@@ -48,8 +49,6 @@ export const FEED_GROUPS: Record<string, { name: string, url: string }[]> = {
     "Tech": [
         { name: "Engadget", url: "https://www.engadget.com/rss.xml" },
         { name: "Ars Technica", url: "https://feeds.feedburner.com/arstechnica/index" },
-        { name: "Zive.sk", url: "https://zive.aktuality.sk/rss/" },
-        { name: "Zive.cz", url: "https://www.zive.cz/rss/sc-47/" },
         { name: "The Next Web", url: "https://thenextweb.com/feed" },
         { name: "Mashable", url: "https://mashable.com/feeds/rss/all" },
         { name: "Gizmodo", url: "https://gizmodo.com/rss" }
@@ -77,7 +76,9 @@ export const FEED_GROUPS: Record<string, { name: string, url: string }[]> = {
     ],
     "Politika": [
         { name: "Denno N Politika", url: "https://dennikn.sk/sekcia/politika/feed/" },
-        { name: "Aktuality Politika", url: "https://www.aktuality.sk/rss/?category=politika" }
+        { name: "SME Politika", url: "https://rss.sme.sk/rss/sme-sekcia-politika.xml" },
+        { name: "BBC News Politics", url: "http://feeds.bbci.co.uk/news/politics/rss.xml" },
+        { name: "Politico EU", url: "https://www.politico.eu/feed/" }
     ],
     "Gaming": [
         { name: "IGN", url: "https://feeds.feedburner.com/ign/all" },
