@@ -1,6 +1,7 @@
 import { getLatestArticle, getRecentArticles } from "@/lib/data";
 import { ArticleCard } from "@/components/ArticleCard";
 import { NewsletterSidebar } from "@/components/NewsletterSidebar";
+import { SocialPromo } from "@/components/SocialPromo";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
@@ -74,6 +75,8 @@ export default async function Home() {
               </div>
             )}
           </div>
+
+          <SocialPromo />
 
           <NewsletterSidebar />
         </section>
