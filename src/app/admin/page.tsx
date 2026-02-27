@@ -125,6 +125,7 @@ export default function AdminPage() {
     const [socialPlatforms, setSocialPlatforms] = useState<("Facebook" | "Instagram" | "X")[]>(["Instagram"]);
     const [socialResults, setSocialResults] = useState<Record<string, Record<string, string>>>({});
     const [isGeneratingSocial, setIsGeneratingSocial] = useState(false);
+    const [selectedPlannerArticle, setSelectedPlannerArticle] = useState<string | null>(null);
 
     // Authentication state
     const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -1864,10 +1865,7 @@ export default function AdminPage() {
                                                                             })}
                                                                         </div>
                                                                         <button
-                                                                            onClick={() => {
-                                                                                const el = document.getElementById(`article-details-${articleId}`);
-                                                                                if (el) el.classList.toggle('hidden');
-                                                                            }}
+                                                                            onClick={() => setSelectedPlannerArticle(articleId)}
                                                                             className="w-full bg-foreground text-background px-8 py-4 rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] shadow-xl hover:scale-105 active:scale-95 transition-all text-center whitespace-nowrap"
                                                                         >
                                                                             Rozbaliť možnosti
@@ -1875,75 +1873,7 @@ export default function AdminPage() {
                                                                     </div>
                                                                 </div>
 
-                                                                {/* Expandable Content Area */}
-                                                                <div id={`article-details-${articleId}`} className="hidden border-t border-border/50">
-                                                                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-0">
-                                                                        {/* Platforms Column */}
-                                                                        <div className="p-4 md:p-8 space-y-6 bg-muted/5 border-r border-border/50">
-                                                                            {posts.map((post) => (
-                                                                                <div key={post.id} className={cn(
-                                                                                    "rounded-3xl border-2 p-6 transition-all",
-                                                                                    post.status === 'posted' ? "bg-muted/10 border-green-500/20" : "bg-background border-primary/10 shadow-lg"
-                                                                                )}>
-                                                                                    <div className="flex items-center justify-between mb-6">
-                                                                                        <div className="flex items-center gap-3">
-                                                                                            <div className={cn(
-                                                                                                "w-10 h-10 rounded-xl flex items-center justify-center text-white",
-                                                                                                post.platform === 'Instagram' ? "bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600" :
-                                                                                                    post.platform === 'Facebook' ? "bg-blue-600" : "bg-foreground"
-                                                                                            )}>
-                                                                                                {post.platform === 'Instagram' && <Instagram size={18} />}
-                                                                                                {post.platform === 'Facebook' && <Facebook size={18} />}
-                                                                                                {post.platform === 'X' && <XIcon size={18} />}
-                                                                                            </div>
-                                                                                            <span className="text-sm font-black uppercase tracking-widest">{post.platform}</span>
-                                                                                        </div>
-                                                                                        <div className="flex gap-2">
-                                                                                            <button
-                                                                                                onClick={() => handleToggleSocialPosted(post)}
-                                                                                                className={cn(
-                                                                                                    "p-2 rounded-lg transition-all",
-                                                                                                    post.status === 'posted' ? "bg-green-500 text-white" : "bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary"
-                                                                                                )}
-                                                                                                title={post.status === 'posted' ? "Onačené ako postnuté" : "Označiť ako postnuté"}
-                                                                                            >
-                                                                                                <CheckCircle2 size={18} />
-                                                                                            </button>
-                                                                                            <button
-                                                                                                onClick={() => handleDeleteSocialPost(post.id)}
-                                                                                                className="p-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg transition-all"
-                                                                                            >
-                                                                                                <Trash2 size={18} />
-                                                                                            </button>
-                                                                                        </div>
-                                                                                    </div>
 
-                                                                                    <div className="space-y-4">
-                                                                                        <div className="flex items-center justify-between">
-                                                                                            <span className="text-[10px] font-black uppercase text-muted-foreground">Text príspevku</span>
-                                                                                            <button
-                                                                                                onClick={() => { copyToClipboard(post.content); alert(`${post.platform} text skopírovaný!`); }}
-                                                                                                className="text-[10px] font-black uppercase text-primary hover:underline flex items-center gap-1"
-                                                                                            >
-                                                                                                <Copy size={12} /> Skopírovať
-                                                                                            </button>
-                                                                                        </div>
-                                                                                        <div className="bg-background/50 border rounded-xl p-4 text-xs font-semibold leading-relaxed max-h-[150px] overflow-y-auto whitespace-pre-wrap">
-                                                                                            {post.content}
-                                                                                        </div>
-                                                                                    </div>
-                                                                                </div>
-                                                                            ))}
-                                                                        </div>
-
-                                                                        {/* Visual Preview Column (for the last selected or featured) */}
-                                                                        <div className="p-4 md:p-8 bg-muted/10 flex items-center justify-center">
-                                                                            <div className="w-full max-w-[400px]">
-                                                                                <InstagramPreview title={articleTitle} />
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
                                                             </div>
                                                         );
                                                     });
@@ -2285,6 +2215,119 @@ export default function AdminPage() {
                 </div>,
                 document.body
             )}
+
+            {selectedPlannerArticle && typeof document !== "undefined" && (() => {
+                const posts = plannedPosts.filter(p => p.article_id === selectedPlannerArticle);
+                if (posts.length === 0) return null;
+                const articleTitle = posts[0].articles?.title || "Neznámy článok";
+
+                return createPortal(
+                    <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 md:p-8">
+                        <div
+                            className="absolute inset-0 bg-black/80 backdrop-blur-xl cursor-pointer"
+                            onClick={() => setSelectedPlannerArticle(null)}
+                        ></div>
+                        <div className="relative bg-[#121212] w-full max-w-5xl rounded-[40px] border border-white/10 flex flex-col max-h-[90vh] shadow-[0_0_100px_rgba(0,0,0,0.8)] overflow-hidden">
+                            {/* Header */}
+                            <div className="px-10 py-8 border-b border-white/5 flex items-center justify-between bg-[#1a1a1a] text-white">
+                                <div className="flex items-center gap-6">
+                                    <div className="bg-primary/20 p-3 rounded-2xl">
+                                        <Sparkles className="w-6 h-6 text-primary" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-2xl font-black uppercase tracking-widest leading-none mb-2 text-white line-clamp-1 max-w-[500px]">{articleTitle}</h3>
+                                        <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Detail sociálnych postov</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setSelectedPlannerArticle(null)}
+                                    className="p-4 bg-white/5 hover:bg-red-500/20 hover:text-red-500 rounded-2xl transition-all"
+                                >
+                                    <XCircle className="w-8 h-8" />
+                                </button>
+                            </div>
+
+                            {/* Scrollable Content */}
+                            <div className="flex-grow overflow-y-auto w-full">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 min-h-full">
+                                    {/* Posts Column */}
+                                    <div className="p-8 lg:p-10 space-y-8 bg-muted/5 border-r border-white/5">
+                                        {posts.map((post) => (
+                                            <div key={post.id} className={cn(
+                                                "rounded-[32px] border-2 p-8 transition-all",
+                                                post.status === 'posted' ? "bg-muted/10 border-green-500/20" : "bg-[#1a1a1a] border-white/5 shadow-xl"
+                                            )}>
+                                                <div className="flex items-center justify-between mb-8">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className={cn(
+                                                            "w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg",
+                                                            post.platform === 'Instagram' ? "bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600" :
+                                                                post.platform === 'Facebook' ? "bg-blue-600" : "bg-white text-black"
+                                                        )}>
+                                                            {post.platform === 'Instagram' && <Instagram size={22} />}
+                                                            {post.platform === 'Facebook' && <Facebook size={22} />}
+                                                            {post.platform === 'X' && <XIcon size={22} />}
+                                                        </div>
+                                                        <span className="text-lg font-black uppercase tracking-[0.1em]">{post.platform}</span>
+                                                    </div>
+                                                    <div className="flex gap-3">
+                                                        <button
+                                                            onClick={() => handleToggleSocialPosted(post)}
+                                                            className={cn(
+                                                                "p-3 rounded-xl transition-all shadow-md",
+                                                                post.status === 'posted' ? "bg-green-500 text-white" : "bg-white/5 text-zinc-400 hover:bg-primary/20 hover:text-primary"
+                                                            )}
+                                                        >
+                                                            <CheckCircle2 size={20} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => {
+                                                                if (confirm('Naozaj zmazať príspevok?')) {
+                                                                    handleDeleteSocialPost(post.id);
+                                                                    if (posts.length <= 1) setSelectedPlannerArticle(null);
+                                                                }
+                                                            }}
+                                                            className="p-3 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all shadow-md"
+                                                        >
+                                                            <Trash2 size={20} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-4">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-[11px] font-black uppercase tracking-widest text-zinc-500">Obsah príspevku</span>
+                                                        <button
+                                                            onClick={() => { copyToClipboard(post.content); alert(`Text pre ${post.platform} bol skopírovaný.`); }}
+                                                            className="text-[11px] font-black uppercase tracking-widest text-primary hover:text-primary/80 flex items-center gap-2 transition-colors"
+                                                        >
+                                                            <Copy size={14} /> Skopírovať
+                                                        </button>
+                                                    </div>
+                                                    <div className="bg-black/40 border border-white/5 rounded-2xl p-6 text-sm font-medium leading-relaxed max-h-[250px] overflow-y-auto whitespace-pre-wrap text-zinc-300 ring-1 ring-inset ring-white/5">
+                                                        {post.content}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Preview Column */}
+                                    <div className="p-8 lg:p-10 bg-black flex flex-col items-center justify-center lg:sticky lg:top-0 h-fit lg:h-[calc(90vh-100px)] min-h-[500px]">
+                                        <div className="w-full max-w-[450px] scale-90 md:scale-100">
+                                            <InstagramPreview title={articleTitle} />
+                                        </div>
+                                        <p className="mt-12 text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 text-center">
+                                            Náhľad vizuálu postu
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>,
+                    document.body
+                );
+            })()}
 
             {status === "loading" && message && !isDiscoveringModalOpen && !isGeneratingModalOpen && !isAutopilotLoadingModalOpen && (
                 <div className="fixed bottom-12 left-1/2 -translate-x-1/2 bg-foreground text-background px-10 py-6 rounded-[32px] shadow-2xl flex items-center gap-4 z-[999] border border-white/10 ring-8 ring-black/5 whitespace-nowrap">
