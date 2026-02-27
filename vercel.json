@@ -5,7 +5,7 @@
     "crons": [
         {
             "path": "/api/admin/auto-pilot?secret=make-com-webhook-secret",
-            "schedule": "0 5 * * *"
+            "schedule": "0 * * * *"
         }
     ]
 }

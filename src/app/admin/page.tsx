@@ -100,12 +100,12 @@ export default function AdminPage() {
     const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
     // Tab control – obnovíme z localStorage pri refreshi (prvý zápis preskočíme, aby sme neprepísali obnovenú kartu)
-    const [activeTab, setActiveTab] = useState<"create" | "manage" | "discovery" | "analytics" | "social">("manage");
+    const [activeTab, setActiveTab] = useState<"create" | "manage" | "discovery" | "analytics" | "social" | "autopilot">("manage");
     const skipNextSaveRef = useRef(true);
     useEffect(() => {
         if (typeof window === "undefined") return;
         const saved = localStorage.getItem("admin-active-tab");
-        if (saved && ["create", "manage", "discovery", "analytics", "social"].includes(saved)) {
+        if (saved && ["create", "manage", "discovery", "analytics", "social", "autopilot"].includes(saved)) {
             setActiveTab(saved as typeof activeTab);
             skipNextSaveRef.current = true;
         }
@@ -935,6 +935,7 @@ export default function AdminPage() {
                     <div className="flex flex-wrap justify-center gap-2 p-2 bg-muted/30 rounded-2xl md:rounded-[28px] border border-border/40 backdrop-blur-md shadow-inner">
                         {[
                             { id: "discovery", label: "Discovery", icon: Search, badge: suggestions.length },
+                            { id: "autopilot", label: "Autopilot", icon: Zap },
                             { id: "create", label: "Tvorba", icon: Sparkles },
                             { id: "manage", label: "Správa", icon: Edit },
                             { id: "analytics", label: "Navštevnosť", icon: BarChart3 },
@@ -1158,6 +1159,57 @@ export default function AdminPage() {
                             </div>
                         </div>
 
+                        {/* Discovery Items List */}
+                        {suggestions.length === 0 ? (
+                            <div className="bg-card border border-dashed rounded-[40px] p-24 text-center">
+                                <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-8 text-3xl">✨</div>
+                                <h3 className="text-2xl font-black uppercase mb-3 text-foreground/80">Všetko je spracované</h3>
+                                <p className="text-muted-foreground font-medium">Momentálne nemáte žiadne nové návrhy.</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-10">
+                                <div className="flex flex-wrap gap-2 p-1.5 bg-muted/30 rounded-2xl w-fit border border-border/50">
+                                    <button onClick={() => setSelectedDiscoveryCategory("Všetky")} className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedDiscoveryCategory === "Všetky" ? "bg-primary text-primary-foreground shadow-lg" : "hover:bg-muted text-muted-foreground"}`}>Všetky ({suggestions.length})</button>
+                                    {Object.entries(suggestions.reduce((acc, curr) => { const cat = curr.category || "Nezaradené"; acc[cat] = (acc[cat] || 0) + 1; return acc; }, {} as Record<string, number>)).map(([cat, count]) => (
+                                        <button key={cat} onClick={() => setSelectedDiscoveryCategory(cat)} className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedDiscoveryCategory === cat ? "bg-primary text-primary-foreground shadow-lg" : "hover:bg-muted text-muted-foreground"}`}>{cat} ({count})</button>
+                                    ))}
+                                </div>
+
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                    {suggestions.filter(s => {
+                                        const itemCat = s.category || "Nezaradené";
+                                        return selectedDiscoveryCategory === "Všetky" || itemCat === selectedDiscoveryCategory;
+                                    }).map((suggestion) => (
+                                        <div key={suggestion.id} className="bg-card border rounded-[40px] p-10 shadow-md hover:border-primary/40 transition-all group flex flex-col h-full ring-1 ring-border/50">
+                                            <div className="flex items-start justify-between mb-8">
+                                                <div className="flex flex-wrap gap-3">
+                                                    <span className="bg-primary/10 text-primary px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-primary/20">{suggestion.source}</span>
+                                                    <span className="bg-muted text-muted-foreground px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-border/50">{suggestion.category || "Nezaradené"}</span>
+                                                </div>
+                                                <button onClick={() => handleIgnoreSuggestion(suggestion.id)} className="p-3 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"><XCircle className="w-6 h-6" /></button>
+                                            </div>
+                                            <h3 className="text-2xl font-black leading-tight mb-6 group-hover:text-primary transition-colors">{suggestion.title}</h3>
+                                            <p className="text-base text-muted-foreground mb-10 line-clamp-4 leading-relaxed font-medium">{suggestion.summary}</p>
+                                            <div className="mt-auto pt-8 border-t border-border/50 flex items-center justify-between">
+                                                <a href={suggestion.url} target="_blank" rel="noopener noreferrer" className="text-[11px] font-black text-muted-foreground hover:text-foreground flex items-center gap-2 uppercase tracking-widest transition-colors"><Globe className="w-4 h-4" /> Zdroj</a>
+                                                <button onClick={() => handleProcessSuggestion(suggestion)} className="bg-foreground text-background px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-[1.05] active:scale-[0.95] transition-all flex items-center gap-3 shadow-xl">Spracovať článok</button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* AUTOPILOT TAB */}
+                {activeTab === "autopilot" && (
+                    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div>
+                            <h2 className="text-3xl font-black uppercase tracking-tight">AI Autopilot</h2>
+                            <p className="text-muted-foreground font-medium">Plne automatizované generovanie a publikovanie obsahu.</p>
+                        </div>
+
                         {/* AI Autopilot Panel */}
                         <div className="bg-gradient-to-br from-primary/10 via-background to-background border-2 border-primary/20 p-10 rounded-[40px] shadow-2xl relative overflow-hidden group/auto">
                             <div className="absolute top-0 right-0 p-8 opacity-10 group-hover/auto:opacity-20 transition-opacity">
@@ -1178,8 +1230,8 @@ export default function AdminPage() {
                                         )}
                                     </div>
                                     <p className="text-muted-foreground font-medium text-lg leading-relaxed mb-8">
-                                        <strong className="text-foreground">Zapnutý autopilot:</strong> Každých 24 hodín automaticky vyhľadá najlepšie svetové trendy, spracuje ich a publikuje.<br />
-                                        <strong className="text-foreground">Manuálny štart:</strong> Okamžite spracuje tie témy, ktoré už máš pripravené v zozname nižšie (jednu z každej sekcie).
+                                        <strong className="text-foreground">Zapnutý autopilot:</strong> Každú hodinu automaticky vyhľadá najlepšie svetové trendy, spracuje ich a publikuje.<br />
+                                        <strong className="text-foreground">Manuálny štart:</strong> Okamžite spracuje tie témy, ktoré už máš pripravené v zozname Discovery (jednu z každej sekcie).
                                     </p>
 
                                     <div className="flex flex-wrap gap-6 text-sm font-bold uppercase tracking-widest">
@@ -1246,46 +1298,6 @@ export default function AdminPage() {
                                 </div>
                             </div>
                         </div>
-
-                        {suggestions.length === 0 ? (
-                            <div className="bg-card border border-dashed rounded-[40px] p-24 text-center">
-                                <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-8 text-3xl">✨</div>
-                                <h3 className="text-2xl font-black uppercase mb-3 text-foreground/80">Všetko je spracované</h3>
-                                <p className="text-muted-foreground font-medium">Momentálne nemáte žiadne nové návrhy.</p>
-                            </div>
-                        ) : (
-                            <div className="space-y-10">
-                                <div className="flex flex-wrap gap-2 p-1.5 bg-muted/30 rounded-2xl w-fit border border-border/50">
-                                    <button onClick={() => setSelectedDiscoveryCategory("Všetky")} className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedDiscoveryCategory === "Všetky" ? "bg-primary text-primary-foreground shadow-lg" : "hover:bg-muted text-muted-foreground"}`}>Všetky ({suggestions.length})</button>
-                                    {Object.entries(suggestions.reduce((acc, curr) => { const cat = curr.category || "Nezaradené"; acc[cat] = (acc[cat] || 0) + 1; return acc; }, {} as Record<string, number>)).map(([cat, count]) => (
-                                        <button key={cat} onClick={() => setSelectedDiscoveryCategory(cat)} className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedDiscoveryCategory === cat ? "bg-primary text-primary-foreground shadow-lg" : "hover:bg-muted text-muted-foreground"}`}>{cat} ({count})</button>
-                                    ))}
-                                </div>
-
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                                    {suggestions.filter(s => {
-                                        const itemCat = s.category || "Nezaradené";
-                                        return selectedDiscoveryCategory === "Všetky" || itemCat === selectedDiscoveryCategory;
-                                    }).map((suggestion) => (
-                                        <div key={suggestion.id} className="bg-card border rounded-[40px] p-10 shadow-md hover:border-primary/40 transition-all group flex flex-col h-full ring-1 ring-border/50">
-                                            <div className="flex items-start justify-between mb-8">
-                                                <div className="flex flex-wrap gap-3">
-                                                    <span className="bg-primary/10 text-primary px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-primary/20">{suggestion.source}</span>
-                                                    <span className="bg-muted text-muted-foreground px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-border/50">{suggestion.category || "Nezaradené"}</span>
-                                                </div>
-                                                <button onClick={() => handleIgnoreSuggestion(suggestion.id)} className="p-3 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"><XCircle className="w-6 h-6" /></button>
-                                            </div>
-                                            <h3 className="text-2xl font-black leading-tight mb-6 group-hover:text-primary transition-colors">{suggestion.title}</h3>
-                                            <p className="text-base text-muted-foreground mb-10 line-clamp-4 leading-relaxed font-medium">{suggestion.summary}</p>
-                                            <div className="mt-auto pt-8 border-t border-border/50 flex items-center justify-between">
-                                                <a href={suggestion.url} target="_blank" rel="noopener noreferrer" className="text-[11px] font-black text-muted-foreground hover:text-foreground flex items-center gap-2 uppercase tracking-widest transition-colors"><Globe className="w-4 h-4" /> Zdroj</a>
-                                                <button onClick={() => handleProcessSuggestion(suggestion)} className="bg-foreground text-background px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-[1.05] active:scale-[0.95] transition-all flex items-center gap-3 shadow-xl">Spracovať článok</button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
                     </div>
                 )}
 
