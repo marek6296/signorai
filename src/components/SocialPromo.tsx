@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Instagram, Facebook } from "lucide-react";
 
 const XIcon = ({ size = 24, className = "" }: { size?: number, className?: string }) => (
@@ -10,84 +11,81 @@ const XIcon = ({ size = 24, className = "" }: { size?: number, className?: strin
         fill="currentColor"
         className={className}
     >
-        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.045 4.126H5.078z" />
     </svg>
 );
 
 export function SocialPromo() {
     return (
-        <div className="bg-foreground text-background p-8 rounded-[40px] shadow-2xl overflow-hidden relative group border border-white/10">
-            {/* Background pattern/accents */}
-            <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 blur-[80px] rounded-full -translate-y-1/2 translate-x-1/2 group-hover:bg-primary/20 transition-all duration-700" />
-            <div className="absolute bottom-0 left-0 w-32 h-32 bg-primary/5 blur-[60px] rounded-full translate-y-1/2 -translate-x-1/2 group-hover:bg-primary/10 transition-all duration-700" />
+        <div className="group relative overflow-hidden rounded-[2rem] bg-zinc-900 shadow-2xl transition-all duration-500 hover:shadow-primary/20 border border-white/5 flex flex-col h-[350px] md:h-[400px]">
+            {/* Background Image - Matching ArticleCard style */}
+            <div className="absolute inset-0 z-0 pointer-events-none">
+                <Image
+                    src="/images/social-promo-bg.png"
+                    alt="Social Media Connectivity"
+                    fill
+                    className="object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+                />
+                {/* Dark Gradient Overlay for Readability */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-80 pointer-events-none" />
+            </div>
 
-            <div className="relative z-10 flex flex-col gap-6">
-                <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
-                            <div className="w-4 h-4 rounded-full bg-primary animate-pulse" />
+            {/* Category Badge - Top Left */}
+            <div className="absolute top-4 left-6 z-20 pointer-events-none">
+                <span className="inline-flex items-center rounded-full bg-primary/20 backdrop-blur-md border border-primary/30 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-primary shadow-2xl">
+                    Sociálne Siete
+                </span>
+            </div>
+
+            {/* Content Overlay - Glassmorphism at Bottom */}
+            <div className="mt-auto relative z-20 w-full p-2">
+                <div className="bg-black/40 backdrop-blur-2xl border border-white/10 rounded-[1.5rem] p-4 md:p-5 flex flex-col items-center text-center">
+                    <div className="flex flex-col gap-3 md:gap-4 items-center">
+                        <div className="flex flex-col gap-1 items-center">
+                            <span className="text-[9px] md:text-[10px] font-bold text-primary uppercase tracking-[0.3em]">
+                                Newsletter & Community
+                            </span>
+                            <h2 className="font-black tracking-tight text-white leading-tight text-xl md:text-2xl uppercase italic">
+                                Sleduj svet s nami
+                            </h2>
                         </div>
-                        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/80">Klub Čitateľov</span>
+
+                        {/* Social Buttons Grid */}
+                        <div className="flex items-center justify-center gap-4">
+                            <a
+                                href="https://www.instagram.com/postovinky.news/"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/20 hover:scale-110 active:scale-90 transition-all shadow-lg group/icon"
+                                title="Instagram"
+                            >
+                                <Instagram className="w-5 h-5 text-white/80 group-hover/icon:text-white" />
+                            </a>
+                            <a
+                                href="https://www.facebook.com/profile.php?id=61564215815848"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/20 hover:scale-110 active:scale-90 transition-all shadow-lg group/icon"
+                                title="Facebook"
+                            >
+                                <Facebook className="w-5 h-5 text-white/80 group-hover/icon:text-white" />
+                            </a>
+                            <a
+                                href="https://x.com/POSTOVINKY"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/20 hover:scale-110 active:scale-90 transition-all shadow-lg group/icon"
+                                title="Twitter / X"
+                            >
+                                <XIcon size={20} className="text-white/80 group-hover/icon:text-white" />
+                            </a>
+                        </div>
                     </div>
-                    <h3 className="text-2xl font-black uppercase tracking-tight text-white leading-none">
-                        Buďte<br />v obraze
-                    </h3>
-                    <p className="text-xs font-semibold text-white/50 leading-relaxed max-w-[200px]">
-                        Dostávajte najhorúcejšie AI novinky priamo do vášho feedu.
-                    </p>
-                </div>
-
-                <div className="grid grid-cols-1 gap-2">
-                    <a
-                        href="https://www.instagram.com/postovinky.news/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-4 p-4 bg-white/5 rounded-2xl hover:bg-white/10 transition-all duration-300 group/item border border-white/5"
-                    >
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600 flex items-center justify-center shadow-lg group-hover/item:scale-110 transition-transform">
-                            <Instagram className="w-5 h-5 text-white" />
-                        </div>
-                        <div className="flex flex-col">
-                            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-white">Instagram</span>
-                            <span className="text-[9px] font-bold text-white/40 uppercase">@postovinky.news</span>
-                        </div>
-                    </a>
-
-                    <a
-                        href="https://www.facebook.com/profile.php?id=61564215815848"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-4 p-4 bg-white/5 rounded-2xl hover:bg-white/10 transition-all duration-300 group/item border border-white/5"
-                    >
-                        <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg group-hover/item:scale-110 transition-transform">
-                            <Facebook className="w-5 h-5 text-white" />
-                        </div>
-                        <div className="flex flex-col">
-                            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-white">Facebook</span>
-                            <span className="text-[9px] font-bold text-white/40 uppercase">Postovinky</span>
-                        </div>
-                    </a>
-
-                    <a
-                        href="https://x.com/POSTOVINKY"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-4 p-4 bg-white/5 rounded-2xl hover:bg-white/10 transition-all duration-300 group/item border border-white/5"
-                    >
-                        <div className="w-10 h-10 rounded-xl bg-black border border-white/20 flex items-center justify-center shadow-lg group-hover/item:scale-110 transition-transform">
-                            <XIcon size={18} className="text-white" />
-                        </div>
-                        <div className="flex flex-col">
-                            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-white">Twitter / X</span>
-                            <span className="text-[9px] font-bold text-white/40 uppercase">@Postovinky</span>
-                        </div>
-                    </a>
-                </div>
-
-                <div className="pt-2">
-                    <p className="text-center text-[9px] font-bold uppercase tracking-[0.2em] text-primary">Pridajte sa k technologickej elite</p>
                 </div>
             </div>
+
+            {/* Subtle Inner Glow on Hover */}
+            <div className="absolute inset-0 border-2 border-primary/0 rounded-[2rem] transition-all duration-500 group-hover:border-primary/20 group-hover:bg-primary/5 pointer-events-none" />
         </div>
     );
 }
