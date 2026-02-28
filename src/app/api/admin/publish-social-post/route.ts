@@ -8,7 +8,7 @@ const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-const ADMIN_SECRET = process.env.ADMIN_SECRET || "make-com-webhook-secret";
+
 
 export async function POST(req: Request) {
     try {
