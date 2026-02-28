@@ -56,6 +56,7 @@ export async function POST(req: Request) {
         }
 
         const article = post.articles;
+        const articleUrl = `https://postovinky.news/article/${article?.slug}`;
 
         let finalImageUrl = customImageUrl || article?.main_image;
 
@@ -127,8 +128,8 @@ export async function POST(req: Request) {
         let result;
         if (post.platform === 'Facebook') {
             // Pre Facebook chceme čistý Link Post (aby si FB sám stiahol obrázok z webu)
-            // Používame len text (message), pretože v ňom už je link a FB si náhľad vygeneruje sám.
-            result = await publishToFacebook(post.content);
+            // Posielame aj explicitný link, aby FB vygeneroval poriadny náhľad (preview card)
+            result = await publishToFacebook(post.content, articleUrl);
         } else if (post.platform === 'Instagram') {
             if (!finalImageUrl) throw new Error("Instagram requires an image.");
             result = await publishToInstagram(finalImageUrl, post.content);

@@ -166,6 +166,22 @@ export default function AdminPage() {
             return;
         }
 
+        const triggerBotAutomation = async () => {
+            if (isBotRunning) return;
+            setIsBotRunning(true);
+            try {
+                // Call the bot API directly from the UI when timer hits zero
+                const res = await fetch(`/api/admin/bot-full-automation?secret=${process.env.NEXT_PUBLIC_ADMIN_SECRET || 'make-com-webhook-secret'}&force=true`);
+                const data = await res.json();
+                console.log("Bot auto-triggered from UI:", data);
+                await fetchAutopilotSettings();
+            } catch (e: any) {
+                console.error("Failed to auto-trigger bot:", e);
+            } finally {
+                setIsBotRunning(false);
+            }
+        };
+
         const updateCountdown = () => {
             const now = new Date();
             const bratislavaTimeStr = new Intl.DateTimeFormat('en-GB', {
@@ -206,22 +222,6 @@ export default function AdminPage() {
             parts.push(`${s}s`);
 
             setCountdownToNext(parts.join(' '));
-        };
-
-        const triggerBotAutomation = async () => {
-            if (isBotRunning) return;
-            setIsBotRunning(true);
-            try {
-                // Call the bot API directly from the UI when timer hits zero
-                const res = await fetch(`/api/admin/bot-full-automation?secret=${process.env.NEXT_PUBLIC_ADMIN_SECRET || 'make-com-webhook-secret'}&force=true`);
-                const data = await res.json();
-                console.log("Bot auto-triggered from UI:", data);
-                await fetchAutopilotSettings();
-            } catch (e) {
-                console.error("Failed to auto-trigger bot:", e);
-            } finally {
-                setIsBotRunning(false);
-            }
         };
 
         updateCountdown();
