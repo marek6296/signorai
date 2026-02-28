@@ -296,8 +296,30 @@ export default function AdminPage() {
                 throw new Error("Nenašli sa žiadne nové správy pre túto kategóriu.");
             }
 
-            // STEP 2: Pick the first
-            const target = foundItems[0];
+            // FILTER already processed articles to pick a FRESH topic
+            setGeneratingStage("Kontrolujem existujúce články...");
+            const { data: latestArticles } = await supabase.from("articles").select("source_url");
+            const existingUrls = (latestArticles || []).map(a => (a.source_url || "").trim().toLowerCase());
+
+            const freshItems = foundItems.filter((item: any) => {
+                const url = (item.url || "").trim().toLowerCase();
+                return url && !existingUrls.includes(url);
+            });
+
+            if (freshItems.length === 0) {
+                // If all found items are already processed, tell the user gracefully
+                setStatus("success");
+                setMessage("Všetky nové správy v tejto kategórii už boli spracované.");
+                setIsFullAutomationLoading(false);
+                setTimeout(() => {
+                    setIsGeneratingModalOpen(false);
+                    setStatus("idle");
+                }, 3000);
+                return;
+            }
+
+            // STEP 2: Pick the first FRESH item
+            const target = freshItems[0];
 
             // STEP 3: Generate Article (Publish immediately)
             setGeneratingStage(`Generujem kompletný článok: ${target.title}...`);
