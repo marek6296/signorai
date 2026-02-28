@@ -184,7 +184,8 @@ export default function AdminPage() {
     const [isSocialAutopilotGenerating, setIsSocialAutopilotGenerating] = useState(false);
     const [plannedCategoryFilter, setPlannedCategoryFilter] = useState<string>("all");
     const [isPlannerOpen, setIsPlannerOpen] = useState(false);
-    const [automationArticleData, setAutomationArticleData] = useState<{ id: string, title: string } | null>(null);
+    // automationArticleData commented out because its setter is currently unused
+    // const [automationArticleData, setAutomationArticleData] = useState<{ id: string, title: string } | null>(null);
 
     // Full Automation States
     const [selectedFullAutomationCategory, setSelectedFullAutomationCategory] = useState("Umelá Inteligencia");
@@ -3005,7 +3006,7 @@ export default function AdminPage() {
                 )
             }
 
-            {/* HIDDEN RENDERER FOR AUTOMATION */}
+            {/* HIDDEN RENDERER FOR AUTOMATION - previously unused
             {
                 automationArticleData && (
                     <div style={{
@@ -3022,6 +3023,7 @@ export default function AdminPage() {
                     </div>
                 )
             }
+            */}
         </>
     );
 }
