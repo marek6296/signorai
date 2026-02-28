@@ -127,7 +127,8 @@ export async function POST(req: Request) {
         // 3. Publish based on platform
         let result;
         if (post.platform === 'Facebook') {
-            result = await publishToFacebook(post.content, articleUrl, finalImageUrl);
+            // Pre Facebook chceme čistý Link Post (aby si FB sám stiahol obrázok z webu)
+            result = await publishToFacebook(post.content, articleUrl);
         } else if (post.platform === 'Instagram') {
             if (!finalImageUrl) throw new Error("Instagram requires an image.");
             result = await publishToInstagram(finalImageUrl, post.content);
