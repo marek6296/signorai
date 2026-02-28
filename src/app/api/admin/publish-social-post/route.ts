@@ -51,11 +51,11 @@ export async function POST(req: Request) {
         let imageUrl = customImageUrl || article?.main_image;
 
         if (post.platform === 'Instagram' && !customImageUrl) {
-            // Generate our branded social image URL
-            // We append '&ix.png' to help Meta's crawler recognize it as an image
+            // Generate our branded social image URL using a clean ID-based path
             const host = req.headers.get("host") || "postovinky.news";
             const protocol = host.includes("localhost") ? "http" : "https";
-            imageUrl = `${protocol}://${host}/api/social-image?title=${encodeURIComponent(article?.title || 'Novinky zo sveta AI')}&ix.png`;
+            imageUrl = `${protocol}://${host}/api/social-image/${id}.png`;
+            console.log(`[Instagram] Using generated brand image: ${imageUrl}`);
         }
 
         // 3. Publish based on platform

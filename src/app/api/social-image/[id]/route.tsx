@@ -1,14 +1,41 @@
 import { ImageResponse } from 'next/og';
 import { NextRequest } from 'next/server';
+import { createClient } from "@supabase/supabase-js";
 
 export const runtime = 'edge';
 
-export async function GET(req: NextRequest) {
-    try {
-        const { searchParams } = new URL(req.url);
-        const title = searchParams.get('title') || 'Novinky zo sveta AI';
+const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
-        // Load Syne font (Bold/Extrabold 800)
+export async function GET(
+    req: NextRequest,
+    { params }: { params: { id: string } }
+) {
+    try {
+        const id = params.id.split('.')[0]; // Handle .png or similar extensions
+
+        // Fetch the social post with article title
+        const { data: post, error } = await supabase
+            .from("social_posts")
+            .select(`
+                *,
+                articles (
+                    title
+                )
+            `)
+            .eq("id", id)
+            .single();
+
+        if (error || !post) {
+            console.error('Post not found for OG image:', id);
+            return new Response(`Post not found`, { status: 404 });
+        }
+
+        const title = post.articles?.title || 'Novinky zo sveta AI';
+
+        // Load Syne font
         const syneBold = await fetch(
             new URL('https://fonts.gstatic.com/s/syne/v22/8UA9YrtN6Z7S6Z5Y2Q.woff', 'https://fonts.googleapis.com')
         ).then((res) => res.arrayBuffer());
@@ -29,7 +56,7 @@ export async function GET(req: NextRequest) {
                         overflow: 'hidden',
                     }}
                 >
-                    {/* Background Accents (Radial Gradients mimic blur) */}
+                    {/* Background Accents */}
                     <div
                         style={{
                             position: 'absolute',
