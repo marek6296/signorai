@@ -1798,23 +1798,44 @@ export default function AdminPage() {
                                             Autonómny agent, ktorý v určených časoch sám <strong className="text-foreground">objaví</strong> novinky, <strong className="text-foreground">napíše</strong> články a <strong className="text-foreground">publikuje</strong> ich na web aj sociálne siete.
                                         </p>
 
-                                        {/* Bot Live Status Feed */}
+                                        {/* Bot Live Status Feed - Premium Countdown */}
                                         {socialBotSettings.enabled && (
-                                            <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-2xl p-4 mb-8 flex items-center gap-4">
-                                                <div className="flex-shrink-0 relative">
-                                                    <div className="w-3 h-3 bg-indigo-500 rounded-full animate-ping opacity-75" />
-                                                    <div className="absolute inset-0 w-3 h-3 bg-indigo-500 rounded-full" />
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center justify-between mb-0.5">
-                                                        <span className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Live Status Agenta</span>
-                                                        <span className="text-[9px] font-bold text-muted-foreground italic">
-                                                            {countdownToNext ? `Další trigger o: ${countdownToNext}` : (socialBotSettings.last_run ? `Posledná kontrola: ${new Date(socialBotSettings.last_run).toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : 'Čakám na prvý chod...')}
-                                                        </span>
+                                            <div className="bg-indigo-500/10 border-2 border-indigo-500/20 rounded-[32px] p-8 mb-10 flex flex-col items-center justify-center relative overflow-hidden group/status">
+                                                {/* Animated Background Pulse */}
+                                                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent" />
+
+                                                <div className="relative z-10 flex flex-col items-center gap-4">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-2.5 h-2.5 bg-indigo-500 rounded-full animate-ping" />
+                                                        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-500/80">Najbližšia automatizácia o</span>
                                                     </div>
-                                                    <p className="text-xs font-bold text-foreground truncate">
-                                                        {socialBotSettings.last_status || 'Agent je pripravený v pohotovosti.'}
-                                                    </p>
+
+                                                    <div className="text-6xl md:text-7xl font-black tabular-nums tracking-tighter text-foreground flex items-baseline gap-2">
+                                                        {countdownToNext ? (
+                                                            countdownToNext.split(' ').map((part, idx) => (
+                                                                <span key={idx} className="flex items-baseline gap-1">
+                                                                    {part.replace(/[a-z]/g, '')}
+                                                                    <span className="text-xl md:text-2xl text-indigo-500/40 font-black lowercase">{part.replace(/[0-9]/g, '')}</span>
+                                                                </span>
+                                                            ))
+                                                        ) : (
+                                                            <span className="text-2xl opacity-50 uppercase tracking-widest">Pripravujem...</span>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="mt-4 flex flex-col items-center gap-1">
+                                                        <div className="px-4 py-1.5 bg-background/50 backdrop-blur-md border border-white/5 rounded-full shadow-sm flex items-center gap-2">
+                                                            <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />
+                                                            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                                                {socialBotSettings.last_run ? `Naposledy skontrolované: ${new Date(socialBotSettings.last_run).toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' })}` : 'Čakám na prvý chod'}
+                                                            </span>
+                                                        </div>
+                                                        {socialBotSettings.last_status && !socialBotSettings.last_status.includes('Čakám') && (
+                                                            <p className="text-[9px] font-bold text-muted-foreground/60 italic mt-2 max-w-xs text-center truncate">
+                                                                {socialBotSettings.last_status}
+                                                            </p>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         )}
