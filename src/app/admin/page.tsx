@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { ArticleCard } from "@/components/ArticleCard";
 import Image from "next/image";
 import { InstagramPreview } from "@/components/InstagramPreview";
+import { toBlob } from 'html-to-image';
 
 const XIcon = ({ size = 24, className = "" }: { size?: number, className?: string }) => (
     <svg
@@ -275,13 +276,39 @@ export default function AdminPage() {
         if (!confirm("Chcete tento príspevok TERAZ publikovať na zvolenú platformu pomocou API?")) return;
 
         setStatus("loading");
-        setMessage("Publikujem cez Meta API...");
+        setMessage("Pripravujem vizuál príspevku...");
 
         try {
+            // New logic: Capture the preview client-side for "Perfect" results
+            const previewEl = document.getElementById('instagram-preview-capture');
+            let imageBlob: Blob | null = null;
+
+            if (previewEl) {
+                try {
+                    imageBlob = await toBlob(previewEl, {
+                        cacheBust: true,
+                        width: 1080,
+                        height: 1080,
+                        pixelRatio: 1,
+                    });
+                    console.log("[Admin] Captured bit-perfect preview PNG");
+                } catch (captureErr) {
+                    console.warn("[Admin] Preview capture failed, falling back to server-side generation", captureErr);
+                }
+            }
+
+            setMessage("Odosielam na Meta API...");
+
+            const formData = new FormData();
+            formData.append("id", id);
+            formData.append("secret", "make-com-webhook-secret");
+            if (imageBlob) {
+                formData.append("image", imageBlob, "social-post.png");
+            }
+
             const res = await fetch("/api/admin/publish-social-post", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id, secret: "make-com-webhook-secret" }),
+                body: formData,
             });
             const data = await res.json();
 

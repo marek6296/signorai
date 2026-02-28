@@ -12,7 +12,20 @@ const ADMIN_SECRET = process.env.ADMIN_SECRET || "make-com-webhook-secret";
 
 export async function POST(req: Request) {
     try {
-        const { id, secret, imageUrl: customImageUrl } = await req.json();
+        const contentType = req.headers.get("content-type") || "";
+        let id: string, secret: string, customImageUrl: string | undefined, uploadedFile: File | null = null;
+
+        if (contentType.includes("multipart/form-data")) {
+            const formData = await req.formData();
+            id = formData.get("id") as string;
+            secret = formData.get("secret") as string;
+            uploadedFile = formData.get("image") as File;
+        } else {
+            const body = await req.json();
+            id = body.id;
+            secret = body.secret;
+            customImageUrl = body.imageUrl;
+        }
 
         // 1. Auth check
         if (secret !== ADMIN_SECRET) {
@@ -47,31 +60,14 @@ export async function POST(req: Request) {
 
         let finalImageUrl = customImageUrl || article?.main_image;
 
-        if (post.platform === 'Instagram' && !customImageUrl) {
+        // NEW: Handle direct image upload from client (bit-perfect preview)
+        if (uploadedFile) {
             try {
-                // Hardcode prod hostname for Meta's convenience
-                const generatorUrl = `https://postovinky.news/api/social-image/${id}.png?t=${Date.now()}`;
+                const imageBuffer = Buffer.from(await uploadedFile.arrayBuffer());
+                const fileName = `direct-${id}-${Date.now()}.png`;
 
-                console.log(`[Instagram Storage] Fetching image from: ${generatorUrl}`);
+                console.log(`[Instagram Direct Upload] Size: ${imageBuffer.byteLength} bytes`);
 
-                // Give the generator 1 second to breathe if it was just deployed
-                await new Promise(r => setTimeout(r, 1000));
-
-                // Step A: Fetch the image bytes from our own generator
-                const imageRes = await fetch(generatorUrl);
-
-                if (!imageRes.ok) {
-                    throw new Error(`Generator returned status ${imageRes.status}`);
-                }
-
-                const imageBuffer = await imageRes.arrayBuffer();
-
-                if (imageBuffer.byteLength < 1000) {
-                    throw new Error(`Generator returned 0 bytes or suspiciously small file: ${imageBuffer.byteLength} bytes.`);
-                }
-
-                // Step B: Upload to Supabase Storage
-                const fileName = `${id}-${Date.now()}.png`;
                 const { error: uploadError } = await supabase.storage
                     .from("social-images")
                     .upload(fileName, imageBuffer, {
@@ -81,17 +77,46 @@ export async function POST(req: Request) {
 
                 if (uploadError) throw uploadError;
 
-                // Step C: Get Public URL
                 const { data: { publicUrl } } = supabase.storage
                     .from("social-images")
                     .getPublicUrl(fileName);
 
                 finalImageUrl = publicUrl;
-                console.log(`[Instagram Storage] Successfully uploaded and using brand image: ${finalImageUrl}`);
+                console.log(`[Instagram Direct Upload] Success: ${finalImageUrl}`);
+            } catch (err) {
+                console.error("[Instagram Direct Upload Failed]", err);
+            }
+        }
+        // Fallback: Use server-side generator if no direct upload or it failed
+        else if (post.platform === 'Instagram' && !customImageUrl) {
+            try {
+                const generatorUrl = `https://postovinky.news/api/social-image/${id}.png?t=${Date.now()}`;
+                console.log(`[Instagram Storage Fallback] Using generator: ${generatorUrl}`);
 
+                await new Promise(r => setTimeout(r, 1000));
+                const imageRes = await fetch(generatorUrl);
+
+                if (imageRes.ok) {
+                    const imageBuffer = await imageRes.arrayBuffer();
+                    if (imageBuffer.byteLength > 1000) {
+                        const fileName = `fallback-${id}-${Date.now()}.png`;
+                        const { error: uploadError } = await supabase.storage
+                            .from("social-images")
+                            .upload(fileName, imageBuffer, {
+                                contentType: 'image/png',
+                                upsert: true
+                            });
+
+                        if (!uploadError) {
+                            const { data: { publicUrl } } = supabase.storage
+                                .from("social-images")
+                                .getPublicUrl(fileName);
+                            finalImageUrl = publicUrl;
+                        }
+                    }
+                }
             } catch (storageError) {
-                console.error("[Instagram Storage Error - Fallback triggered]", storageError);
-                // Last resort fallback
+                console.error("[Instagram Storage Fallback Error]", storageError);
                 finalImageUrl = article?.main_image || finalImageUrl;
             }
         }
