@@ -73,6 +73,7 @@ export async function GET(req: NextRequest) {
         console.log(`>>> [Bot] Starting automation for category: ${category}`);
 
         // 4. Discovery
+        await supabase.from('site_settings').update({ value: { ...settings, last_run: new Date().toISOString(), last_status: `Aktívny (Hľadám novinky v ${category}...)` } }).eq('key', 'social_bot');
         const foundItems = await discoverNewNews(3, [category]);
         if (foundItems.length === 0) {
             await supabase
@@ -103,10 +104,12 @@ export async function GET(req: NextRequest) {
         console.log(`>>> [Bot] Selected target: ${target.title} (${target.url})`);
 
         // 6. Generate Article
+        await supabase.from('site_settings').update({ value: { ...settings, last_run: new Date().toISOString(), last_status: `Aktívny (Píšem článok: ${target.title}...)` } }).eq('key', 'social_bot');
         const article = await processArticleFromUrl(target.url, 'published', category);
         console.log(`>>> [Bot] Article generated: ${article.id}`);
 
         // 7. Generate Social Posts (using existing autopilot route logic or calling it)
+        await supabase.from('site_settings').update({ value: { ...settings, last_run: new Date().toISOString(), last_status: `Aktívny (Publikujem na sociálne siete...)` } }).eq('key', 'social_bot');
         const currentHost = req.headers.get("host") || "postovinky.news";
         const protocol = currentHost.includes("localhost") ? "http" : "https";
 

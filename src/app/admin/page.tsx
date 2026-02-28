@@ -194,12 +194,46 @@ export default function AdminPage() {
             parts.push(`${s}s`);
 
             setCountdownToNext(parts.join(' '));
+
+            // If we are at exactly 0 (or within a 2-second window of the scheduled time) 
+            // and the bot isn't already marked as running, we could trigger it.
+            // But to avoid multiple triggers, we just check if diffSeconds is 0.
+            if (diffSeconds <= 0 && !isBotRunning) {
+                triggerBotAutomation();
+            }
+        };
+
+        const triggerBotAutomation = async () => {
+            if (isBotRunning) return;
+            setIsBotRunning(true);
+            try {
+                // Call the bot API directly from the UI when timer hits zero
+                const res = await fetch(`/api/admin/bot-full-automation?secret=${process.env.NEXT_PUBLIC_ADMIN_SECRET || 'make-com-webhook-secret'}&force=true`);
+                const data = await res.json();
+                console.log("Bot auto-triggered from UI:", data);
+                await fetchAutopilotSettings();
+            } catch (e) {
+                console.error("Failed to auto-trigger bot:", e);
+            } finally {
+                setIsBotRunning(false);
+            }
         };
 
         updateCountdown();
         const timer = setInterval(updateCountdown, 1000);
         return () => clearInterval(timer);
-    }, [socialBotSettings.enabled, socialBotSettings.posting_times]);
+    }, [socialBotSettings.enabled, socialBotSettings.posting_times, isBotRunning]);
+
+    // Polling bot status when on social tab
+    useEffect(() => {
+        if (activeTab !== "social" || !socialBotSettings.enabled) return;
+
+        const poll = setInterval(() => {
+            fetchAutopilotSettings();
+        }, 10000); // Poll every 10 seconds for status updates
+
+        return () => clearInterval(poll);
+    }, [activeTab, socialBotSettings.enabled]);
 
 
     // Authentication state
@@ -208,6 +242,7 @@ export default function AdminPage() {
     const [password, setPassword] = useState("");
     const [loginError, setLoginError] = useState("");
     const [countdownToNext, setCountdownToNext] = useState<string>("");
+    const [isBotRunning, setIsBotRunning] = useState(false);
     const [selectedDiscoveryCategory, setSelectedDiscoveryCategory] = useState("Všetky");
     const [selectedPublishedCategory, setSelectedPublishedCategory] = useState("Všetky");
     const [discoveryDays, setDiscoveryDays] = useState("3");
@@ -1811,7 +1846,12 @@ export default function AdminPage() {
                                                     </div>
 
                                                     <div className="text-6xl md:text-7xl font-black tabular-nums tracking-tighter text-foreground flex items-baseline gap-2">
-                                                        {countdownToNext ? (
+                                                        {isBotRunning ? (
+                                                            <div className="flex flex-col items-center gap-2">
+                                                                <RefreshCw className="w-16 h-16 animate-spin text-indigo-500 mb-2" />
+                                                                <span className="text-xl font-black uppercase tracking-[0.2em] text-indigo-500 animate-pulse">Prebieha automatizácia...</span>
+                                                            </div>
+                                                        ) : countdownToNext ? (
                                                             countdownToNext.split(' ').map((part, idx) => (
                                                                 <span key={idx} className="flex items-baseline gap-1">
                                                                     {part.replace(/[a-z]/g, '')}
