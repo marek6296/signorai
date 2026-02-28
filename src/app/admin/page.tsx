@@ -128,6 +128,11 @@ export default function AdminPage() {
         auto_publish: false,
         target_categories: ["Umelá Inteligencia", "Tech"]
     });
+    const [countdownToNext, setCountdownToNext] = useState<string>("");
+    const [isBotRunning, setIsBotRunning] = useState(false);
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [loginError, setLoginError] = useState("");
 
     // Tab control – obnovíme z localStorage pri refreshi (prvý zápis preskočíme, aby sme neprepísali obnovenú kartu)
     const [activeTab, setActiveTab] = useState<"create" | "manage" | "discovery" | "analytics" | "social" | "autopilot" | "full_automation">("manage");
@@ -238,11 +243,6 @@ export default function AdminPage() {
 
     // Authentication state
     const [isLoggedIn, setIsLoggedIn] = useState(false);
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [loginError, setLoginError] = useState("");
-    const [countdownToNext, setCountdownToNext] = useState<string>("");
-    const [isBotRunning, setIsBotRunning] = useState(false);
     const [selectedDiscoveryCategory, setSelectedDiscoveryCategory] = useState("Všetky");
     const [selectedPublishedCategory, setSelectedPublishedCategory] = useState("Všetky");
     const [discoveryDays, setDiscoveryDays] = useState("3");

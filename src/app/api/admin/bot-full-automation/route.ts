@@ -161,10 +161,10 @@ export async function GET(req: NextRequest) {
             if (currentSettings) {
                 await supabase
                     .from('site_settings')
-                    .update({ value: { ...(currentSettings.value as any), last_run: new Date().toISOString(), last_status: `Chyba: ${errorMsg}` } })
+                    .update({ value: { ...(currentSettings.value as object), last_run: new Date().toISOString(), last_status: `Chyba: ${errorMsg}` } })
                     .eq('key', 'social_bot');
             }
-        } catch (e) { }
+        } catch { }
 
         return NextResponse.json({
             error: true,
