@@ -294,6 +294,27 @@ export default function AdminPage() {
         }
     };
 
+    const handleDeleteAllSocialPosts = async () => {
+        if (!confirm("Naozaj chcete vymazať VŠETKY naplánované príspevky? Táto akcia je nevratná.")) return;
+        setStatus("loading");
+        setMessage("Mažem všetky príspevky...");
+        try {
+            // Pre jednoduchosť a bezpečnosť mažeme príspevky postupne alebo hromadne cez Supabase priamo
+            const { error } = await supabase.from('social_posts').delete().neq('id', '0'); // zmaže všetko
+            if (error) throw error;
+
+            await fetchPlannedPosts();
+            setStatus("success");
+            setMessage("Všetky príspevky boli vymazané.");
+        } catch (e) {
+            console.error(e);
+            setStatus("error");
+            setMessage("Chyba pri mazaní príspevkov.");
+        } finally {
+            setTimeout(() => setStatus("idle"), 3000);
+        }
+    };
+
     const handlePublishSocialPost = async (id: string) => {
         if (!confirm("Chcete tento príspevok TERAZ publikovať na zvolenú platformu pomocou API?")) return;
 
@@ -2424,6 +2445,15 @@ export default function AdminPage() {
                                         <span className="text-[9px] font-black uppercase tracking-widest whitespace-nowrap">
                                             {isPlannerOpen ? 'Zabaliť' : 'Rozbaliť'}
                                         </span>
+                                    </button>
+
+                                    <button
+                                        onClick={handleDeleteAllSocialPosts}
+                                        className="h-11 flex items-center gap-2 px-4 bg-red-500/10 text-red-500 rounded-xl transition-all border border-red-500/20 hover:bg-red-500 hover:text-white active:scale-95 shadow-sm"
+                                        title="Vymazať všetko"
+                                    >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                        <span className="text-[9px] font-black uppercase tracking-widest whitespace-nowrap">Všetko vymazať</span>
                                     </button>
 
                                     <button
