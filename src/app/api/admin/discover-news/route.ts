@@ -55,11 +55,11 @@ async function executeDiscovery(days: number, targetCategories: string[], secret
             items: finalResults,
             suggestions: finalResults
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error(">>> [API Discovery] CRITICAL ERROR:", error);
         return NextResponse.json({
             message: "Chyba pri objavovaní správ.",
-            detail: error.message || String(error)
+            detail: error instanceof Error ? error.message : String(error)
         }, { status: 500 });
     }
 }
@@ -72,8 +72,8 @@ export async function POST(req: Request) {
         const { days = 3, categories = [], secret = null } = body;
         const authHeader = req.headers.get("authorization");
         return await executeDiscovery(days, categories, secret, authHeader);
-    } catch (e: any) {
-        console.error(">>> [API Discovery] POST parse error:", e.message);
+    } catch (e: unknown) {
+        console.error(">>> [API Discovery] POST parse error:", e instanceof Error ? e.message : String(e));
         return NextResponse.json({ message: "Invalid JSON body" }, { status: 400 });
     }
 }

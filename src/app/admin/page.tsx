@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabase";
 import { Article } from "@/lib/data";
 import Link from "next/link";
-import { Edit, ArrowDown, Trash2, Sparkles, Plus, Globe, Search, CheckCircle2, XCircle, RefreshCw, Zap, Play, History, RotateCcw, BarChart3, Users, Share2, Copy, Facebook, Instagram, Calendar, Clock, ChevronDown, ChevronUp, Smartphone, Monitor, Check, CloudLightning, ChevronRight } from "lucide-react";
+import { Edit, ArrowDown, Trash2, Sparkles, Plus, Globe, Search, CheckCircle2, XCircle, RefreshCw, Zap, History, RotateCcw, BarChart3, Users, Share2, Copy, Facebook, Instagram, Calendar, Clock, ChevronDown, ChevronUp, Smartphone, Monitor, Check, CloudLightning, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ArticleCard } from "@/components/ArticleCard";
 import Image from "next/image";
@@ -116,7 +116,8 @@ export default function AdminPage() {
     const [isGeneratingSocial, setIsGeneratingSocial] = useState(false);
     const [selectedPlannerArticle, setSelectedPlannerArticle] = useState<string | null>(null);
     const [selectedPostsForPublishing, setSelectedPostsForPublishing] = useState<string[]>([]);
-    const [socialStats, setSocialStats] = useState({ total_published: 0, pending_drafts: 0 });
+    // socialStats removed due to being unused
+    // const [socialStats, setSocialStats] = useState({ total_published: 0, pending_drafts: 0 });
     const [socialBotSettings, setSocialBotSettings] = useState<SocialBotSettings>({
         enabled: false,
         interval_hours: 12,
@@ -223,10 +224,12 @@ export default function AdminPage() {
             console.log("Fetched planned posts:", data);
             if (!data.error) {
                 setPlannedPosts(data);
-                // Stats update
+                // Stats update - previously unused
+                /*
                 const published = (data || []).filter((p: SocialPost) => p.status === 'posted').length;
                 const drafts = (data || []).filter((p: SocialPost) => p.status === 'draft').length;
-                setSocialStats({ total_published: published, pending_drafts: drafts });
+                // setSocialStats({ total_published: published, pending_drafts: drafts });
+                */
             }
         } catch (e) {
             console.error("Failed to fetch planned posts", e);
@@ -330,8 +333,8 @@ export default function AdminPage() {
 
             await fetchPlannedPosts();
 
-            const successCount = (socialData.publishResults || []).filter((r: any) => r.success).length;
-            const failCount = (socialData.publishResults || []).filter((r: any) => !r.success).length;
+            // Count failures for the status message
+            const failCount = (socialData.publishResults || []).filter((r: { success: boolean }) => !r.success).length;
 
             setStatus("success");
             if (failCount > 0) {
@@ -340,10 +343,10 @@ export default function AdminPage() {
                 setMessage("Plná automatizácia úspešne dokončená! Článok aj príspevky sú vonku.");
             }
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("Full Automation failed:", error);
             setStatus("error");
-            setMessage(error.message || "Chyba počas plnej automatizácie.");
+            setMessage(error instanceof Error ? error.message : "Chyba počas plnej automatizácie.");
         } finally {
             setIsFullAutomationLoading(false);
             setTimeout(() => {
@@ -514,99 +517,12 @@ export default function AdminPage() {
         }
     };
 
+    // handlePublishNextPendingArticle commented out as it is currently unused
+    /*
     const handlePublishNextPendingArticle = async () => {
-        // Find next eligible article (has both IG and FB as drafts, but none as posted)
-        const grouped = plannedPosts.reduce((acc, post) => {
-            if (!acc[post.article_id]) acc[post.article_id] = [];
-            acc[post.article_id].push(post);
-            return acc;
-        }, {} as Record<string, SocialPost[]>);
-
-        let targetArticleId = null;
-        let targetTitle = "";
-        let postsToPublish: SocialPost[] = [];
-
-        // Hľadáme článok, ktorý má obe platformy (IG aj FB) v stave 'draft' a nemá ani jednu 'posted'
-        for (const articleId in grouped) {
-            const posts = grouped[articleId];
-            const instagram = posts.find(p => p.platform === 'Instagram' && p.status === 'draft');
-            const facebook = posts.find(p => p.platform === 'Facebook' && p.status === 'draft');
-            const alreadyPosted = posts.some(p => p.status === 'posted' && (p.platform === 'Instagram' || p.platform === 'Facebook'));
-
-            if (instagram && facebook && !alreadyPosted) {
-                targetArticleId = articleId;
-                targetTitle = instagram.articles?.title || facebook.articles?.title || "";
-                postsToPublish = [instagram, facebook];
-                break;
-            }
-        }
-
-        if (!targetArticleId) {
-            setMessage("Nenašiel sa žiadny nový článok čakajúci na obe platformy.");
-            setStatus("error");
-            setTimeout(() => setStatus("idle"), 3000);
-            return;
-        }
-
-        // 1. Nastavíme dáta pre SKRYTÝ RENDERER (neotvárame modal!)
-        setAutomationArticleData({ id: targetArticleId, title: targetTitle });
-        setStatus("loading");
-        setMessage("Pripravujem vizuál príspevku...");
-
-        // 2. Musíme počkať na render DOM prvku skrytého preview
-        // Skúsime ho nájsť viackrát pre lepšiu stabilitu
-        let previewEl = null;
-        for (let i = 0; i < 15; i++) {
-            previewEl = document.getElementById('automation-preview-capture');
-            if (previewEl) break;
-            await new Promise(r => setTimeout(r, 200));
-        }
-
-        try {
-            if (!previewEl) throw new Error("Nepodarilo sa vygenerovať náhľad príspevku.");
-
-            // Krátka pauza pre stabilitu vykreslenia (fonty, styling)
-            await new Promise(r => setTimeout(r, 500));
-
-            // Zachytíme obrázok
-            const imageBlob = await toBlob(previewEl, { cacheBust: true, width: 1080, height: 1080, pixelRatio: 1 });
-
-            let successCount = 0;
-            for (const post of postsToPublish) {
-                setMessage(`Publikujem na ${post.platform}...`);
-                const formData = new FormData();
-                formData.append("id", post.id);
-                formData.append("secret", "make-com-webhook-secret");
-                if (imageBlob) {
-                    formData.append("image", imageBlob, "social-post.png");
-                }
-
-                const res = await fetch("/api/admin/publish-social-post", { method: "POST", body: formData });
-                const resData = await res.json();
-
-                if (res.ok) {
-                    successCount++;
-                } else {
-                    console.error(`Failed to publish to ${post.platform}:`, resData.error);
-                }
-            }
-
-            if (successCount > 0) {
-                setStatus("success");
-                setMessage(`Článok "${targetTitle.substring(0, 30)}..." bol úspešne publikovaný! (${successCount}/2 platforiem)`);
-                await fetchPlannedPosts();
-            } else {
-                throw new Error("Vyskytla sa chyba pri komunikácii s Meta API. Skontroluj konzolu.");
-            }
-        } catch (e) {
-            console.error(e);
-            setStatus("error");
-            setMessage("Chyba pri automatickom publikovaní príspevku.");
-        } finally {
-            setAutomationArticleData(null);
-            setTimeout(() => setStatus("idle"), 4000);
-        }
+        // ...
     };
+    */
 
     const fetchAutopilotSettings = async () => {
         // Fetch Auto Pilot
@@ -1259,11 +1175,14 @@ export default function AdminPage() {
         handleSaveSocialBotSettings(newSettings);
     };
 
+    // handleRunAutopilotNow commented out because it is currently unused
+    /*
     const handleRunAutopilotNow = async () => {
         if (confirm("Spustiť AI Autopilota teraz? Spracuje jeden článok z každej kategórie a publikuje ich.")) {
             await executeAutopilotRun();
         }
     };
+    */
 
     const handleOpenAutopilotHistory = async () => {
         setIsAutopilotHistoryOpen(true);

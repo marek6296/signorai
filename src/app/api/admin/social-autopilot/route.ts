@@ -38,7 +38,7 @@ export async function POST(req: Request) {
         }
 
         // 1. Fetch articles
-        let availableArticles: any[] = [];
+        let availableArticles: { id: string; title: string; excerpt: string; category: string; slug: string; published_at: string; main_image?: string }[] = [];
         const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
         if (articleId) {
@@ -84,7 +84,7 @@ export async function POST(req: Request) {
 
                 const existsByTitle = allExistingPosts?.some(p => {
                     const articlesData = p.articles;
-                    const t = Array.isArray(articlesData) ? (articlesData as any[])[0]?.title : (articlesData as any)?.title;
+                    const t = Array.isArray(articlesData) ? (articlesData as { title: string }[])[0]?.title : (articlesData as { title: string })?.title;
                     return t?.trim().toLowerCase() === article.title.trim().toLowerCase();
                 });
                 if (existsByTitle) return false;
@@ -222,9 +222,10 @@ Perex: ${article.excerpt}`;
                     } else {
                         throw new Error(publishData.error || "Publishing failed");
                     }
-                } catch (publishError: any) {
-                    console.error(`>>> [Social Autopilot] Auto-publish failed for ${post.platform}:`, publishError.message || publishError);
-                    publishedResults.push({ id: savedPost.id, platform: post.platform, success: false, error: String(publishError.message || publishError) });
+                } catch (publishError: unknown) {
+                    const errMsg = publishError instanceof Error ? publishError.message : String(publishError);
+                    console.error(`>>> [Social Autopilot] Auto-publish failed for ${post.platform}:`, errMsg);
+                    publishedResults.push({ id: savedPost.id, platform: post.platform, success: false, error: errMsg });
                 }
             }
         }
