@@ -35,14 +35,30 @@ export async function GET(
 
         const title = post.articles?.title || 'Novinky zo sveta AI';
 
-        // Load Syne font (using a more reliable CDN approach or fallback)
-        let syneBold;
+        // Load Syne font with extra safety
+        let syneBold: ArrayBuffer | undefined;
         try {
-            syneBold = await fetch(
-                new URL('https://fonts.gstatic.com/s/syne/v22/8UA9YrtN6Z7S6Z5Y2Q.woff', 'https://fonts.googleapis.com')
-            ).then((res) => res.arrayBuffer());
-        } catch {
-            console.error("Font load failed, using system font");
+            const fontRes = await fetch(
+                new URL('https://fonts.gstatic.com/s/syne/v22/8UA9YrtN6Z7S6Z5Y2Q.woff', 'https://fonts.googleapis.com'),
+                { cache: 'no-store' }
+            );
+
+            if (fontRes.ok) {
+                const contentType = fontRes.headers.get('content-type');
+                if (contentType && !contentType.includes('text/html')) {
+                    const buffer = await fontRes.arrayBuffer();
+                    // Check for OpenType/WOFF signature (not '<!DO')
+                    const view = new Uint8Array(buffer.slice(0, 4));
+                    const signature = String.fromCharCode(view[0], view[1], view[2], view[3]);
+                    if (signature !== '<!DO' && signature !== '<htm') {
+                        syneBold = buffer;
+                    } else {
+                        console.error("[Social Image] Font fetch returned HTML instead of binary.");
+                    }
+                }
+            }
+        } catch (e) {
+            console.error("[Social Image] Font load failed:", e);
         }
 
         return new ImageResponse(
