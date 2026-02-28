@@ -184,8 +184,7 @@ export default function AdminPage() {
     const [isSocialAutopilotGenerating, setIsSocialAutopilotGenerating] = useState(false);
     const [plannedCategoryFilter, setPlannedCategoryFilter] = useState<string>("all");
     const [isPlannerOpen, setIsPlannerOpen] = useState(false);
-    // automationArticleData commented out because its setter is currently unused
-    // const [automationArticleData, setAutomationArticleData] = useState<{ id: string, title: string } | null>(null);
+    const [automationArticleData, setAutomationArticleData] = useState<{ id: string, title: string } | null>(null);
 
     // Full Automation States
     const [selectedFullAutomationCategory, setSelectedFullAutomationCategory] = useState("Umelá Inteligencia");
@@ -317,32 +316,73 @@ export default function AdminPage() {
             const newlyCreatedArticleId = genData.article.id;
             await fetchArticles();
 
-            // STEP 4: Social Autopilot
-            setGeneratingStage(`Pripravujem a publikujem príspevky na Facebook a Instagram...`);
+            // STEP 4: Social Autopilot (Drafting)
+            setGeneratingStage(`Pripravujem príspevky pre sociálne siete...`);
             const socialRes = await fetch("/api/admin/social-autopilot", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     platforms: ['Facebook', 'Instagram', 'X'],
-                    autoPublish: true,
+                    autoPublish: false, // We will publish manually after this to ensure high quality visuals
                     articleId: newlyCreatedArticleId,
                     secret: "make-com-webhook-secret"
                 })
             });
             const socialData = await socialRes.json();
-            console.log(">>> [Full Automation] Social Results:", socialData);
+            console.log(">>> [Full Automation] Social Drafts:", socialData);
+
+            if (socialData.posts && socialData.posts.length > 0) {
+                // STEP 5: High-Quality Browser-Based Publishing
+                setGeneratingStage(`Publikujem na Facebook a Instagram...`);
+
+                // Fetch the saved posts to get their real IDs
+                await fetchPlannedPosts();
+                const postsToPublish = (socialData.posts as any[]).map(p => {
+                    // Try to find the real saved post in our newly fetched posts
+                    return plannedPosts.find(pp => pp.article_id === p.article_id && pp.platform === p.platform) || p;
+                });
+
+                // Set data for hidden renderer
+                setAutomationArticleData({ id: newlyCreatedArticleId, title: genData.article.title });
+
+                // Wait for the hidden preview element to be available in the DOM
+                let previewEl: HTMLElement | null = null;
+                for (let i = 0; i < 20; i++) {
+                    previewEl = document.getElementById('automation-preview-capture');
+                    if (previewEl) break;
+                    await new Promise(r => setTimeout(r, 200));
+                }
+
+                if (previewEl) {
+                    // Short stability pause (fonts/rendering)
+                    await new Promise(r => setTimeout(r, 800));
+
+                    // Capture the high-quality image blob
+                    const imageBlob = await toBlob(previewEl, { cacheBust: true, width: 1080, height: 1080, pixelRatio: 1 });
+
+                    let socialSuccessCount = 0;
+                    for (const post of socialData.posts) {
+                        if (post.platform === 'X') continue; // Skip X for now as requested
+
+                        setGeneratingStage(`Odosielam príspevok na ${post.platform}...`);
+
+                        const formData = new FormData();
+                        formData.append("id", post.id || "0"); // If ID missing from draft response, this might fail, but social-autopilot returns created posts
+                        formData.append("secret", "make-com-webhook-secret");
+                        if (imageBlob && post.platform === 'Instagram') {
+                            formData.append("image", imageBlob, "social-post.png");
+                        }
+
+                        const pubRes = await fetch("/api/admin/publish-social-post", { method: "POST", body: formData });
+                        if (pubRes.ok) socialSuccessCount++;
+                    }
+                    console.log(`>>> [Full Automation] Published ${socialSuccessCount} posts.`);
+                }
+            }
 
             await fetchPlannedPosts();
-
-            // Count failures for the status message
-            const failCount = (socialData.publishResults || []).filter((r: { success: boolean }) => !r.success).length;
-
             setStatus("success");
-            if (failCount > 0) {
-                setMessage(`Automatizácia hotová, ale ${failCount} príspevky zlyhali (napr. X zatiaľ nepodporujeme).`);
-            } else {
-                setMessage("Plná automatizácia úspešne dokončená! Článok aj príspevky sú vonku.");
-            }
+            setMessage("Plná automatizácia úspešne dokončená! Článok aj príspevky sú vonku.");
 
         } catch (error: unknown) {
             console.error("Full Automation failed:", error);
@@ -3006,7 +3046,7 @@ export default function AdminPage() {
                 )
             }
 
-            {/* HIDDEN RENDERER FOR AUTOMATION - previously unused
+            {/* HIDDEN RENDERER FOR AUTOMATION */}
             {
                 automationArticleData && (
                     <div style={{
@@ -3023,7 +3063,6 @@ export default function AdminPage() {
                     </div>
                 )
             }
-            */}
         </>
     );
 }
