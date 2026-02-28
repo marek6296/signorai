@@ -56,6 +56,7 @@ type SocialBotSettings = {
     target_categories: string[];
     last_run?: string;
     last_status?: string;
+    last_category_index?: number;
 };
 
 type SocialPost = {

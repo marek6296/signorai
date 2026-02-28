@@ -77,19 +77,36 @@ export async function GET(req: NextRequest) {
             }
         }
 
-        // 3. Category Selection
-        const categories = settings.target_categories || ["Umelá Inteligencia"];
-        const category = categories[Math.floor(Math.random() * categories.length)];
+        // 3. Category Selection (Round Robin)
+        const categories = settings.target_categories && settings.target_categories.length > 0
+            ? settings.target_categories
+            : ["Umelá Inteligencia"];
+
+        let categoryIndex = (settings.last_category_index !== undefined)
+            ? (settings.last_category_index + 1) % categories.length
+            : 0;
+
+        // Safety: if categories changed and index is now invalid
+        if (categoryIndex >= categories.length) categoryIndex = 0;
+
+        const category = categories[categoryIndex];
+
+        // Prepare updated settings base
+        const baseSettings = {
+            ...settings,
+            last_run: new Date().toISOString(),
+            last_category_index: categoryIndex
+        };
 
         console.log(`>>> [Bot] Starting automation for category: ${category}`);
 
         // 4. Discovery
-        await supabase.from('site_settings').update({ value: { ...settings, last_run: new Date().toISOString(), last_status: `Aktívny (Hľadám novinky v ${category}...)` } }).eq('key', 'social_bot');
+        await supabase.from('site_settings').update({ value: { ...baseSettings, last_status: `Aktívny (Hľadám novinky v ${category}...)` } }).eq('key', 'social_bot');
         const foundItems = await discoverNewNews(3, [category]);
         if (foundItems.length === 0) {
             await supabase
                 .from('site_settings')
-                .update({ value: { ...settings, last_run: new Date().toISOString(), last_status: `Aktívny (Žiadne nové správy v kategórii ${category})` } })
+                .update({ value: { ...baseSettings, last_status: `Aktívny (Žiadne nové správy v kategórii ${category})` } })
                 .eq('key', 'social_bot');
             return NextResponse.json({ message: `No new items found for ${category}` });
         }
@@ -106,7 +123,7 @@ export async function GET(req: NextRequest) {
         if (freshItems.length === 0) {
             await supabase
                 .from('site_settings')
-                .update({ value: { ...settings, last_run: new Date().toISOString(), last_status: `Aktívny (Všetky novinky v ${category} už boli spracované)` } })
+                .update({ value: { ...baseSettings, last_status: `Aktívny (Všetky novinky v ${category} už boli spracované)` } })
                 .eq('key', 'social_bot');
             return NextResponse.json({ message: "All discovered items are already processed" });
         }
@@ -115,12 +132,12 @@ export async function GET(req: NextRequest) {
         console.log(`>>> [Bot] Selected target: ${target.title} (${target.url})`);
 
         // 6. Generate Article
-        await supabase.from('site_settings').update({ value: { ...settings, last_run: new Date().toISOString(), last_status: `Aktívny (Píšem článok: ${target.title}...)` } }).eq('key', 'social_bot');
+        await supabase.from('site_settings').update({ value: { ...baseSettings, last_status: `Aktívny (Píšem článok: ${target.title}...)` } }).eq('key', 'social_bot');
         const article = await processArticleFromUrl(target.url, 'published', category);
         console.log(`>>> [Bot] Article generated: ${article.id}`);
 
         // 7. Generate Social Posts
-        await supabase.from('site_settings').update({ value: { ...settings, last_run: new Date().toISOString(), last_status: `Aktívny (Publikujem na sociálne siete...)` } }).eq('key', 'social_bot');
+        await supabase.from('site_settings').update({ value: { ...baseSettings, last_status: `Aktívny (Publikujem na sociálne siete...)` } }).eq('key', 'social_bot');
 
         const origin = req.nextUrl.origin;
 
@@ -146,7 +163,7 @@ export async function GET(req: NextRequest) {
         const finalStatus = `Úspešne publikované: ${article.title}`;
         await supabase
             .from('site_settings')
-            .update({ value: { ...settings, last_run: new Date().toISOString(), last_status: finalStatus } })
+            .update({ value: { ...baseSettings, last_status: finalStatus } })
             .eq('key', 'social_bot');
 
         return NextResponse.json({
