@@ -83,6 +83,9 @@ export async function POST(req: Request) {
 
                 finalImageUrl = publicUrl;
                 console.log(`[Instagram Direct Upload] Success: ${finalImageUrl}`);
+
+                // Give Supabase Storage a moment to ensure the file is publicly available for Meta's crawlers
+                await new Promise(r => setTimeout(r, 2000));
             } catch (err) {
                 console.error("[Instagram Direct Upload Failed]", err);
             }

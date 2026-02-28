@@ -40,6 +40,8 @@ export async function publishToInstagram(imageUrl: string, caption: string) {
         throw new Error("Missing Instagram configuration (IG_BUSINESS_ACCOUNT_ID or META_ACCESS_TOKEN)");
     }
 
+    console.log(`[Meta API] Starting Instagram publish with image: ${imageUrl.substring(0, 50)}...`);
+
     // 1. Create Media Container
     const containerUrl = `https://graph.facebook.com/v22.0/${IG_BUSINESS_ACCOUNT_ID}/media`;
     const containerParams = new URLSearchParams({
@@ -59,6 +61,15 @@ export async function publishToInstagram(imageUrl: string, caption: string) {
     }
 
     const creationId = containerData.id;
+    if (!creationId) {
+        console.error("Instagram API returned success but no ID:", containerData);
+        throw new Error("Meta API did not return a Media ID (Creation ID).");
+    }
+
+    console.log(`[Meta API] Media container created: ${creationId}. Waiting for processing...`);
+
+    // Wait a bit for Meta to process the image from the URL (especially for new Supabase uploads)
+    await new Promise(r => setTimeout(r, 2000));
 
     // 2. Publish Media Container
     const publishUrl = `https://graph.facebook.com/v22.0/${IG_BUSINESS_ACCOUNT_ID}/media_publish`;
@@ -67,15 +78,30 @@ export async function publishToInstagram(imageUrl: string, caption: string) {
         access_token: META_ACCESS_TOKEN,
     });
 
-    const publishResponse = await fetch(`${publishUrl}?${publishParams.toString()}`, {
-        method: "POST",
-    });
+    // Strategy: Small retry for the actual publish if it says "not ready" or similar
+    let publishData;
+    let lastError = null;
 
-    const publishData = await publishResponse.json();
-    if (!publishResponse.ok) {
-        console.error("Instagram Publish Error:", publishData);
-        throw new Error(publishData.error?.message || "Failed to publish Instagram media");
+    for (let attempt = 1; attempt <= 3; attempt++) {
+        const publishResponse = await fetch(`${publishUrl}?${publishParams.toString()}`, {
+            method: "POST",
+        });
+
+        publishData = await publishResponse.json();
+        if (publishResponse.ok) {
+            console.log(`[Meta API] Instagram post published successfully: ${publishData.id}`);
+            return publishData;
+        }
+
+        lastError = publishData.error?.message || "Unknown error during publish";
+        console.warn(`[Meta API] Instagram publish attempt ${attempt} failed: ${lastError}`);
+
+        if (attempt < 3) {
+            const delay = attempt * 2000;
+            console.log(`[Meta API] Retrying in ${delay}ms...`);
+            await new Promise(r => setTimeout(r, delay));
+        }
     }
 
-    return publishData;
+    throw new Error(`Failed to publish Instagram media after retries: ${lastError}`);
 }
