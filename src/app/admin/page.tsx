@@ -469,15 +469,21 @@ export default function AdminPage() {
                 }
 
                 const res = await fetch("/api/admin/publish-social-post", { method: "POST", body: formData });
-                if (res.ok) successCount++;
+                const resData = await res.json();
+
+                if (res.ok) {
+                    successCount++;
+                } else {
+                    console.error(`Failed to publish to ${post.platform}:`, resData.error);
+                }
             }
 
             if (successCount > 0) {
                 setStatus("success");
-                setMessage(`Článok "${targetTitle.substring(0, 30)}..." bol úspešne publikovaný!`);
+                setMessage(`Článok "${targetTitle.substring(0, 30)}..." bol úspešne publikovaný! (${successCount}/2 platforiem)`);
                 await fetchPlannedPosts();
             } else {
-                throw new Error("Nepodarilo sa publikovať ani na jednu platformu.");
+                throw new Error("Vyskytla sa chyba pri komunikácii s Meta API. Skontroluj konzolu.");
             }
         } catch (e) {
             console.error(e);
@@ -2934,10 +2940,17 @@ export default function AdminPage() {
 
             {/* HIDDEN RENDERER FOR AUTOMATION */}
             {automationArticleData && (
-                <div style={{ position: 'fixed', top: '-5000px', left: '-5000px', opacity: 0, pointerEvents: 'none' }}>
-                    <div style={{ width: '1080px', height: '1080px' }}>
-                        <InstagramPreview title={automationArticleData.title} id="automation-preview-capture" />
-                    </div>
+                <div style={{
+                    position: 'fixed',
+                    top: '-10000px',
+                    left: '0px',
+                    width: '1080px',
+                    height: '1080px',
+                    zIndex: -100,
+                    pointerEvents: 'none',
+                    background: 'black'
+                }}>
+                    <InstagramPreview title={automationArticleData.title} id="automation-preview-capture" />
                 </div>
             )}
         </>

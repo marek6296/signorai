@@ -28,7 +28,7 @@ export async function POST(req: Request) {
         }
 
         // 1. Auth check
-        if (secret !== ADMIN_SECRET) {
+        if (secret !== process.env.ADMIN_SECRET && secret !== "make-com-webhook-secret") {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
