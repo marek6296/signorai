@@ -45,17 +45,49 @@ export async function POST(req: Request) {
         const article = post.articles;
         const articleUrl = `https://postovinky.news/article/${article?.slug}`;
 
-        // Final image determination: 
-        // 1. If customImageUrl provided in request, use it.
-        // 2. Otherwise, for Instagram, use our brand generator.
-        let imageUrl = customImageUrl || article?.main_image;
+        let finalImageUrl = customImageUrl || article?.main_image;
 
         if (post.platform === 'Instagram' && !customImageUrl) {
-            // Force a fresh fetch by adding a timestamp to bypass Vercel's stale 0-byte cache
-            const host = req.headers.get("host") || "postovinky.news";
-            const protocol = host.includes("localhost") ? "http" : "https";
-            imageUrl = `${protocol}://${host}/api/social-image/${id}.png?t=${Date.now()}`;
-            console.log(`[Instagram Debug] Publishing with fresh URL: ${imageUrl}`);
+            try {
+                // Generate the dynamic image URL
+                const host = req.headers.get("host") || "postovinky.news";
+                const protocol = host.includes("localhost") ? "http" : "https";
+                const generatorUrl = `${protocol}://${host}/api/social-image/${id}.png?t=${Date.now()}`;
+
+                console.log(`[Instagram Storage] Fetching image from: ${generatorUrl}`);
+
+                // Step A: Fetch the image bytes from our own generator
+                const imageRes = await fetch(generatorUrl);
+                const imageBuffer = await imageRes.arrayBuffer();
+
+                if (imageBuffer.byteLength === 0) {
+                    throw new Error("Generator returned 0 bytes. Fallback to main image.");
+                }
+
+                // Step B: Upload to Supabase Storage
+                const fileName = `${id}-${Date.now()}.png`;
+                const { data: uploadData, error: uploadError } = await supabase.storage
+                    .from("social-images")
+                    .upload(fileName, imageBuffer, {
+                        contentType: 'image/png',
+                        upsert: true
+                    });
+
+                if (uploadError) throw uploadError;
+
+                // Step C: Get Public URL
+                const { data: { publicUrl } } = supabase.storage
+                    .from("social-images")
+                    .getPublicUrl(fileName);
+
+                finalImageUrl = publicUrl;
+                console.log(`[Instagram Storage] Successfully uploaded to: ${finalImageUrl}`);
+
+            } catch (storageError) {
+                console.error("[Instagram Storage Error]", storageError);
+                // Fallback to article main image if generation/upload fails
+                finalImageUrl = article?.main_image || finalImageUrl;
+            }
         }
 
         // 3. Publish based on platform
@@ -63,11 +95,9 @@ export async function POST(req: Request) {
         if (post.platform === 'Facebook') {
             result = await publishToFacebook(post.content, articleUrl);
         } else if (post.platform === 'Instagram') {
-            if (!imageUrl) throw new Error("Instagram requires an image.");
-            result = await publishToInstagram(imageUrl, post.content);
+            if (!finalImageUrl) throw new Error("Instagram requires an image.");
+            result = await publishToInstagram(finalImageUrl, post.content);
         } else if (post.platform === 'X') {
-            // Placeholder for X (Twitter) API
-            // For now, we skip but mark as done if user wants just automation for FB/IG
             console.log("X (Twitter) publishing not implemented yet.");
             throw new Error("X (Twitter) API for automated publishing is not configured yet.");
         } else {
