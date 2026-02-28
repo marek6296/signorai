@@ -118,11 +118,12 @@ export async function GET(req: NextRequest) {
             social: autopilotData
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const errorMsg = error instanceof Error ? error.message : "Internal server error";
         console.error(">>> [Bot] CRITICAL ERROR:", error);
         return NextResponse.json({
             error: true,
-            message: error.message || "Internal server error"
+            message: errorMsg
         }, { status: 500 });
     }
 }
