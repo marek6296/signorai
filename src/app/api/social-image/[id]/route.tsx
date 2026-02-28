@@ -2,7 +2,7 @@ import { ImageResponse } from 'next/og';
 import { NextRequest } from 'next/server';
 import { createClient } from "@supabase/supabase-js";
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -190,10 +190,6 @@ export async function GET(
                         style: 'normal',
                     },
                 ],
-                headers: {
-                    'Content-Type': 'image/png',
-                    'Cache-Control': 'public, max-age=31536000, immutable',
-                },
             }
         );
     } catch (e: unknown) {
