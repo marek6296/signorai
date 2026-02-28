@@ -6,6 +6,10 @@
         {
             "path": "/api/admin/auto-pilot?secret=make-com-webhook-secret",
             "schedule": "0 * * * *"
+        },
+        {
+            "path": "/api/admin/bot-full-automation?secret=make-com-webhook-secret",
+            "schedule": "*/20 * * * *"
         }
     ]
 }

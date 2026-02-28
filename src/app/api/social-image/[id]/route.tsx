@@ -72,42 +72,34 @@ export async function GET(
                         alignItems: 'center',
                         justifyContent: 'center',
                         backgroundColor: '#000',
+                        backgroundImage: 'radial-gradient(circle at top right, rgba(18, 246, 198, 0.08), transparent 400px), radial-gradient(circle at bottom left, rgba(18, 246, 198, 0.05), transparent 400px)',
                         padding: '80px',
                         position: 'relative',
                         overflow: 'hidden',
                     }}
                 >
-                    {/* Background Accents */}
+                    {/* Background Blurred Logo Effect */}
                     <div
                         style={{
                             position: 'absolute',
-                            top: '-250px',
-                            right: '-250px',
-                            width: '800px',
-                            height: '800px',
+                            top: '50%',
+                            left: '50%',
+                            transform: 'translate(-50%, -50%)',
+                            width: '900px',
+                            height: '900px',
                             borderRadius: '50%',
-                            background: 'radial-gradient(circle, rgba(18, 246, 198, 0.15) 0%, rgba(18, 246, 198, 0) 70%)',
-                        }}
-                    />
-                    <div
-                        style={{
-                            position: 'absolute',
-                            bottom: '-400px',
-                            left: '-400px',
-                            width: '1000px',
-                            height: '1000px',
-                            borderRadius: '50%',
-                            background: 'radial-gradient(circle, rgba(18, 246, 198, 0.1) 0%, rgba(18, 246, 198, 0) 70%)',
+                            background: 'radial-gradient(circle, rgba(18, 246, 198, 0.03) 0%, rgba(18, 246, 198, 0) 70%)',
                         }}
                     />
 
-                    {/* Top Logo */}
+                    {/* Top Branding */}
                     <div
                         style={{
                             position: 'absolute',
                             top: '120px',
                             display: 'flex',
                             alignItems: 'baseline',
+                            gap: '12px',
                         }}
                     >
                         <span
@@ -118,6 +110,7 @@ export async function GET(
                                 textTransform: 'uppercase',
                                 color: '#fff',
                                 letterSpacing: '-0.03em',
+                                margin: 0,
                             }}
                         >
                             POSTOVINKY
@@ -128,8 +121,7 @@ export async function GET(
                                 fontWeight: 900,
                                 fontSize: '18px',
                                 textTransform: 'uppercase',
-                                letterSpacing: '0.3em',
-                                marginLeft: '12px',
+                                letterSpacing: '0.4em',
                                 transform: 'translateY(-6px)',
                             }}
                         >
@@ -144,40 +136,47 @@ export async function GET(
                             flexDirection: 'column',
                             alignItems: 'center',
                             textAlign: 'center',
-                            maxWidth: '940px',
+                            maxWidth: '1000px',
                         }}
                     >
+                        {/* Top Line */}
                         <div
                             style={{
-                                width: '140px',
-                                height: '6px',
+                                width: '160px',
+                                height: '8px',
                                 backgroundColor: '#12F6C6',
-                                marginBottom: '50px',
-                                borderRadius: '99px',
+                                marginBottom: '60px',
+                                borderRadius: '100px',
+                                boxShadow: '0 0 20px rgba(18, 246, 198, 0.2)',
                             }}
                         />
-                        <h2
+
+                        <h1
                             style={{
-                                fontSize: '84px',
+                                fontSize: title.length > 50 ? '72px' : '88px',
                                 fontWeight: 800,
-                                lineHeight: 1.1,
+                                lineHeight: 1.05,
                                 color: '#fff',
                                 textTransform: 'uppercase',
                                 letterSpacing: '-0.02em',
                                 margin: 0,
-                                wordSpacing: '0.2em',
+                                padding: '0 20px',
                                 fontFamily: syneBold ? 'Syne' : 'sans-serif',
+                                wordSpacing: '0.1em',
                             }}
                         >
                             {title}
-                        </h2>
+                        </h1>
+
+                        {/* Bottom Line */}
                         <div
                             style={{
-                                width: '140px',
-                                height: '6px',
+                                width: '160px',
+                                height: '8px',
                                 backgroundColor: '#12F6C6',
-                                marginTop: '50px',
-                                borderRadius: '99px',
+                                marginTop: '60px',
+                                borderRadius: '100px',
+                                boxShadow: '0 0 20px rgba(18, 246, 198, 0.2)',
                             }}
                         />
                     </div>
@@ -187,19 +186,18 @@ export async function GET(
                         style={{
                             position: 'absolute',
                             bottom: '100px',
-                            backgroundColor: 'rgba(255,255,255,0.05)',
-                            border: '1px solid rgba(255,255,255,0.1)',
-                            color: '#fff',
-                            padding: '20px 50px',
-                            borderRadius: '99px',
-                            fontWeight: 600,
-                            fontSize: '24px',
-                            letterSpacing: '0.1em',
+                            backgroundColor: 'rgba(255,256,255,0.03)',
+                            border: '1.5px solid rgba(255,255,255,0.1)',
+                            color: 'rgba(255,255,255,0.7)',
+                            padding: '18px 54px',
+                            borderRadius: '100px',
+                            fontWeight: 700,
+                            fontSize: '22px',
+                            letterSpacing: '0.15em',
                             textTransform: 'uppercase',
-                            backdropFilter: 'blur(10px)',
                         }}
                     >
-                        www.postovinky.news
+                        WWW.POSTOVINKY.NEWS
                     </div>
                 </div>
             ),

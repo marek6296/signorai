@@ -53,6 +53,7 @@ type SocialBotSettings = {
     interval_hours: number;
     posting_times: string[];
     auto_publish: boolean;
+    target_categories: string[];
 };
 
 type SocialPost = {
@@ -122,7 +123,8 @@ export default function AdminPage() {
         enabled: false,
         interval_hours: 12,
         posting_times: ["09:00", "18:00"],
-        auto_publish: false
+        auto_publish: false,
+        target_categories: ["Umelá Inteligencia", "Tech"]
     });
 
     // Tab control – obnovíme z localStorage pri refreshi (prvý zápis preskočíme, aby sme neprepísali obnovenú kartu)
@@ -1735,7 +1737,7 @@ export default function AdminPage() {
                                             <div className="bg-indigo-500 text-white p-3 rounded-2xl shadow-lg shadow-indigo-500/30">
                                                 <Share2 className="w-6 h-6" />
                                             </div>
-                                            <h3 className="text-3xl font-black uppercase tracking-tight text-foreground">Social Sites Agent</h3>
+                                            <h3 className="text-3xl font-black uppercase tracking-tight text-foreground">Full Automation Bot</h3>
                                             {socialBotSettings.enabled ? (
                                                 <span className="bg-green-500 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest animate-pulse">Aktívny</span>
                                             ) : (
@@ -1743,7 +1745,7 @@ export default function AdminPage() {
                                             )}
                                         </div>
                                         <p className="text-muted-foreground font-medium text-lg leading-relaxed mb-8">
-                                            Automaticky publikuje naplánované príspevky v stanovených časoch a intervaloch pomocou Meta API.
+                                            Autonómny agent, ktorý v určených časoch sám <strong className="text-foreground">objaví</strong> novinky, <strong className="text-foreground">napíše</strong> články a <strong className="text-foreground">publikuje</strong> ich na web aj sociálne siete.
                                         </p>
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -1838,9 +1840,9 @@ export default function AdminPage() {
                                                 )}
                                             >
                                                 {socialBotSettings.enabled ? (
-                                                    <><RefreshCw className="w-4 h-4 animate-spin" /> Vypnúť Agenta</>
+                                                    <><RefreshCw className="w-4 h-4 animate-spin" /> Vypnúť Bota</>
                                                 ) : (
-                                                    <><Zap className="w-4 h-4 fill-current" /> Zapnúť Agenta</>
+                                                    <><Zap className="w-4 h-4 fill-current" /> Zapnúť Bota</>
                                                 )}
                                             </button>
                                         </div>
