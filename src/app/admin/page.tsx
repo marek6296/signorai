@@ -183,6 +183,7 @@ export default function AdminPage() {
     const [isSocialAutopilotGenerating, setIsSocialAutopilotGenerating] = useState(false);
     const [plannedCategoryFilter, setPlannedCategoryFilter] = useState<string>("all");
     const [isPlannerOpen, setIsPlannerOpen] = useState(false);
+    const [automationArticleData, setAutomationArticleData] = useState<{ id: string, title: string } | null>(null);
 
     const fetchArticles = async () => {
         setLoadingArticles(true);
@@ -409,6 +410,7 @@ export default function AdminPage() {
         }, {} as Record<string, SocialPost[]>);
 
         let targetArticleId = null;
+        let targetTitle = "";
         let postsToPublish: SocialPost[] = [];
 
         // Hľadáme článok, ktorý má obe platformy (IG aj FB) v stave 'draft' a nemá ani jednu 'posted'
@@ -420,6 +422,7 @@ export default function AdminPage() {
 
             if (instagram && facebook && !alreadyPosted) {
                 targetArticleId = articleId;
+                targetTitle = instagram.articles?.title || facebook.articles?.title || "";
                 postsToPublish = [instagram, facebook];
                 break;
             }
@@ -432,20 +435,28 @@ export default function AdminPage() {
             return;
         }
 
-        // 1. Zmeníme stav na loading a otvoríme "virtuálne" náhľad (cez modal)
-        setSelectedPlannerArticle(targetArticleId);
+        // 1. Nastavíme dáta pre SKRYTÝ RENDERER (neotvárame modal!)
+        setAutomationArticleData({ id: targetArticleId, title: targetTitle });
         setStatus("loading");
-        setMessage("Príprava vizuálu...");
+        setMessage("Pripravujem vizuál príspevku...");
 
-        // 2. Musíme počkať na render DOM prvku preview
-        await new Promise(r => setTimeout(r, 1200));
+        // 2. Musíme počkať na render DOM prvku skrytého preview
+        // Skúsime ho nájsť viackrát pre lepšiu stabilitu
+        let previewEl = null;
+        for (let i = 0; i < 15; i++) {
+            previewEl = document.getElementById('automation-preview-capture');
+            if (previewEl) break;
+            await new Promise(r => setTimeout(r, 200));
+        }
 
         try {
-            const previewEl = document.getElementById('instagram-preview-capture');
-            let imageBlob: Blob | null = null;
-            if (previewEl) {
-                imageBlob = await toBlob(previewEl, { cacheBust: true, width: 1080, height: 1080, pixelRatio: 1 });
-            }
+            if (!previewEl) throw new Error("Nepodarilo sa vygenerovať náhľad príspevku.");
+
+            // Krátka pauza pre stabilitu vykreslenia (fonty, styling)
+            await new Promise(r => setTimeout(r, 500));
+
+            // Zachytíme obrázok
+            const imageBlob = await toBlob(previewEl, { cacheBust: true, width: 1080, height: 1080, pixelRatio: 1 });
 
             let successCount = 0;
             for (const post of postsToPublish) {
@@ -463,7 +474,7 @@ export default function AdminPage() {
 
             if (successCount > 0) {
                 setStatus("success");
-                setMessage(`Článok úspešne publikovaný na ${successCount} platformy!`);
+                setMessage(`Článok "${targetTitle.substring(0, 30)}..." bol úspešne publikovaný!`);
                 await fetchPlannedPosts();
             } else {
                 throw new Error("Nepodarilo sa publikovať ani na jednu platformu.");
@@ -473,7 +484,7 @@ export default function AdminPage() {
             setStatus("error");
             setMessage("Chyba pri automatickom publikovaní príspevku.");
         } finally {
-            setSelectedPlannerArticle(null);
+            setAutomationArticleData(null);
             setTimeout(() => setStatus("idle"), 4000);
         }
     };
@@ -2916,10 +2927,19 @@ export default function AdminPage() {
                 status === "loading" && message && !isDiscoveringModalOpen && !isGeneratingModalOpen && !isAutopilotLoadingModalOpen && (
                     <div className="fixed bottom-12 left-1/2 -translate-x-1/2 bg-foreground text-background px-10 py-6 rounded-[32px] shadow-2xl flex items-center gap-4 z-[999] border border-white/10 ring-8 ring-black/5 whitespace-nowrap">
                         <RefreshCw className="w-6 h-6 animate-spin text-primary" />
-                        <span className="font-black uppercase tracking-[0.1em] text-[11px] italic">{message}</span>
+                        <span className="text-sm font-black uppercase tracking-widest">{message}</span>
                     </div>
                 )
             }
+
+            {/* HIDDEN RENDERER FOR AUTOMATION */}
+            {automationArticleData && (
+                <div style={{ position: 'fixed', top: '-5000px', left: '-5000px', opacity: 0, pointerEvents: 'none' }}>
+                    <div style={{ width: '1080px', height: '1080px' }}>
+                        <InstagramPreview title={automationArticleData.title} id="automation-preview-capture" />
+                    </div>
+                </div>
+            )}
         </>
     );
 }

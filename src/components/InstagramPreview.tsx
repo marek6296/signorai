@@ -8,9 +8,10 @@ import { cn } from '@/lib/utils';
 interface InstagramPreviewProps {
     title: string;
     articleImage?: string;
+    id?: string;
 }
 
-export function InstagramPreview({ title }: InstagramPreviewProps) {
+export function InstagramPreview({ title, id = "instagram-preview-capture" }: InstagramPreviewProps) {
     const previewRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [isCopied, setIsCopied] = useState(false);
@@ -111,7 +112,7 @@ export function InstagramPreview({ title }: InstagramPreviewProps) {
                 }}>
                     <div
                         ref={previewRef}
-                        id="instagram-preview-capture"
+                        id={id}
                         className="w-[1080px] h-[1080px] bg-black relative flex items-center justify-center p-20 overflow-hidden"
                     >
                         {/* Top Logo - Matched to Header */}
