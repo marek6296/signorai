@@ -58,7 +58,12 @@ export async function POST(req: Request) {
         const article = post.articles;
         const articleUrl = `https://postovinky.news/article/${article?.slug}`;
 
-        let finalImageUrl = customImageUrl || article?.main_image;
+        // Get current host for internal API calls
+        const currentHost = req.headers.get("host") || "postovinky.news";
+        const protocol = currentHost.includes("localhost") ? "http" : "https";
+        const baseDomain = `${protocol}://${currentHost}`;
+
+        let finalImageUrl = customImageUrl;
 
         // NEW: Handle direct image upload from client (bit-perfect preview)
         if (uploadedFile) {
@@ -90,13 +95,15 @@ export async function POST(req: Request) {
                 console.error("[Instagram Direct Upload Failed]", err);
             }
         }
-        // Fallback: Use server-side generator if no direct upload or it failed
-        else if (post.platform === 'Instagram' && !customImageUrl) {
+
+        // Fallback: If no direct image or if it's Instagram automation, try server-side generator
+        if (!finalImageUrl && post.platform === 'Instagram') {
             try {
-                const generatorUrl = `https://postovinky.news/api/social-image/${id}.png?t=${Date.now()}`;
+                const generatorUrl = `${baseDomain}/api/social-image/${id}.png?t=${Date.now()}`;
                 console.log(`[Instagram Storage Fallback] Using generator: ${generatorUrl}`);
 
-                await new Promise(r => setTimeout(r, 1000));
+                // Edge functions can take a moment to start/run
+                await new Promise(r => setTimeout(r, 1500));
                 const imageRes = await fetch(generatorUrl);
 
                 if (imageRes.ok) {
@@ -116,12 +123,21 @@ export async function POST(req: Request) {
                                 .getPublicUrl(fileName);
                             finalImageUrl = publicUrl;
                         }
+                    } else {
+                        console.warn("[Instagram Storage Fallback] Image too small, possibly failed generation.");
                     }
+                } else {
+                    console.error(`[Instagram Storage Fallback] Generator returned status ${imageRes.status}`);
                 }
             } catch (storageError) {
                 console.error("[Instagram Storage Fallback Error]", storageError);
-                finalImageUrl = article?.main_image || finalImageUrl;
             }
+        }
+
+        // Ultimate fallback for Instagram UNLESS we explicitly want the social image
+        // but for now, let's use the article image if everything else failed
+        if (!finalImageUrl) {
+            finalImageUrl = article?.main_image || undefined;
         }
 
         // 3. Publish based on platform
