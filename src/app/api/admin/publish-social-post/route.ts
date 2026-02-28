@@ -54,8 +54,14 @@ export async function POST(req: Request) {
             // Generate our branded social image URL using a clean ID-based path
             const host = req.headers.get("host") || "postovinky.news";
             const protocol = host.includes("localhost") ? "http" : "https";
-            imageUrl = `${protocol}://${host}/api/social-image/${id}.png`;
-            console.log(`[Instagram] Using generated brand image: ${imageUrl}`);
+            const generatedUrl = `${protocol}://${host}/api/social-image/${id}.png`;
+
+            // LOG FOR DEBUGGING - Check this in Vercel logs!
+            console.log(`[Instagram Debug] Generated URL: ${generatedUrl}`);
+            console.log(`[Instagram Debug] Article Main Image: ${article?.main_image}`);
+
+            // TEMPORARY: Use article image as fallback if generator might be the issue
+            imageUrl = generatedUrl;
         }
 
         // 3. Publish based on platform
