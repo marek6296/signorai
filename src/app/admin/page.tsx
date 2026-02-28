@@ -301,7 +301,7 @@ export default function AdminPage() {
             const { data: latestArticles } = await supabase.from("articles").select("source_url");
             const existingUrls = (latestArticles || []).map(a => (a.source_url || "").trim().toLowerCase());
 
-            const freshItems = foundItems.filter((item: any) => {
+            const freshItems = foundItems.filter((item: SuggestedNews) => {
                 const url = (item.url || "").trim().toLowerCase();
                 return url && !existingUrls.includes(url);
             });
