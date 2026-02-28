@@ -183,12 +183,18 @@ export default function AdminPage() {
                 return h * 3600 + m * 60;
             }).sort((a, b) => a - b);
 
-            let nextTimeInSeconds = timesInSeconds.find(t => t > currTotalSeconds);
+            let nextTimeInSeconds = timesInSeconds.find(t => t >= currTotalSeconds);
             if (nextTimeInSeconds === undefined) {
                 nextTimeInSeconds = timesInSeconds[0] + 24 * 3600;
             }
 
             const diffSeconds = nextTimeInSeconds - currTotalSeconds;
+
+            // Trigger when exactly at time
+            if (diffSeconds === 0 && !isBotRunning) {
+                triggerBotAutomation();
+            }
+
             const h = Math.floor(diffSeconds / 3600);
             const m = Math.floor((diffSeconds % 3600) / 60);
             const s = diffSeconds % 60;
@@ -199,13 +205,6 @@ export default function AdminPage() {
             parts.push(`${s}s`);
 
             setCountdownToNext(parts.join(' '));
-
-            // If we are at exactly 0 (or within a 2-second window of the scheduled time) 
-            // and the bot isn't already marked as running, we could trigger it.
-            // But to avoid multiple triggers, we just check if diffSeconds is 0.
-            if (diffSeconds <= 0 && !isBotRunning) {
-                triggerBotAutomation();
-            }
         };
 
         const triggerBotAutomation = async () => {
