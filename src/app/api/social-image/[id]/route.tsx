@@ -18,7 +18,7 @@ export async function GET(
         const id = params.id.split('.')[0];
 
         // Fetch the social post with article title
-        const { data: post, error } = await supabase
+        const { data: post, error: postError } = await supabase
             .from("social_posts")
             .select(`
                 *,
@@ -29,16 +29,38 @@ export async function GET(
             .eq("id", id)
             .single();
 
-        if (error || !post) {
+        if (postError || !post) {
             return new Response(`Post not found`, { status: 404 });
         }
 
         const title = post.articles?.title || 'Novinky zo sveta AI';
 
-        // Load Syne font
-        const syneBold = await fetch(
-            new URL('https://fonts.gstatic.com/s/syne/v22/8UA9YrtN6Z7S6Z5Y2Q.woff', 'https://fonts.googleapis.com')
-        ).then((res) => res.arrayBuffer());
+        // Attempt to load Syne font, fallback to default if it fails
+        let fontData: ArrayBuffer | null = null;
+        try {
+            fontData = await fetch(
+                new URL('https://fonts.gstatic.com/s/syne/v22/8UA9YrtN6Z7S6Z5Y2Q.woff', 'https://fonts.googleapis.com'),
+                { cache: 'no-store' }
+            ).then((res) => res.arrayBuffer());
+        } catch (fontError) {
+            console.error('Font loading failed, using default:', fontError);
+        }
+
+        const imageResponseOptions: any = {
+            width: 1080,
+            height: 1080,
+        };
+
+        if (fontData) {
+            imageResponseOptions.fonts = [
+                {
+                    name: 'Syne',
+                    data: fontData,
+                    weight: 800,
+                    style: 'normal',
+                },
+            ];
+        }
 
         return new ImageResponse(
             (
@@ -54,6 +76,7 @@ export async function GET(
                         padding: '80px',
                         position: 'relative',
                         overflow: 'hidden',
+                        fontFamily: fontData ? 'Syne' : 'sans-serif',
                     }}
                 >
                     {/* Background Accents */}
@@ -91,7 +114,6 @@ export async function GET(
                     >
                         <span
                             style={{
-                                fontFamily: 'Syne',
                                 fontWeight: 800,
                                 fontSize: '64px',
                                 textTransform: 'uppercase',
@@ -179,18 +201,7 @@ export async function GET(
                     </div>
                 </div>
             ),
-            {
-                width: 1080,
-                height: 1080,
-                fonts: [
-                    {
-                        name: 'Syne',
-                        data: syneBold,
-                        weight: 800,
-                        style: 'normal',
-                    },
-                ],
-            }
+            imageResponseOptions
         );
     } catch (e: unknown) {
         console.error('OG Generation Error:', e);
