@@ -200,7 +200,7 @@ Perex: ${article.excerpt}`;
                             publishedResults.push({ id: savedPost.id, platform: 'Facebook', success: true });
                         } else if (post.platform === 'Instagram' && imageUrl) {
                             const host = "postovinky.news";
-                            const igImageUrl = `https://${host}/api/social-image/${savedPost.id}.png`;
+                            const igImageUrl = `https://${host}/api/social-image/${savedPost.id}.png?t=${Date.now()}`;
                             await publishToInstagram(igImageUrl, post.content || "");
                             await supabase.from("social_posts").update({ status: 'posted', posted_at: new Date().toISOString() }).eq('id', savedPost.id);
                             publishedResults.push({ id: savedPost.id, platform: 'Instagram', success: true });
