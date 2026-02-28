@@ -219,8 +219,8 @@ export default function AdminPage() {
             if (!data.error) {
                 setPlannedPosts(data);
                 // Stats update
-                const published = (data || []).filter((p: any) => p.status === 'posted').length;
-                const drafts = (data || []).filter((p: any) => p.status === 'draft').length;
+                const published = (data || []).filter((p: SocialPost) => p.status === 'posted').length;
+                const drafts = (data || []).filter((p: SocialPost) => p.status === 'draft').length;
                 setSocialStats({ total_published: published, pending_drafts: drafts });
             }
         } catch (e) {
