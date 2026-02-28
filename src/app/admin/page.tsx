@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabase";
 import { Article } from "@/lib/data";
 import Link from "next/link";
-import { Edit, ArrowDown, Trash2, Sparkles, Plus, Globe, Search, CheckCircle2, XCircle, RefreshCw, Zap, Play, History, RotateCcw, BarChart3, Users, Share2, Copy, Facebook, Instagram, Calendar, Clock, ChevronDown, ChevronUp, Smartphone, Monitor, Check } from "lucide-react";
+import { Edit, ArrowDown, Trash2, Sparkles, Plus, Globe, Search, CheckCircle2, XCircle, RefreshCw, Zap, Play, History, RotateCcw, BarChart3, Users, Share2, Copy, Facebook, Instagram, Calendar, Clock, ChevronDown, ChevronUp, Smartphone, Monitor, Check, CloudLightning, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ArticleCard } from "@/components/ArticleCard";
 import Image from "next/image";
@@ -125,12 +125,12 @@ export default function AdminPage() {
     });
 
     // Tab control – obnovíme z localStorage pri refreshi (prvý zápis preskočíme, aby sme neprepísali obnovenú kartu)
-    const [activeTab, setActiveTab] = useState<"create" | "manage" | "discovery" | "analytics" | "social" | "autopilot">("manage");
+    const [activeTab, setActiveTab] = useState<"create" | "manage" | "discovery" | "analytics" | "social" | "autopilot" | "full_automation">("manage");
     const skipNextSaveRef = useRef(true);
     useEffect(() => {
         if (typeof window === "undefined") return;
         const saved = localStorage.getItem("admin-active-tab");
-        if (saved && ["create", "manage", "discovery", "analytics", "social", "autopilot"].includes(saved)) {
+        if (saved && ["create", "manage", "discovery", "analytics", "social", "autopilot", "full_automation"].includes(saved)) {
             setActiveTab(saved as typeof activeTab);
             skipNextSaveRef.current = true;
         }
@@ -184,6 +184,10 @@ export default function AdminPage() {
     const [plannedCategoryFilter, setPlannedCategoryFilter] = useState<string>("all");
     const [isPlannerOpen, setIsPlannerOpen] = useState(false);
     const [automationArticleData, setAutomationArticleData] = useState<{ id: string, title: string } | null>(null);
+
+    // Full Automation States
+    const [selectedFullAutomationCategory, setSelectedFullAutomationCategory] = useState("Umelá Inteligencia");
+    const [isFullAutomationLoading, setIsFullAutomationLoading] = useState(false);
 
     const fetchArticles = async () => {
         setLoadingArticles(true);
@@ -259,6 +263,94 @@ export default function AdminPage() {
             setIsSocialAutopilotGenerating(false);
             setIsGeneratingModalOpen(false);
             setTimeout(() => setStatus("idle"), 3000);
+        }
+    };
+
+    const handleFullAutomationSingle = async () => {
+        setIsFullAutomationLoading(true);
+        setStatus("loading");
+        setGeneratingStage("Inicializácia plnej automatizácie...");
+        setIsGeneratingModalOpen(true);
+
+        try {
+            // STEP 1: Discovery (Using GET to match working Discovery tab)
+            setGeneratingStage(`Hľadám nové témy v kategórii ${selectedFullAutomationCategory}...`);
+
+            const params = new URLSearchParams();
+            params.append("days", "3");
+            if (selectedFullAutomationCategory !== "Všetky") {
+                params.append("categories", selectedFullAutomationCategory);
+            }
+            params.append("secret", "make-com-webhook-secret");
+
+            const discRes = await fetch(`/api/admin/discover-news?${params.toString()}`);
+            const discData = await discRes.json();
+
+            if (!discRes.ok) throw new Error(discData.message || "Nepodarilo sa nájsť nové témy.");
+
+            const foundItems = discData.items || discData.suggestions || [];
+            if (foundItems.length === 0) {
+                throw new Error("Nenašli sa žiadne nové správy pre túto kategóriu.");
+            }
+
+            // STEP 2: Pick the first
+            const target = foundItems[0];
+
+            // STEP 3: Generate Article (Publish immediately)
+            setGeneratingStage(`Generujem kompletný článok: ${target.title}...`);
+            const genRes = await fetch("/api/admin/generate-article", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    url: target.url,
+                    status: 'published',
+                    secret: "make-com-webhook-secret"
+                })
+            });
+            const genData = await genRes.json();
+            if (!genData.success) throw new Error(genData.message || "Chyba pri generovaní článku.");
+
+            const newlyCreatedArticleId = genData.article.id;
+            await fetchArticles();
+
+            // STEP 4: Social Autopilot
+            setGeneratingStage(`Pripravujem a publikujem príspevky na Facebook a Instagram...`);
+            const socialRes = await fetch("/api/admin/social-autopilot", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    platforms: ['Facebook', 'Instagram', 'X'],
+                    autoPublish: true,
+                    articleId: newlyCreatedArticleId,
+                    secret: "make-com-webhook-secret"
+                })
+            });
+            const socialData = await socialRes.json();
+            console.log(">>> [Full Automation] Social Results:", socialData);
+
+            await fetchPlannedPosts();
+
+            const successCount = (socialData.publishResults || []).filter((r: any) => r.success).length;
+            const failCount = (socialData.publishResults || []).filter((r: any) => !r.success).length;
+
+            setStatus("success");
+            if (failCount > 0) {
+                setMessage(`Automatizácia hotová, ale ${failCount} príspevky zlyhali (napr. X zatiaľ nepodporujeme).`);
+            } else {
+                setMessage("Plná automatizácia úspešne dokončená! Článok aj príspevky sú vonku.");
+            }
+
+        } catch (error: any) {
+            console.error("Full Automation failed:", error);
+            setStatus("error");
+            setMessage(error.message || "Chyba počas plnej automatizácie.");
+        } finally {
+            setIsFullAutomationLoading(false);
+            setTimeout(() => {
+                setIsGeneratingModalOpen(false);
+                setStatus("idle");
+                setMessage("");
+            }, 3000);
         }
     };
 
@@ -1160,6 +1252,13 @@ export default function AdminPage() {
         }
     };
 
+    const handleToggleSocialBot = async () => {
+        const newState = !socialBotSettings.enabled;
+        const newSettings = { ...socialBotSettings, enabled: newState };
+
+        handleSaveSocialBotSettings(newSettings);
+    };
+
     const handleRunAutopilotNow = async () => {
         if (confirm("Spustiť AI Autopilota teraz? Spracuje jeden článok z každej kategórie a publikuje ich.")) {
             await executeAutopilotRun();
@@ -1246,7 +1345,7 @@ export default function AdminPage() {
                     <div className="flex flex-nowrap items-center justify-start lg:justify-center gap-1.5 p-1.5 bg-muted/30 rounded-2xl md:rounded-full border border-border/40 backdrop-blur-md shadow-inner overflow-x-auto no-scrollbar">
                         {[
                             { id: "discovery", label: "Discovery", icon: Search, badge: suggestions.length },
-                            { id: "autopilot", label: "Autopilot", icon: Zap },
+                            { id: "full_automation", label: "Úplná automatizácia", icon: Zap },
                             { id: "create", label: "Generator", icon: Sparkles },
                             { id: "manage", label: "Správa", icon: Edit },
                             { id: "analytics", label: "Navštevnosť", icon: BarChart3 },
@@ -1519,99 +1618,258 @@ export default function AdminPage() {
                     </div>
                 )}
 
-                {/* AUTOPILOT TAB */}
-                {activeTab === "autopilot" && (
-                    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {/* FULL AUTOMATION TAB */}
+                {activeTab === "full_automation" && (
+                    <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
                         <div>
-                            <h2 className="text-3xl font-black uppercase tracking-tight">AI Autopilot</h2>
-                            <p className="text-muted-foreground font-medium">Plne automatizované generovanie a publikovanie obsahu.</p>
+                            <h2 className="text-3xl font-black uppercase tracking-tight">Úplná automatizácia</h2>
+                            <p className="text-muted-foreground font-medium">Riadiace centrum pre všetkých AI agentov a automatické procesy.</p>
                         </div>
 
-                        {/* AI Autopilot Panel */}
-                        <div className="bg-gradient-to-br from-primary/10 via-background to-background border-2 border-primary/20 p-10 rounded-[40px] shadow-2xl relative overflow-hidden group/auto">
-                            <div className="absolute top-0 right-0 p-8 opacity-10 group-hover/auto:opacity-20 transition-opacity">
-                                <Sparkles className="w-32 h-32 text-primary" />
-                            </div>
+                        <div className="grid grid-cols-1 gap-10">
+                            {/* 0. Manual Full Automation (Integrated Flow) */}
+                            <div className="bg-gradient-to-br from-purple-500/10 via-background to-background border-2 border-purple-500/20 p-10 rounded-[40px] shadow-2xl relative overflow-hidden group/manual">
+                                <div className="absolute top-0 right-0 p-8 opacity-10 group-hover/manual:opacity-20 transition-opacity">
+                                    <CloudLightning className="w-32 h-32 text-purple-500" />
+                                </div>
 
-                            <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-10">
-                                <div className="max-w-xl">
+                                <div className="relative z-10">
                                     <div className="flex items-center gap-3 mb-6">
-                                        <div className="bg-primary text-primary-foreground p-3 rounded-2xl">
-                                            <Zap className="w-6 h-6" />
+                                        <div className="bg-purple-500 text-white p-3 rounded-2xl shadow-lg">
+                                            <CloudLightning className="w-6 h-6" />
                                         </div>
-                                        <h3 className="text-3xl font-black uppercase tracking-tight">AI Autopilot</h3>
-                                        {autopilotSettings.enabled ? (
-                                            <span className="bg-green-500 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest animate-pulse">Aktívny</span>
-                                        ) : (
-                                            <span className="bg-muted text-muted-foreground text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">Vypnutý</span>
-                                        )}
+                                        <h3 className="text-3xl font-black uppercase tracking-tight">Manuálna plná automatizácia (1 článok)</h3>
                                     </div>
-                                    <p className="text-muted-foreground font-medium text-lg leading-relaxed mb-8">
-                                        <strong className="text-foreground">Zapnutý autopilot:</strong> Každú hodinu automaticky vyhľadá najlepšie svetové trendy, spracuje ich a publikuje.<br />
-                                        <strong className="text-foreground">Manuálny štart:</strong> Okamžite spracuje tie témy, ktoré už máš pripravené v zozname Discovery (jednu z každej sekcie).
+                                    <p className="text-muted-foreground font-medium text-lg leading-relaxed mb-8 max-w-2xl">
+                                        Vyberte kategóriu a systém automaticky <strong className="text-foreground">vyhľadá</strong> nový článok, <strong className="text-foreground">vygeneruje</strong> ho v slovenčine a <strong className="text-foreground">publikuje</strong> ho spolu s príspevkami na sociálne siete.
                                     </p>
 
-                                    <div className="flex flex-wrap gap-6 text-sm font-bold uppercase tracking-widest">
-                                        <div className="flex flex-col">
-                                            <span className="text-muted-foreground text-[10px] mb-1">Posledný beh</span>
-                                            <span className="text-foreground">{autopilotSettings.last_run ? new Date(autopilotSettings.last_run).toLocaleString('sk-SK') : 'Nikdy'}</span>
-                                        </div>
-                                        <div className="flex flex-col">
-                                            <div className="flex flex-col group/count relative">
-                                                <span className="text-muted-foreground text-[10px] mb-1">Spracovaných článkov</span>
-                                                <div className="flex items-center gap-3">
+                                    <div className="flex flex-col lg:flex-row items-center gap-8 bg-background/50 border border-border/50 p-6 rounded-3xl backdrop-blur-sm">
+                                        <div className="flex-grow w-full">
+                                            <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 ml-2">Cieľová kategória</label>
+                                            <div className="flex flex-wrap gap-2">
+                                                {["Novinky SK/CZ", "Umelá Inteligencia", "Tech", "Biznis", "Krypto", "Svet", "Politika", "Gaming"].map((cat) => (
                                                     <button
-                                                        onClick={handleOpenAutopilotHistory}
-                                                        className="text-foreground hover:text-primary transition-colors flex items-center gap-2 group-hover/count:underline decoration-primary/30"
+                                                        key={cat}
+                                                        onClick={() => setSelectedFullAutomationCategory(cat)}
+                                                        className={cn(
+                                                            "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
+                                                            selectedFullAutomationCategory === cat
+                                                                ? "bg-purple-500 text-white border-purple-500 shadow-md scale-105"
+                                                                : "bg-background/80 border-border/50 text-muted-foreground hover:border-purple-500/40 hover:text-foreground"
+                                                        )}
                                                     >
-                                                        {autopilotSettings.processed_count}
-                                                        <History className="w-3 h-3 opacity-30" />
+                                                        {cat}
                                                     </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={handleFullAutomationSingle}
+                                            disabled={isFullAutomationLoading}
+                                            className="whitespace-nowrap bg-purple-600 text-white px-10 py-5 rounded-[20px] font-black text-xs uppercase tracking-widest hover:bg-purple-700 active:scale-95 transition-all flex items-center gap-3 shadow-xl shadow-purple-500/20 disabled:opacity-50 disabled:cursor-not-allowed group"
+                                        >
+                                            <Zap className={cn("w-5 h-5", isFullAutomationLoading && "animate-spin")} />
+                                            {isFullAutomationLoading ? "Prebieha automatizácia..." : "Automatizovať 1 článok"}
+                                            {!isFullAutomationLoading && <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            {/* 1. AI Autopilot (Article Generator) */}
+                            <div className="bg-gradient-to-br from-primary/10 via-background to-background border-2 border-primary/20 p-10 rounded-[40px] shadow-2xl relative overflow-hidden group/auto">
+                                <div className="absolute top-0 right-0 p-8 opacity-10 group-hover/auto:opacity-20 transition-opacity">
+                                    <Sparkles className="w-32 h-32 text-primary" />
+                                </div>
+
+                                <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-10">
+                                    <div className="max-w-xl">
+                                        <div className="flex items-center gap-3 mb-6">
+                                            <div className="bg-primary text-primary-foreground p-3 rounded-2xl">
+                                                <Zap className="w-6 h-6" />
+                                            </div>
+                                            <h3 className="text-3xl font-black uppercase tracking-tight">AI Autopilot (Články)</h3>
+                                            {autopilotSettings.enabled ? (
+                                                <span className="bg-green-500 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest animate-pulse">Aktívny</span>
+                                            ) : (
+                                                <span className="bg-muted text-muted-foreground text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">Vypnutý</span>
+                                            )}
+                                        </div>
+                                        <p className="text-muted-foreground font-medium text-lg leading-relaxed mb-8">
+                                            <strong className="text-foreground">Každú hodinu</strong> automaticky vyhľadá najlepšie svetové trendy, spracuje ich a publikuje priamo na web.
+                                        </p>
+
+                                        <div className="flex flex-wrap gap-6 text-sm font-bold uppercase tracking-widest">
+                                            <div className="flex flex-col">
+                                                <span className="text-muted-foreground text-[10px] mb-1">Posledný beh</span>
+                                                <span className="text-foreground">{autopilotSettings.last_run ? new Date(autopilotSettings.last_run).toLocaleString('sk-SK') : 'Nikdy'}</span>
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <div className="flex flex-col group/count relative">
+                                                    <span className="text-muted-foreground text-[10px] mb-1">Spracovaných článkov</span>
+                                                    <div className="flex items-center gap-3">
+                                                        <button
+                                                            onClick={handleOpenAutopilotHistory}
+                                                            className="text-foreground hover:text-primary transition-colors flex items-center gap-2 group-hover/count:underline decoration-primary/30"
+                                                        >
+                                                            {autopilotSettings.processed_count}
+                                                            <History className="w-3 h-3 opacity-30" />
+                                                        </button>
+                                                        <button
+                                                            onClick={handleResetAutopilotCount}
+                                                            className="p-1.5 hover:bg-red-500/10 hover:text-red-500 rounded-lg transition-all opacity-0 group-hover/count:opacity-100"
+                                                            title="Vynulovať počítadlo"
+                                                        >
+                                                            <RotateCcw className="w-3 h-3" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex flex-col gap-4 min-w-[240px]">
+                                        <button
+                                            onClick={handleToggleAutopilot}
+                                            disabled={status === "loading"}
+                                            className={cn(
+                                                "w-full py-5 rounded-2xl font-black uppercase tracking-[0.2em] text-xs transition-all flex items-center justify-center gap-3 shadow-xl",
+                                                autopilotSettings.enabled
+                                                    ? "bg-red-500 text-white hover:bg-red-600 shadow-red-500/20"
+                                                    : "bg-green-500 text-white hover:bg-green-600 shadow-green-500/20"
+                                            )}
+                                        >
+                                            {status === "loading" && isGeneratingModalOpen ? (
+                                                <RefreshCw className="w-4 h-4 animate-spin" />
+                                            ) : null}
+                                            {autopilotSettings.enabled ? "Vypnúť Autopilota" : "Zapnúť Autopilota"}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* 2. Social Sites Agent (Post Publisher) */}
+                            <div className="bg-gradient-to-br from-indigo-500/10 via-background to-background border-2 border-indigo-500/20 p-10 rounded-[40px] shadow-2xl relative overflow-hidden group/agent">
+                                <div className="absolute top-0 right-0 p-8 opacity-10 group-hover/agent:opacity-20 transition-opacity">
+                                    <Share2 className="w-32 h-32 text-indigo-500" />
+                                </div>
+
+                                <div className="relative z-10 flex flex-col lg:flex-row gap-10">
+                                    <div className="max-w-xl">
+                                        <div className="flex items-center gap-3 mb-6">
+                                            <div className="bg-indigo-500 text-white p-3 rounded-2xl shadow-lg shadow-indigo-500/30">
+                                                <Share2 className="w-6 h-6" />
+                                            </div>
+                                            <h3 className="text-3xl font-black uppercase tracking-tight text-foreground">Social Sites Agent</h3>
+                                            {socialBotSettings.enabled ? (
+                                                <span className="bg-green-500 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest animate-pulse">Aktívny</span>
+                                            ) : (
+                                                <span className="bg-muted text-muted-foreground text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">Neaktívny</span>
+                                            )}
+                                        </div>
+                                        <p className="text-muted-foreground font-medium text-lg leading-relaxed mb-8">
+                                            Automaticky publikuje naplánované príspevky v stanovených časoch a intervaloch pomocou Meta API.
+                                        </p>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                            <div className="space-y-4">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <Calendar className="w-4 h-4 text-indigo-500" />
+                                                    <label className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground block">Interval publikovania</label>
+                                                </div>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="relative">
+                                                        <input
+                                                            type="number"
+                                                            value={socialBotSettings.interval_hours}
+                                                            min="1"
+                                                            max="168"
+                                                            onChange={(e) => setSocialBotSettings({ ...socialBotSettings, interval_hours: parseInt(e.target.value) || 1 })}
+                                                            onBlur={() => handleSaveSocialBotSettings(socialBotSettings)}
+                                                            className="w-24 bg-background border-2 border-border rounded-xl px-4 py-3 text-center font-bold focus:border-indigo-500 focus:outline-none transition-all shadow-inner"
+                                                        />
+                                                    </div>
+                                                    <span className="text-xs font-black text-muted-foreground uppercase tracking-widest">Hodín</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-4">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <Clock className="w-4 h-4 text-indigo-500" />
+                                                    <label className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground block">Presné časy</label>
+                                                </div>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {socialBotSettings.posting_times.map((time, idx) => (
+                                                        <div key={idx} className="flex items-center gap-2 bg-muted/30 hover:bg-muted/50 px-3.5 py-2 rounded-xl border border-border/50 group/time transition-all">
+                                                            <span className="text-xs font-black tabular-nums">{time}</span>
+                                                            <button
+                                                                onClick={() => {
+                                                                    const newTimes = socialBotSettings.posting_times.filter((_, i) => i !== idx);
+                                                                    handleSaveSocialBotSettings({ ...socialBotSettings, posting_times: newTimes });
+                                                                }}
+                                                                className="text-muted-foreground hover:text-red-500 transition-colors opacity-0 group-hover/time:opacity-100"
+                                                            >
+                                                                <XCircle className="w-4 h-4" />
+                                                            </button>
+                                                        </div>
+                                                    ))}
                                                     <button
-                                                        onClick={handleResetAutopilotCount}
-                                                        className="p-1.5 hover:bg-red-500/10 hover:text-red-500 rounded-lg transition-all opacity-0 group-hover/count:opacity-100"
-                                                        title="Vynulovať počítadlo"
+                                                        onClick={() => {
+                                                            const time = prompt("Zadajte čas publikovania (HH:MM):", "12:00");
+                                                            if (time && /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(time)) {
+                                                                handleSaveSocialBotSettings({ ...socialBotSettings, posting_times: [...socialBotSettings.posting_times, time].sort() });
+                                                            } else if (time) {
+                                                                alert("Neplatný formát času. Použite HH:MM (napr. 09:30 alebo 21:00)");
+                                                            }
+                                                        }}
+                                                        className="px-4 py-2 bg-indigo-500/10 text-indigo-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 hover:text-white transition-all border-2 border-dashed border-indigo-500/30 flex items-center gap-2"
                                                     >
-                                                        <RotateCcw className="w-3 h-3" />
+                                                        <Plus className="w-3.5 h-3.5" /> Pridať
                                                     </button>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
 
-                                <div className="flex flex-col gap-4 min-w-[240px]">
-                                    <button
-                                        onClick={handleToggleAutopilot}
-                                        disabled={status === "loading"}
-                                        className={cn(
-                                            "w-full py-5 rounded-2xl font-black uppercase tracking-[0.2em] text-xs transition-all flex items-center justify-center gap-3 shadow-xl",
-                                            autopilotSettings.enabled
-                                                ? "bg-red-500 text-white hover:bg-red-600 shadow-red-500/20"
-                                                : "bg-green-500 text-white hover:bg-green-600 shadow-green-500/20"
-                                        )}
-                                    >
-                                        {status === "loading" && isGeneratingModalOpen ? (
-                                            <RefreshCw className="w-4 h-4 animate-spin" />
-                                        ) : null}
-                                        {autopilotSettings.enabled ? "Vypnúť Autopilota" : "Zapnúť Autopilota"}
-                                    </button>
-                                    <button
-                                        onClick={handleRunAutopilotNow}
-                                        disabled={status === "loading"}
-                                        className="w-full bg-foreground text-background py-5 rounded-2xl font-black uppercase tracking-[0.2em] text-xs hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        {status === "loading" && isAutopilotLoadingModalOpen ? (
-                                            <>
-                                                <RefreshCw className="w-4 h-4 animate-spin" />
-                                                Štartujem...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Play className="w-4 h-4 fill-current" /> Spustiť manuálne
-                                            </>
-                                        )}
-                                    </button>
+                                    <div className="flex flex-col gap-4 min-w-[280px] lg:mt-auto">
+                                        <div className="bg-background/40 backdrop-blur-md border border-white/10 p-6 rounded-[32px] space-y-4 shadow-xl ring-1 ring-black/5">
+                                            <div className="flex items-center justify-between gap-4">
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-foreground">Auto-Publish</span>
+                                                    <span className="text-[9px] text-muted-foreground font-medium italic">Postovať hneď</span>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleSaveSocialBotSettings({ ...socialBotSettings, auto_publish: !socialBotSettings.auto_publish })}
+                                                    className={cn(
+                                                        "w-12 h-6 rounded-full transition-all relative flex-shrink-0",
+                                                        socialBotSettings.auto_publish ? "bg-green-500 shadow-md shadow-green-500/20" : "bg-neutral-600"
+                                                    )}
+                                                >
+                                                    <div className={cn(
+                                                        "absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm",
+                                                        socialBotSettings.auto_publish ? "left-7" : "left-1"
+                                                    )} />
+                                                </button>
+                                            </div>
+
+                                            <button
+                                                onClick={handleToggleSocialBot}
+                                                disabled={status === "loading"}
+                                                className={cn(
+                                                    "w-full py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-3 mt-2 shadow-lg transition-all active:scale-95",
+                                                    socialBotSettings.enabled
+                                                        ? "bg-neutral-800 text-white hover:bg-neutral-700"
+                                                        : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-600/30"
+                                                )}
+                                            >
+                                                {socialBotSettings.enabled ? (
+                                                    <><RefreshCw className="w-4 h-4 animate-spin" /> Vypnúť Agenta</>
+                                                ) : (
+                                                    <><Zap className="w-4 h-4 fill-current" /> Zapnúť Agenta</>
+                                                )}
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -2063,545 +2321,405 @@ export default function AdminPage() {
                         </div>
 
                     </div>
-                )}
+                )
+                }
 
-                {activeTab === "social" && (
-                    <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        {/* Header & Platform Selection */}
-                        <div className="bg-card border rounded-[40px] p-10 shadow-sm ring-1 ring-border/50">
-                            <h2 className="text-3xl font-black uppercase tracking-tight mb-8 flex items-center gap-4">
-                                <Share2 className="w-8 h-8 text-primary" />
-                                Social Media Generátor
-                            </h2>
+                {
+                    activeTab === "social" && (
+                        <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            {/* Header & Platform Selection */}
+                            <div className="bg-card border rounded-[40px] p-10 shadow-sm ring-1 ring-border/50">
+                                <h2 className="text-3xl font-black uppercase tracking-tight mb-8 flex items-center gap-4">
+                                    <Share2 className="w-8 h-8 text-primary" />
+                                    Social Media Generátor
+                                </h2>
 
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-                                {[
-                                    { id: "Instagram", icon: Instagram, color: "text-pink-500" },
-                                    { id: "Facebook", icon: Facebook, color: "text-blue-600" },
-                                    { id: "X", icon: XIcon, color: "text-foreground" }
-                                ].map((p) => {
-                                    const isSelected = socialPlatforms.includes(p.id as SocialPost['platform']);
-                                    return (
-                                        <button
-                                            key={p.id}
-                                            onClick={() => {
-                                                setSocialPlatforms(prev =>
-                                                    isSelected
-                                                        ? prev.filter(id => id !== p.id)
-                                                        : [...prev, p.id as SocialPost['platform']]
-                                                );
-                                            }}
-                                            className={cn(
-                                                "flex items-center justify-center gap-4 p-6 rounded-[24px] border-2 transition-all font-black uppercase tracking-widest text-sm",
-                                                isSelected
-                                                    ? "bg-foreground text-background border-foreground shadow-xl scale-[1.02]"
-                                                    : "bg-background border-border/50 text-muted-foreground hover:border-primary/30"
-                                            )}
-                                        >
-                                            <p.icon className={cn("w-6 h-6", isSelected ? "text-background" : p.color)} />
-                                            {p.id}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-
-                            <button
-                                onClick={handleGenerateSocialPosts}
-                                disabled={socialSelectedArticles.length === 0 || socialPlatforms.length === 0 || isGeneratingSocial}
-                                className="w-full bg-foreground text-background py-6 rounded-2xl font-black uppercase tracking-[0.2em] text-sm hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-black/10 disabled:opacity-50"
-                            >
-                                {isGeneratingSocial ? "Generujem príspevky..." : `Generovať príspevky pre články (${socialSelectedArticles.length})`}
-                            </button>
-                        </div>
-
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                            {/* Article Selection */}
-                            <div className="bg-card border rounded-[40px] p-8 md:p-10 shadow-sm h-fit">
-                                <h3 className="text-xl font-black uppercase tracking-tight mb-6">Vyberte články</h3>
-                                <p className="text-sm text-muted-foreground mb-4">Kliknite na článok pre výber. Vybrané články môžete použiť na generovanie príspevkov.</p>
-                                <div className="relative mb-4">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                                    <input
-                                        type="text"
-                                        placeholder="Hľadať podľa názvu alebo kategórie..."
-                                        value={socialArticleSearch}
-                                        onChange={(e) => setSocialArticleSearch(e.target.value)}
-                                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                                    />
-                                </div>
-                                <div className="space-y-3 max-h-[min(75vh,620px)] overflow-y-auto pr-2 custom-scrollbar">
-                                    {(() => {
-                                        const q = socialArticleSearch.trim().toLowerCase();
-                                        const filtered = q
-                                            ? articles.filter((a) =>
-                                                a.title.toLowerCase().includes(q) ||
-                                                (a.category?.toLowerCase().includes(q) ?? false)
-                                            )
-                                            : articles;
-                                        const toShow = filtered.slice(0, 50);
-                                        if (toShow.length === 0) {
-                                            return (
-                                                <p className="py-8 text-center text-muted-foreground text-sm">
-                                                    {q ? "Žiadny článok nevyhovuje hľadaniu. Skúste iný výraz." : "Žiadne články."}
-                                                </p>
-                                            );
-                                        }
-                                        return toShow.map((article) => {
-                                            const isSelected = socialSelectedArticles.includes(article.id);
-                                            return (
-                                                <div
-                                                    key={article.id}
-                                                    onClick={() => setSocialSelectedArticles(prev =>
-                                                        isSelected ? prev.filter(id => id !== article.id) : [...prev, article.id]
-                                                    )}
-                                                    className={cn(
-                                                        "relative overflow-hidden group rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-4 p-4",
-                                                        isSelected
-                                                            ? "bg-primary/10 border-primary shadow-lg shadow-primary/10"
-                                                            : "bg-muted/10 border-border/40 hover:border-primary/40 hover:bg-muted/20"
-                                                    )}
-                                                >
-                                                    {/* Article Image Thumbnail */}
-                                                    <div className="relative w-24 h-24 md:w-28 md:h-28 rounded-xl overflow-hidden flex-shrink-0 shadow-md">
-                                                        <Image
-                                                            src={article.main_image}
-                                                            alt={article.title}
-                                                            fill
-                                                            className="object-cover transition-transform group-hover:scale-105"
-                                                        />
-                                                    </div>
-
-                                                    <div className="flex-grow min-w-0">
-                                                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                                                            <span className="text-xs font-bold uppercase tracking-wide text-primary bg-primary/15 px-2.5 py-1 rounded-full">
-                                                                {article.category}
-                                                            </span>
-                                                            <span className="text-xs text-muted-foreground">
-                                                                {new Date(article.published_at).toLocaleDateString('sk-SK')}
-                                                            </span>
-                                                        </div>
-                                                        <h4 className="text-base font-bold leading-snug line-clamp-2 text-foreground">
-                                                            {article.title}
-                                                        </h4>
-                                                    </div>
-
-                                                    {/* Selection Indicator */}
-                                                    <div className={cn(
-                                                        "w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0",
-                                                        isSelected
-                                                            ? "bg-primary border-primary text-primary-foreground"
-                                                            : "border-muted-foreground/30 bg-background"
-                                                    )}>
-                                                        {isSelected ? <CheckCircle2 className="w-5 h-5" /> : <Plus className="w-5 h-5 text-muted-foreground/50" />}
-                                                    </div>
-                                                </div>
-                                            );
-                                        });
-                                    })()}
-                                </div>
-                            </div>
-
-                            {/* Generated Content Preview */}
-                            <div className="space-y-6">
-                                <h3 className="text-xl font-black uppercase tracking-tight">Náhľady príspevkov</h3>
-                                {socialSelectedArticles.length === 0 && (
-                                    <div className="bg-muted/10 border border-dashed rounded-[40px] p-20 text-center text-muted-foreground">
-                                        <Sparkles className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                                        <p className="font-bold uppercase text-xs tracking-widest">Vyberte články pre zobrazenie náhľadov</p>
-                                    </div>
-                                )}
-                                {socialSelectedArticles.map((articleId) => {
-                                    const article = articles.find(a => a.id === articleId);
-                                    const result = socialResults[articleId];
-                                    if (!article) return null;
-
-                                    return (
-                                        <div key={articleId} className="bg-card border rounded-[32px] p-8 shadow-md ring-1 ring-border/50 animate-in fade-in slide-in-from-right-4">
-                                            <div className="space-y-6">
-                                                {socialPlatforms.map((platform) => {
-                                                    const platformResult = result?.[platform];
-                                                    return (
-                                                        <div key={platform} className="animate-in fade-in slide-in-from-bottom-2">
-                                                            <div className="flex items-center justify-between mb-3 px-2">
-                                                                <div className="flex items-center gap-2">
-                                                                    {platform === "Instagram" && <Instagram className="w-3.5 h-3.5 text-pink-500" />}
-                                                                    {platform === "Facebook" && <Facebook className="w-3.5 h-3.5 text-blue-600" />}
-                                                                    {platform === "X" && <XIcon size={14} />}
-                                                                    <span className="text-[10px] font-black uppercase tracking-widest">{platform} príspevok</span>
-                                                                </div>
-                                                                {platformResult && (
-                                                                    <button
-                                                                        onClick={() => copyToClipboard(platformResult)}
-                                                                        className="flex items-center gap-2 px-3 py-1 bg-muted hover:bg-primary/20 hover:text-primary rounded-lg transition-all text-[9px] font-black uppercase tracking-wider"
-                                                                    >
-                                                                        <Copy className="w-3 h-3" />
-                                                                        Kopírovať
-                                                                    </button>
-                                                                )}
-                                                            </div>
-
-                                                            {platformResult ? (
-                                                                <div className="bg-muted/30 rounded-2xl p-6 relative group">
-                                                                    <div className="whitespace-pre-wrap text-sm leading-relaxed font-medium">
-                                                                        {platformResult}
-                                                                    </div>
-                                                                </div>
-                                                            ) : (
-                                                                <div className="bg-muted/10 rounded-2xl p-8 text-center text-[9px] font-black uppercase tracking-widest text-muted-foreground italic">
-                                                                    {isGeneratingSocial ? "AI pripravuje..." : "Čaká na vygenerovanie"}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-
-                                            {/* Image Generator Preview */}
-                                            <div className="mt-8 pt-8 border-t border-border/50">
-                                                <InstagramPreview title={article.title} />
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        {/* SOCIAL SITES AGENT SETTINGS */}
-                        <div className="bg-gradient-to-br from-indigo-500/10 via-background to-background border-2 border-indigo-500/20 p-10 rounded-[40px] shadow-2xl relative overflow-hidden group/agent">
-                            <div className="absolute top-0 right-0 p-8 opacity-10 group-hover/agent:opacity-20 transition-opacity">
-                                <Share2 className="w-32 h-32 text-indigo-500" />
-                            </div>
-
-                            <div className="relative z-10 flex flex-col lg:flex-row gap-10">
-                                <div className="max-w-xl">
-                                    <div className="flex items-center gap-3 mb-6">
-                                        <div className="bg-indigo-500 text-white p-3 rounded-2xl shadow-lg shadow-indigo-500/30">
-                                            <Share2 className="w-6 h-6" />
-                                        </div>
-                                        <h3 className="text-3xl font-black uppercase tracking-tight text-foreground">Social Sites Agent</h3>
-                                        {socialBotSettings.enabled ? (
-                                            <span className="bg-green-500 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest animate-pulse">Aktívny</span>
-                                        ) : (
-                                            <span className="bg-muted text-muted-foreground text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">Neaktívny</span>
-                                        )}
-                                    </div>
-                                    <p className="text-muted-foreground font-medium text-lg leading-relaxed mb-8">
-                                        Inteligentný agent, ktorý automaticky publikuje naplánované príspevky v stanovených časoch a intervaloch pomocou Meta API a OpenAI.
-                                    </p>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                        <div className="space-y-4">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <Calendar className="w-4 h-4 text-indigo-500" />
-                                                <label className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground block">Interval publikovania</label>
-                                            </div>
-                                            <div className="flex items-center gap-3">
-                                                <div className="relative">
-                                                    <input
-                                                        type="number"
-                                                        value={socialBotSettings.interval_hours}
-                                                        min="1"
-                                                        max="168"
-                                                        onChange={(e) => setSocialBotSettings({ ...socialBotSettings, interval_hours: parseInt(e.target.value) || 1 })}
-                                                        onBlur={() => handleSaveSocialBotSettings(socialBotSettings)}
-                                                        className="w-24 bg-background border-2 border-border rounded-xl px-4 py-3 text-center font-bold focus:border-indigo-500 focus:outline-none transition-all shadow-inner"
-                                                    />
-                                                </div>
-                                                <span className="text-xs font-black text-muted-foreground uppercase tracking-widest">Hodín</span>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-4">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <Clock className="w-4 h-4 text-indigo-500" />
-                                                <label className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground block">Presné časy (Fixné okná)</label>
-                                            </div>
-                                            <div className="flex flex-wrap gap-2">
-                                                {socialBotSettings.posting_times.map((time, idx) => (
-                                                    <div key={idx} className="flex items-center gap-2 bg-muted/30 hover:bg-muted/50 px-3.5 py-2 rounded-xl border border-border/50 group/time transition-all">
-                                                        <span className="text-xs font-black tabular-nums">{time}</span>
-                                                        <button
-                                                            onClick={() => {
-                                                                const newTimes = socialBotSettings.posting_times.filter((_, i) => i !== idx);
-                                                                handleSaveSocialBotSettings({ ...socialBotSettings, posting_times: newTimes });
-                                                            }}
-                                                            className="text-muted-foreground hover:text-red-500 transition-colors opacity-0 group-hover/time:opacity-100"
-                                                        >
-                                                            <XCircle className="w-4 h-4" />
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                                <button
-                                                    onClick={() => {
-                                                        const time = prompt("Zadajte čas publikovania (HH:MM):", "12:00");
-                                                        if (time && /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(time)) {
-                                                            handleSaveSocialBotSettings({ ...socialBotSettings, posting_times: [...socialBotSettings.posting_times, time].sort() });
-                                                        } else if (time) {
-                                                            alert("Neplatný formát času. Použite HH:MM (napr. 09:30 alebo 21:00)");
-                                                        }
-                                                    }}
-                                                    className="px-4 py-2 bg-indigo-500/10 text-indigo-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 hover:text-white transition-all border-2 border-dashed border-indigo-500/30 flex items-center gap-2"
-                                                >
-                                                    <Plus className="w-3.5 h-3.5" /> Pridať okno
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="flex flex-col gap-4 min-w-[280px] lg:mt-auto">
-                                    <div className="bg-background/40 backdrop-blur-md border border-white/10 p-6 rounded-[32px] space-y-4 shadow-xl ring-1 ring-black/5">
-                                        <div className="flex items-center justify-between gap-4">
-                                            <div className="flex flex-col">
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-foreground">Auto-Publish</span>
-                                                <span className="text-[9px] text-muted-foreground font-medium italic">Okamžité odosielanie</span>
-                                            </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                                    {[
+                                        { id: "Instagram", icon: Instagram, color: "text-pink-500" },
+                                        { id: "Facebook", icon: Facebook, color: "text-blue-600" },
+                                        { id: "X", icon: XIcon, color: "text-foreground" }
+                                    ].map((p) => {
+                                        const isSelected = socialPlatforms.includes(p.id as SocialPost['platform']);
+                                        return (
                                             <button
-                                                onClick={() => handleSaveSocialBotSettings({ ...socialBotSettings, auto_publish: !socialBotSettings.auto_publish })}
+                                                key={p.id}
+                                                onClick={() => {
+                                                    setSocialPlatforms(prev =>
+                                                        isSelected
+                                                            ? prev.filter(id => id !== p.id)
+                                                            : [...prev, p.id as SocialPost['platform']]
+                                                    );
+                                                }}
                                                 className={cn(
-                                                    "w-12 h-6 rounded-full transition-all relative flex-shrink-0",
-                                                    socialBotSettings.auto_publish ? "bg-green-500 shadow-md shadow-green-500/20" : "bg-neutral-600"
+                                                    "flex items-center justify-center gap-4 p-6 rounded-[24px] border-2 transition-all font-black uppercase tracking-widest text-sm",
+                                                    isSelected
+                                                        ? "bg-foreground text-background border-foreground shadow-xl scale-[1.02]"
+                                                        : "bg-background border-border/50 text-muted-foreground hover:border-primary/30"
                                                 )}
                                             >
-                                                <div className={cn(
-                                                    "absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm",
-                                                    socialBotSettings.auto_publish ? "left-7" : "left-1"
-                                                )} />
+                                                <p.icon className={cn("w-6 h-6", isSelected ? "text-background" : p.color)} />
+                                                {p.id}
                                             </button>
-                                        </div>
-
-                                        <div className="pt-4 border-t border-white/5 grid grid-cols-2 gap-4">
-                                            <div className="flex flex-col">
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Publikované</span>
-                                                <span className="text-xl font-black text-foreground">{socialStats.total_published}</span>
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">V plánovači</span>
-                                                <span className="text-xl font-black text-indigo-500">{socialStats.pending_drafts}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <button
-                                        onClick={() => handleSaveSocialBotSettings({ ...socialBotSettings, enabled: !socialBotSettings.enabled })}
-                                        className={cn(
-                                            "w-full py-5 rounded-2xl font-black uppercase tracking-[0.2em] text-xs transition-all flex items-center justify-center gap-3 shadow-2xl",
-                                            socialBotSettings.enabled
-                                                ? "bg-red-500 text-white hover:bg-red-600 shadow-red-500/20"
-                                                : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-600/30"
-                                        )}
-                                    >
-                                        {socialBotSettings.enabled ? (
-                                            <><RefreshCw className="w-4 h-4 animate-spin" /> Vypnúť Agenta</>
-                                        ) : (
-                                            <><Zap className="w-4 h-4 fill-current" /> Zapnúť Agenta</>
-                                        )}
-                                    </button>
-
-                                    <button
-                                        onClick={handlePublishNextPendingArticle}
-                                        disabled={status === "loading"}
-                                        className="w-full py-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-indigo-500/30 transition-all font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-3 mt-2 shadow-lg"
-                                    >
-                                        <Share2 className="w-4 h-4 text-indigo-500" /> Publikovať ďalší článok (FB + IG)
-                                    </button>
+                                        );
+                                    })}
                                 </div>
-                            </div>
-                        </div>
 
-                        {/* Social Media Planner Section */}
-                        <div className="bg-card border rounded-[40px] p-8 md:p-12 shadow-sm ring-1 ring-border/50">
-                            {/* Header Row 1: Title & Refresh */}
-                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
-                                <h3 className="text-2xl md:text-3xl font-black uppercase tracking-tight flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-                                        <Calendar className="w-6 h-6" />
-                                    </div>
-                                    <span className="leading-tight">AI Planner & <br className="md:hidden" /> História postov</span>
-                                </h3>
-
-                                <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
-                                    <button
-                                        onClick={handleSocialAutopilot}
-                                        disabled={isSocialAutopilotGenerating}
-                                        className="h-11 flex items-center gap-2 px-5 bg-white text-black rounded-xl transition-all border border-white hover:bg-zinc-200 active:scale-95 shadow-lg shadow-white/5 disabled:opacity-50"
-                                    >
-                                        <Sparkles className={cn("w-3.5 h-3.5", isSocialAutopilotGenerating && "animate-pulse")} />
-                                        <span className="text-[9px] font-black uppercase tracking-widest whitespace-nowrap">
-                                            {isSocialAutopilotGenerating ? "Analyzujem..." : "AI Automatizátor"}
-                                        </span>
-                                    </button>
-
-                                    <button
-                                        onClick={() => setIsPlannerOpen(!isPlannerOpen)}
-                                        className={cn(
-                                            "h-11 flex items-center gap-2 px-5 rounded-xl transition-all border border-border/50 active:scale-95 shadow-sm",
-                                            isPlannerOpen
-                                                ? "bg-zinc-800 text-white hover:bg-zinc-700"
-                                                : "bg-zinc-100 text-black hover:bg-zinc-200"
-                                        )}
-                                    >
-                                        {isPlannerOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                                        <span className="text-[9px] font-black uppercase tracking-widest whitespace-nowrap">
-                                            {isPlannerOpen ? 'Zabaliť' : 'Rozbaliť'}
-                                        </span>
-                                    </button>
-
-                                    <button
-                                        onClick={handleDeleteAllSocialPosts}
-                                        className="h-11 flex items-center gap-2 px-4 bg-red-500/10 text-red-500 rounded-xl transition-all border border-red-500/20 hover:bg-red-500 hover:text-white active:scale-95 shadow-sm"
-                                        title="Vymazať všetko"
-                                    >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                        <span className="text-[9px] font-black uppercase tracking-widest whitespace-nowrap">Všetko vymazať</span>
-                                    </button>
-
-                                    <button
-                                        onClick={fetchPlannedPosts}
-                                        className="h-11 flex items-center gap-2 px-5 bg-zinc-800/50 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded-xl transition-all group border border-border/20 active:scale-95 shadow-sm"
-                                    >
-                                        <RefreshCw className="w-3.5 h-3.5 group-hover:rotate-180 transition-transform duration-500" />
-                                        <span className="text-[9px] font-black uppercase tracking-widest whitespace-nowrap">Obnoviť</span>
-                                    </button>
-                                </div>
+                                <button
+                                    onClick={handleGenerateSocialPosts}
+                                    disabled={socialSelectedArticles.length === 0 || socialPlatforms.length === 0 || isGeneratingSocial}
+                                    className="w-full bg-foreground text-background py-6 rounded-2xl font-black uppercase tracking-[0.2em] text-sm hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-black/10 disabled:opacity-50"
+                                >
+                                    {isGeneratingSocial ? "Generujem príspevky..." : `Generovať príspevky pre články (${socialSelectedArticles.length})`}
+                                </button>
                             </div>
 
-                            {isPlannerOpen && (
-                                <div className="animate-in fade-in slide-in-from-top-4 duration-500">
-                                    {/* Header Row 2: Category Filters */}
-                                    <div className="mb-10 p-2 bg-muted/30 rounded-[28px] border border-border/50">
-                                        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 md:pb-0 px-2">
-                                            {['all', 'Umelá Inteligencia', 'Tech', 'Biznis', 'Krypto', 'Svet', 'Politika', 'Veda', 'Gaming', 'Návody & Tipy'].map((cat) => (
-                                                <button
-                                                    key={cat}
-                                                    onClick={() => setPlannedCategoryFilter(cat)}
-                                                    className={cn(
-                                                        "px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border-2 border-transparent",
-                                                        plannedCategoryFilter === cat
-                                                            ? "bg-foreground text-background shadow-xl scale-105"
-                                                            : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                                                    )}
-                                                >
-                                                    {cat === 'all' ? 'Všetky Príspevky' : cat}
-                                                </button>
-                                            ))}
-                                        </div>
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                                {/* Article Selection */}
+                                <div className="bg-card border rounded-[40px] p-8 md:p-10 shadow-sm h-fit">
+                                    <h3 className="text-xl font-black uppercase tracking-tight mb-6">Vyberte články</h3>
+                                    <p className="text-sm text-muted-foreground mb-4">Kliknite na článok pre výber. Vybrané články môžete použiť na generovanie príspevkov.</p>
+                                    <div className="relative mb-4">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                                        <input
+                                            type="text"
+                                            placeholder="Hľadať podľa názvu alebo kategórie..."
+                                            value={socialArticleSearch}
+                                            onChange={(e) => setSocialArticleSearch(e.target.value)}
+                                            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                                        />
                                     </div>
+                                    <div className="space-y-3 max-h-[min(75vh,620px)] overflow-y-auto pr-2 custom-scrollbar">
+                                        {(() => {
+                                            const q = socialArticleSearch.trim().toLowerCase();
+                                            const filtered = q
+                                                ? articles.filter((a) =>
+                                                    a.title.toLowerCase().includes(q) ||
+                                                    (a.category?.toLowerCase().includes(q) ?? false)
+                                                )
+                                                : articles;
+                                            const toShow = filtered.slice(0, 50);
+                                            if (toShow.length === 0) {
+                                                return (
+                                                    <p className="py-8 text-center text-muted-foreground text-sm">
+                                                        {q ? "Žiadny článok nevyhovuje hľadaniu. Skúste iný výraz." : "Žiadne články."}
+                                                    </p>
+                                                );
+                                            }
+                                            return toShow.map((article) => {
+                                                const isSelected = socialSelectedArticles.includes(article.id);
+                                                return (
+                                                    <div
+                                                        key={article.id}
+                                                        onClick={() => setSocialSelectedArticles(prev =>
+                                                            isSelected ? prev.filter(id => id !== article.id) : [...prev, article.id]
+                                                        )}
+                                                        className={cn(
+                                                            "relative overflow-hidden group rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-4 p-4",
+                                                            isSelected
+                                                                ? "bg-primary/10 border-primary shadow-lg shadow-primary/10"
+                                                                : "bg-muted/10 border-border/40 hover:border-primary/40 hover:bg-muted/20"
+                                                        )}
+                                                    >
+                                                        {/* Article Image Thumbnail */}
+                                                        <div className="relative w-24 h-24 md:w-28 md:h-28 rounded-xl overflow-hidden flex-shrink-0 shadow-md">
+                                                            <Image
+                                                                src={article.main_image}
+                                                                alt={article.title}
+                                                                fill
+                                                                className="object-cover transition-transform group-hover:scale-105"
+                                                            />
+                                                        </div>
 
-                                    <div className="space-y-6">
-                                        {plannedPosts.length === 0 ? (
-                                            <div className="py-20 text-center border-2 border-dashed rounded-[32px] text-muted-foreground">
-                                                <Clock className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                                                <p className="font-bold uppercase text-xs tracking-widest">Zatiaľ žiadne naplánované príspevky</p>
-                                            </div>
-                                        ) : (
-                                            <div className="grid grid-cols-1 gap-4">
-                                                {(() => {
-                                                    // Group posts by article_id
-                                                    const grouped: Record<string, typeof plannedPosts> = {};
-
-                                                    // Filter by category first
-                                                    const filteredPosts = plannedCategoryFilter === 'all'
-                                                        ? plannedPosts
-                                                        : plannedPosts.filter(p => p.articles?.category === plannedCategoryFilter);
-
-                                                    filteredPosts.forEach(post => {
-                                                        const id = post.article_id || 'unknown';
-                                                        if (!grouped[id]) grouped[id] = [];
-                                                        grouped[id].push(post);
-                                                    });
-
-                                                    const groups = Object.entries(grouped);
-
-                                                    if (groups.length === 0) {
-                                                        return (
-                                                            <div className="py-20 text-center border-2 border-dashed rounded-[32px] text-muted-foreground">
-                                                                <Sparkles className="w-12 h-12 mx-auto mb-4 opacity-10" />
-                                                                <p className="font-bold uppercase text-xs tracking-widest">Žiadne príspevky v kategórii &quot;{plannedCategoryFilter}&quot;</p>
+                                                        <div className="flex-grow min-w-0">
+                                                            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                                                <span className="text-xs font-bold uppercase tracking-wide text-primary bg-primary/15 px-2.5 py-1 rounded-full">
+                                                                    {article.category}
+                                                                </span>
+                                                                <span className="text-xs text-muted-foreground">
+                                                                    {new Date(article.published_at).toLocaleDateString('sk-SK')}
+                                                                </span>
                                                             </div>
-                                                        );
-                                                    }
+                                                            <h4 className="text-base font-bold leading-snug line-clamp-2 text-foreground">
+                                                                {article.title}
+                                                            </h4>
+                                                        </div>
 
-                                                    return groups.map(([articleId, posts]) => {
-                                                        const firstPost = posts[0];
-                                                        const articleTitle = firstPost.articles?.title || "Neznámy článok";
-                                                        const articleCategory = firstPost.articles?.category || "Novinka";
+                                                        {/* Selection Indicator */}
+                                                        <div className={cn(
+                                                            "w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0",
+                                                            isSelected
+                                                                ? "bg-primary border-primary text-primary-foreground"
+                                                                : "border-muted-foreground/30 bg-background"
+                                                        )}>
+                                                            {isSelected ? <CheckCircle2 className="w-5 h-5" /> : <Plus className="w-5 h-5 text-muted-foreground/50" />}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            });
+                                        })()}
+                                    </div>
+                                </div>
 
+                                {/* Generated Content Preview */}
+                                <div className="space-y-6">
+                                    <h3 className="text-xl font-black uppercase tracking-tight">Náhľady príspevkov</h3>
+                                    {socialSelectedArticles.length === 0 && (
+                                        <div className="bg-muted/10 border border-dashed rounded-[40px] p-20 text-center text-muted-foreground">
+                                            <Sparkles className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                                            <p className="font-bold uppercase text-xs tracking-widest">Vyberte články pre zobrazenie náhľadov</p>
+                                        </div>
+                                    )}
+                                    {socialSelectedArticles.map((articleId) => {
+                                        const article = articles.find(a => a.id === articleId);
+                                        const result = socialResults[articleId];
+                                        if (!article) return null;
+
+                                        return (
+                                            <div key={articleId} className="bg-card border rounded-[32px] p-8 shadow-md ring-1 ring-border/50 animate-in fade-in slide-in-from-right-4">
+                                                <div className="space-y-6">
+                                                    {socialPlatforms.map((platform) => {
+                                                        const platformResult = result?.[platform];
                                                         return (
-                                                            <div key={articleId} className="bg-card border-2 border-primary/5 rounded-[40px] overflow-hidden shadow-sm hover:shadow-xl transition-all mb-6">
-                                                                {/* Article Header (Always Visible) */}
-                                                                <div className="p-8 md:p-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 bg-muted/5">
-                                                                    <div className="flex items-center gap-6 flex-grow min-w-0">
-                                                                        <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                                                                            <Sparkles className="w-8 h-8 text-primary" />
-                                                                        </div>
-                                                                        <div className="min-w-0">
-                                                                            <div className="flex items-center gap-2 mb-1">
-                                                                                <span className="text-[10px] font-black uppercase tracking-widest text-primary">{articleCategory}</span>
-                                                                                <span className="text-[10px] text-muted-foreground">•</span>
-                                                                                <span className="text-[10px] font-bold text-muted-foreground uppercase">{posts.length} sociálne formáty</span>
-                                                                            </div>
-                                                                            <h4 className="text-xl md:text-2xl font-black tracking-tight">{articleTitle}</h4>
-                                                                            <div className="flex flex-wrap gap-2 mt-3">
-                                                                                {posts.map(p => (
-                                                                                    <span key={p.id} className={cn(
-                                                                                        "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5",
-                                                                                        p.status === 'posted' ? "bg-green-500/10 text-green-500" : "bg-muted text-muted-foreground"
-                                                                                    )}>
-                                                                                        {p.platform === 'Instagram' && <Instagram size={10} />}
-                                                                                        {p.platform === 'Facebook' && <Facebook size={10} />}
-                                                                                        {p.platform === 'X' && <XIcon size={10} />}
-                                                                                        {p.platform}
-                                                                                        {p.status === 'posted' && <CheckCircle2 size={10} />}
-                                                                                    </span>
-                                                                                ))}
-                                                                            </div>
+                                                            <div key={platform} className="animate-in fade-in slide-in-from-bottom-2">
+                                                                <div className="flex items-center justify-between mb-3 px-2">
+                                                                    <div className="flex items-center gap-2">
+                                                                        {platform === "Instagram" && <Instagram className="w-3.5 h-3.5 text-pink-500" />}
+                                                                        {platform === "Facebook" && <Facebook className="w-3.5 h-3.5 text-blue-600" />}
+                                                                        {platform === "X" && <XIcon size={14} />}
+                                                                        <span className="text-[10px] font-black uppercase tracking-widest">{platform} príspevok</span>
+                                                                    </div>
+                                                                    {platformResult && (
+                                                                        <button
+                                                                            onClick={() => copyToClipboard(platformResult)}
+                                                                            className="flex items-center gap-2 px-3 py-1 bg-muted hover:bg-primary/20 hover:text-primary rounded-lg transition-all text-[9px] font-black uppercase tracking-wider"
+                                                                        >
+                                                                            <Copy className="w-3 h-3" />
+                                                                            Kopírovať
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+
+                                                                {platformResult ? (
+                                                                    <div className="bg-muted/30 rounded-2xl p-6 relative group">
+                                                                        <div className="whitespace-pre-wrap text-sm leading-relaxed font-medium">
+                                                                            {platformResult}
                                                                         </div>
                                                                     </div>
-                                                                    <div className="flex flex-col items-center gap-4 w-full lg:w-[190px] flex-shrink-0">
-                                                                        <div className="flex items-center justify-center gap-3 px-5 py-2.5 bg-background/50 rounded-2xl border border-border/50 shadow-inner h-[50px] min-w-[120px]">
-                                                                            {['Instagram', 'Facebook', 'X'].filter(platform => posts.some(p => p.platform === platform)).map(platform => {
-                                                                                const post = posts.find(p => p.platform === platform);
-                                                                                const isPosted = post?.status === 'posted';
-                                                                                return (
-                                                                                    <div key={platform} className={cn(
-                                                                                        "flex items-center gap-1.5 transition-all",
-                                                                                        isPosted ? "opacity-100 scale-110" : "opacity-40 scale-90"
-                                                                                    )}>
-                                                                                        <div className={cn(
-                                                                                            "w-7 h-7 rounded-lg flex items-center justify-center text-white shadow-sm",
-                                                                                            platform === 'Instagram' ? "bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600" :
-                                                                                                platform === 'Facebook' ? "bg-blue-600" : "bg-black border border-white/20"
+                                                                ) : (
+                                                                    <div className="bg-muted/10 rounded-2xl p-8 text-center text-[9px] font-black uppercase tracking-widest text-muted-foreground italic">
+                                                                        {isGeneratingSocial ? "AI pripravuje..." : "Čaká na vygenerovanie"}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+
+                                                {/* Image Generator Preview */}
+                                                <div className="mt-8 pt-8 border-t border-border/50">
+                                                    <InstagramPreview title={article.title} />
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Social Media Planner Section */}
+                            <div className="bg-card border rounded-[40px] p-8 md:p-12 shadow-sm ring-1 ring-border/50">
+                                {/* Header Row 1: Title & Refresh */}
+                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+                                    <h3 className="text-2xl md:text-3xl font-black uppercase tracking-tight flex items-center gap-4">
+                                        <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                                            <Calendar className="w-6 h-6" />
+                                        </div>
+                                        <span className="leading-tight">AI Planner & <br className="md:hidden" /> História postov</span>
+                                    </h3>
+
+                                    <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
+                                        <button
+                                            onClick={handleSocialAutopilot}
+                                            disabled={isSocialAutopilotGenerating}
+                                            className="h-11 flex items-center gap-2 px-5 bg-white text-black rounded-xl transition-all border border-white hover:bg-zinc-200 active:scale-95 shadow-lg shadow-white/5 disabled:opacity-50"
+                                        >
+                                            <Sparkles className={cn("w-3.5 h-3.5", isSocialAutopilotGenerating && "animate-pulse")} />
+                                            <span className="text-[9px] font-black uppercase tracking-widest whitespace-nowrap">
+                                                {isSocialAutopilotGenerating ? "Analyzujem..." : "AI Automatizátor"}
+                                            </span>
+                                        </button>
+
+                                        <button
+                                            onClick={() => setIsPlannerOpen(!isPlannerOpen)}
+                                            className={cn(
+                                                "h-11 flex items-center gap-2 px-5 rounded-xl transition-all border border-border/50 active:scale-95 shadow-sm",
+                                                isPlannerOpen
+                                                    ? "bg-zinc-800 text-white hover:bg-zinc-700"
+                                                    : "bg-zinc-100 text-black hover:bg-zinc-200"
+                                            )}
+                                        >
+                                            {isPlannerOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                                            <span className="text-[9px] font-black uppercase tracking-widest whitespace-nowrap">
+                                                {isPlannerOpen ? 'Zabaliť' : 'Rozbaliť'}
+                                            </span>
+                                        </button>
+
+                                        <button
+                                            onClick={handleDeleteAllSocialPosts}
+                                            className="h-11 flex items-center gap-2 px-4 bg-red-500/10 text-red-500 rounded-xl transition-all border border-red-500/20 hover:bg-red-500 hover:text-white active:scale-95 shadow-sm"
+                                            title="Vymazať všetko"
+                                        >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                            <span className="text-[9px] font-black uppercase tracking-widest whitespace-nowrap">Všetko vymazať</span>
+                                        </button>
+
+                                        <button
+                                            onClick={fetchPlannedPosts}
+                                            className="h-11 flex items-center gap-2 px-5 bg-zinc-800/50 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded-xl transition-all group border border-border/20 active:scale-95 shadow-sm"
+                                        >
+                                            <RefreshCw className="w-3.5 h-3.5 group-hover:rotate-180 transition-transform duration-500" />
+                                            <span className="text-[9px] font-black uppercase tracking-widest whitespace-nowrap">Obnoviť</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {isPlannerOpen && (
+                                    <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+                                        {/* Header Row 2: Category Filters */}
+                                        <div className="mb-10 p-2 bg-muted/30 rounded-[28px] border border-border/50">
+                                            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 md:pb-0 px-2">
+                                                {['all', 'Umelá Inteligencia', 'Tech', 'Biznis', 'Krypto', 'Svet', 'Politika', 'Veda', 'Gaming', 'Návody & Tipy'].map((cat) => (
+                                                    <button
+                                                        key={cat}
+                                                        onClick={() => setPlannedCategoryFilter(cat)}
+                                                        className={cn(
+                                                            "px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border-2 border-transparent",
+                                                            plannedCategoryFilter === cat
+                                                                ? "bg-foreground text-background shadow-xl scale-105"
+                                                                : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                                        )}
+                                                    >
+                                                        {cat === 'all' ? 'Všetky Príspevky' : cat}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-6">
+                                            {plannedPosts.length === 0 ? (
+                                                <div className="py-20 text-center border-2 border-dashed rounded-[32px] text-muted-foreground">
+                                                    <Clock className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                                                    <p className="font-bold uppercase text-xs tracking-widest">Zatiaľ žiadne naplánované príspevky</p>
+                                                </div>
+                                            ) : (
+                                                <div className="grid grid-cols-1 gap-4">
+                                                    {(() => {
+                                                        // Group posts by article_id
+                                                        const grouped: Record<string, typeof plannedPosts> = {};
+
+                                                        // Filter by category first
+                                                        const filteredPosts = plannedCategoryFilter === 'all'
+                                                            ? plannedPosts
+                                                            : plannedPosts.filter(p => p.articles?.category === plannedCategoryFilter);
+
+                                                        filteredPosts.forEach(post => {
+                                                            const id = post.article_id || 'unknown';
+                                                            if (!grouped[id]) grouped[id] = [];
+                                                            grouped[id].push(post);
+                                                        });
+
+                                                        const groups = Object.entries(grouped);
+
+                                                        if (groups.length === 0) {
+                                                            return (
+                                                                <div className="py-20 text-center border-2 border-dashed rounded-[32px] text-muted-foreground">
+                                                                    <Sparkles className="w-12 h-12 mx-auto mb-4 opacity-10" />
+                                                                    <p className="font-bold uppercase text-xs tracking-widest">Žiadne príspevky v kategórii &quot;{plannedCategoryFilter}&quot;</p>
+                                                                </div>
+                                                            );
+                                                        }
+
+                                                        return groups.map(([articleId, posts]) => {
+                                                            const firstPost = posts[0];
+                                                            const articleTitle = firstPost.articles?.title || "Neznámy článok";
+                                                            const articleCategory = firstPost.articles?.category || "Novinka";
+
+                                                            return (
+                                                                <div key={articleId} className="bg-card border-2 border-primary/5 rounded-[40px] overflow-hidden shadow-sm hover:shadow-xl transition-all mb-6">
+                                                                    {/* Article Header (Always Visible) */}
+                                                                    <div className="p-8 md:p-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 bg-muted/5">
+                                                                        <div className="flex items-center gap-6 flex-grow min-w-0">
+                                                                            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                                                                <Sparkles className="w-8 h-8 text-primary" />
+                                                                            </div>
+                                                                            <div className="min-w-0">
+                                                                                <div className="flex items-center gap-2 mb-1">
+                                                                                    <span className="text-[10px] font-black uppercase tracking-widest text-primary">{articleCategory}</span>
+                                                                                    <span className="text-[10px] text-muted-foreground">•</span>
+                                                                                    <span className="text-[10px] font-bold text-muted-foreground uppercase">{posts.length} sociálne formáty</span>
+                                                                                </div>
+                                                                                <h4 className="text-xl md:text-2xl font-black tracking-tight">{articleTitle}</h4>
+                                                                                <div className="flex flex-wrap gap-2 mt-3">
+                                                                                    {posts.map(p => (
+                                                                                        <span key={p.id} className={cn(
+                                                                                            "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5",
+                                                                                            p.status === 'posted' ? "bg-green-500/10 text-green-500" : "bg-muted text-muted-foreground"
                                                                                         )}>
-                                                                                            {platform === 'Instagram' && <Instagram size={14} />}
-                                                                                            {platform === 'Facebook' && <Facebook size={14} />}
-                                                                                            {platform === 'X' && <XIcon size={14} />}
-                                                                                        </div>
-                                                                                    </div>
-                                                                                );
-                                                                            })}
+                                                                                            {p.platform === 'Instagram' && <Instagram size={10} />}
+                                                                                            {p.platform === 'Facebook' && <Facebook size={10} />}
+                                                                                            {p.platform === 'X' && <XIcon size={10} />}
+                                                                                            {p.platform}
+                                                                                            {p.status === 'posted' && <CheckCircle2 size={10} />}
+                                                                                        </span>
+                                                                                    ))}
+                                                                                </div>
+                                                                            </div>
                                                                         </div>
-                                                                        <button
-                                                                            onClick={() => setSelectedPlannerArticle(articleId)}
-                                                                            className="w-full bg-foreground text-background px-8 py-4 rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] shadow-xl hover:scale-105 active:scale-95 transition-all text-center whitespace-nowrap"
-                                                                        >
-                                                                            Rozbaliť možnosti
-                                                                        </button>
+                                                                        <div className="flex flex-col items-center gap-4 w-full lg:w-[190px] flex-shrink-0">
+                                                                            <div className="flex items-center justify-center gap-3 px-5 py-2.5 bg-background/50 rounded-2xl border border-border/50 shadow-inner h-[50px] min-w-[120px]">
+                                                                                {['Instagram', 'Facebook', 'X'].filter(platform => posts.some(p => p.platform === platform)).map(platform => {
+                                                                                    const post = posts.find(p => p.platform === platform);
+                                                                                    const isPosted = post?.status === 'posted';
+                                                                                    return (
+                                                                                        <div key={platform} className={cn(
+                                                                                            "flex items-center gap-1.5 transition-all",
+                                                                                            isPosted ? "opacity-100 scale-110" : "opacity-40 scale-90"
+                                                                                        )}>
+                                                                                            <div className={cn(
+                                                                                                "w-7 h-7 rounded-lg flex items-center justify-center text-white shadow-sm",
+                                                                                                platform === 'Instagram' ? "bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600" :
+                                                                                                    platform === 'Facebook' ? "bg-blue-600" : "bg-black border border-white/20"
+                                                                                            )}>
+                                                                                                {platform === 'Instagram' && <Instagram size={14} />}
+                                                                                                {platform === 'Facebook' && <Facebook size={14} />}
+                                                                                                {platform === 'X' && <XIcon size={14} />}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    );
+                                                                                })}
+                                                                            </div>
+                                                                            <button
+                                                                                onClick={() => setSelectedPlannerArticle(articleId)}
+                                                                                className="w-full bg-foreground text-background px-8 py-4 rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] shadow-xl hover:scale-105 active:scale-95 transition-all text-center whitespace-nowrap"
+                                                                            >
+                                                                                Rozbaliť možnosti
+                                                                            </button>
+                                                                        </div>
                                                                     </div>
                                                                 </div>
-                                                            </div>
-                                                        );
-                                                    });
-                                                })()}
-                                            </div>
-                                        )}
+                                                            );
+                                                        });
+                                                    })()}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                )}
+                            </div>
                         </div>
-                    </div>
-                )}
-            </div>
+                    )
+                }
+            </div >
             {/* MODALS - Simplified & High Z-Index */}
             {
                 isDiscoveringModalOpen && typeof document !== "undefined" && createPortal(
@@ -2969,20 +3087,22 @@ export default function AdminPage() {
             }
 
             {/* HIDDEN RENDERER FOR AUTOMATION */}
-            {automationArticleData && (
-                <div style={{
-                    position: 'fixed',
-                    top: '-10000px',
-                    left: '0px',
-                    width: '1080px',
-                    height: '1080px',
-                    zIndex: -100,
-                    pointerEvents: 'none',
-                    background: 'black'
-                }}>
-                    <InstagramPreview title={automationArticleData.title} id="automation-preview-capture" />
-                </div>
-            )}
+            {
+                automationArticleData && (
+                    <div style={{
+                        position: 'fixed',
+                        top: '-10000px',
+                        left: '0px',
+                        width: '1080px',
+                        height: '1080px',
+                        zIndex: -100,
+                        pointerEvents: 'none',
+                        background: 'black'
+                    }}>
+                        <InstagramPreview title={automationArticleData.title} id="automation-preview-capture" />
+                    </div>
+                )
+            }
         </>
     );
 }

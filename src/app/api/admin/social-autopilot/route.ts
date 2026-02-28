@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
-import { publishToFacebook, publishToInstagram } from "@/lib/meta-api";
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
@@ -24,26 +23,45 @@ interface SocialPost {
 }
 
 export async function POST(req: Request) {
+    const LEGACY_SECRET = "make-com-webhook-secret";
+
     try {
-        const { platforms, autoPublish } = await req.json();
+        const body = await req.json();
+        const { platforms, autoPublish, articleId, secret } = body;
+
+        if (secret !== process.env.ADMIN_SECRET && secret !== LEGACY_SECRET) {
+            return NextResponse.json({ message: "Invalid secret" }, { status: 401 });
+        }
 
         if (!platforms || !Array.isArray(platforms) || platforms.length === 0) {
             return NextResponse.json({ error: "Missing platforms" }, { status: 400 });
         }
 
-        // 1. Fetch articles from last 24 hours
+        // 1. Fetch articles
+        let availableArticles: any[] = [];
         const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-        const { data: articles, error: articlesError } = await supabase
-            .from("articles")
-            .select("id, title, excerpt, category, slug, published_at, main_image")
-            .eq("status", "published")
-            .gte("published_at", twentyFourHoursAgo)
-            .order("published_at", { ascending: false });
+        if (articleId) {
+            const { data: article, error: articleError } = await supabase
+                .from("articles")
+                .select("id, title, excerpt, category, slug, published_at, main_image")
+                .eq("id", articleId)
+                .single();
+            if (articleError) throw articleError;
+            if (article) availableArticles = [article];
+        } else {
+            const { data: articles, error: articlesError } = await supabase
+                .from("articles")
+                .select("id, title, excerpt, category, slug, published_at, main_image")
+                .eq("status", "published")
+                .gte("published_at", twentyFourHoursAgo)
+                .order("published_at", { ascending: false });
 
-        if (articlesError) throw articlesError;
+            if (articlesError) throw articlesError;
+            availableArticles = articles || [];
+        }
 
-        // 2. Fetch ALL existing social posts with article titles to check for near-duplicates
+        // 2. Fetch ALL existing social posts to check for duplicates
         const { data: allExistingPostsRaw, error: postsError } = await supabase
             .from("social_posts")
             .select(`
@@ -58,34 +76,34 @@ export async function POST(req: Request) {
         if (postsError) throw postsError;
         const allExistingPosts = allExistingPostsRaw as unknown as SocialPost[];
 
-        // 3. Filter out articles:
-        // - Exclude if the article ID is already in the planner
-        // - Exclude if an article with the EXACT same title is already in the planner
-        const availableArticles = (articles || []).filter(article => {
-            // 1. Check by ID
-            const existsById = allExistingPosts?.some(p => p.article_id === article.id);
-            if (existsById) return false;
+        // 3. Filter available articles (if not for a specific articleId)
+        if (!articleId && availableArticles.length > 0) {
+            availableArticles = availableArticles.filter(article => {
+                const existsById = allExistingPosts?.some(p => p.article_id === article.id);
+                if (existsById) return false;
 
-            // 2. Check by Title (to avoid suggesting the same story if it was re-published with new ID)
-            const existsByTitle = allExistingPosts?.some(p => {
-                const articlesData = p.articles;
-                const t = Array.isArray(articlesData) ? articlesData[0]?.title : articlesData?.title;
-                return t?.trim().toLowerCase() === article.title.trim().toLowerCase();
+                const existsByTitle = allExistingPosts?.some(p => {
+                    const articlesData = p.articles;
+                    const t = Array.isArray(articlesData) ? (articlesData as any[])[0]?.title : (articlesData as any)?.title;
+                    return t?.trim().toLowerCase() === article.title.trim().toLowerCase();
+                });
+                if (existsByTitle) return false;
+
+                return true;
             });
-            if (existsByTitle) return false;
-
-            return true;
-        });
-
-        console.log("Found available articles:", availableArticles.length);
-
-        if (availableArticles.length === 0) {
-            return NextResponse.json({ message: "Všetky aktuálne témy už máš v plánovači.", posts: [] });
         }
 
-        // 4. Use AI to select the most relevant articles
-        const selectionPrompt = `Si elitný sociálny stratég pre technologický portál Postovinky. Z nasledujúceho zoznamu správ za posledných 24 hodín vyber PRESNE 4 témy, ktoré sú momentálne NAJVYŠŠOU PRIORITOU.
-        
+        if (availableArticles.length === 0) {
+            return NextResponse.json({ message: "Nenašli sa žiadne vhodné články na spracovanie.", posts: [] });
+        }
+
+        // 4. Select articles (AI or direct)
+        let selectedArticles = [];
+        if (articleId) {
+            selectedArticles = availableArticles;
+        } else {
+            const selectionPrompt = `Si elitný sociálny stratég pre technologický portál Postovinky. Z nasledujúceho zoznamu správ za posledných 24 hodín vyber PRESNE 4 témy, ktoré sú momentálne NAJVYŠŠOU PRIORITOU.
+            
 Hľadaj témy, ktoré:
 1. Sú najviac relevantné k aktuálnemu svetovému dianiu a technologickým trendom (to, čo sa práve teraz najviac rieši).
 2. Majú najväčší informačný prínos a zároveň virálny potenciál.
@@ -101,25 +119,22 @@ ${availableArticles.map((a, i) => `${i}. ID: ${a.id} | Názov: ${a.title} | Kate
 ODPOVEDAJ LEN VO FORMÁTE JSON:
 { "selectedIds": ["id1", "id2", "id3", "id4"] }`;
 
-        const selectionCompletion = await openai.chat.completions.create({
-            model: "gpt-4o",
-            messages: [{ role: "user", content: selectionPrompt }],
-            response_format: { type: "json_object" }
-        });
+            const selectionCompletion = await openai.chat.completions.create({
+                model: "gpt-4o",
+                messages: [{ role: "user", content: selectionPrompt }],
+                response_format: { type: "json_object" }
+            });
 
-        const rawContent = selectionCompletion.choices[0].message.content;
-        console.log("AI selection response:", rawContent);
-        const selectedData = JSON.parse(rawContent || '{"selectedIds": []}');
-        const selectedIds = selectedData.selectedIds || [];
+            const rawContent = selectionCompletion.choices[0].message.content;
+            const selectedData = JSON.parse(rawContent || '{"selectedIds": []}');
+            const selectedIds = selectedData.selectedIds || [];
+            selectedArticles = availableArticles.filter(a => selectedIds.includes(a.id));
+        }
 
-        console.log("Selected IDs by AI:", selectedIds);
+        console.log("Processing selected articles, count:", selectedArticles.length);
 
-        const selectedArticles = availableArticles.filter(a => selectedIds.includes(a.id));
-        console.log("Filtering selected articles, found:", selectedArticles.length);
-
-        // 5. Generate posts for each selected article and platform
+        // 5. Generate posts
         const generatedPosts = [];
-
         for (const article of selectedArticles) {
             for (const platform of platforms) {
                 // Check if already posted to THIS platform
@@ -161,7 +176,6 @@ Perex: ${article.excerpt}`;
                 });
 
                 const content = postCompletion.choices[0].message.content;
-
                 generatedPosts.push({
                     article_id: article.id,
                     platform,
@@ -171,57 +185,58 @@ Perex: ${article.excerpt}`;
             }
         }
 
-        // 6. Save to DB and Optionally Publish
+        // 6. Save and optionally publish
         const publishedResults = [];
-        if (generatedPosts.length > 0) {
-            for (const post of generatedPosts) {
-                // Insert into DB
-                const { data: savedPost, error: insertError } = await supabase
-                    .from("social_posts")
-                    .insert(post)
-                    .select()
-                    .single();
+        for (const post of generatedPosts) {
+            const { data: savedPost, error: insertError } = await supabase
+                .from("social_posts")
+                .insert(post)
+                .select()
+                .single();
 
-                if (insertError) {
-                    console.error("Failed to save post to DB:", insertError);
-                    continue;
-                }
+            if (insertError) continue;
 
-                // If autoPublish is true, publish it now
-                if (autoPublish && savedPost) {
-                    try {
-                        const article = selectedArticles.find(a => a.id === post.article_id);
-                        const articleUrl = `https://postovinky.news/article/${article?.slug}`;
-                        const imageUrl = article?.main_image;
+            if (autoPublish && savedPost) {
+                try {
+                    // Call our specialized publishing API to ensure we follow the EXACT same logic
+                    // as the manual "Publish" button (storage buffering, FB link logic, etc.)
+                    const currentHost = req.headers.get("host") || "postovinky.news";
+                    const protocol = currentHost.includes("localhost") ? "http" : "https";
+                    const publishEndpoint = `${protocol}://${currentHost}/api/admin/publish-social-post`;
 
-                        if (post.platform === 'Facebook') {
-                            await publishToFacebook(post.content || "", articleUrl);
-                            await supabase.from("social_posts").update({ status: 'posted', posted_at: new Date().toISOString() }).eq('id', savedPost.id);
-                            publishedResults.push({ id: savedPost.id, platform: 'Facebook', success: true });
-                        } else if (post.platform === 'Instagram' && imageUrl) {
-                            const host = "postovinky.news";
-                            const igImageUrl = `https://${host}/api/social-image/${savedPost.id}.png?t=${Date.now()}`;
-                            await publishToInstagram(igImageUrl, post.content || "");
-                            await supabase.from("social_posts").update({ status: 'posted', posted_at: new Date().toISOString() }).eq('id', savedPost.id);
-                            publishedResults.push({ id: savedPost.id, platform: 'Instagram', success: true });
-                        }
-                    } catch (publishError) {
-                        console.error(`Auto-publish failed for post ${savedPost.id}:`, publishError);
-                        publishedResults.push({ id: savedPost.id, platform: post.platform, success: false, error: String(publishError) });
+                    console.log(`>>> [Social Autopilot] Auto-publishing ${post.platform} (ID: ${savedPost.id}) via ${publishEndpoint}...`);
+
+                    const publishRes = await fetch(publishEndpoint, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            id: savedPost.id,
+                            secret: LEGACY_SECRET
+                        })
+                    });
+
+                    const publishData = await publishRes.json();
+
+                    if (publishRes.ok) {
+                        publishedResults.push({ id: savedPost.id, platform: post.platform, success: true });
+                    } else {
+                        throw new Error(publishData.error || "Publishing failed");
                     }
+                } catch (publishError: any) {
+                    console.error(`>>> [Social Autopilot] Auto-publish failed for ${post.platform}:`, publishError.message || publishError);
+                    publishedResults.push({ id: savedPost.id, platform: post.platform, success: false, error: String(publishError.message || publishError) });
                 }
             }
         }
 
         return NextResponse.json({
-            message: autoPublish ? "Príspevky boli vygenerované a odoslané." : "Príspevky boli uložené ako koncepty.",
+            message: autoPublish ? "Príspevky boli vygenerované a spracované." : "Príspevky boli uložené ako koncepty.",
             posts: generatedPosts,
             publishResults: publishedResults
         });
 
     } catch (error: unknown) {
         console.error("Social autopilot failed:", error);
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
-        return NextResponse.json({ error: errorMessage }, { status: 500 });
+        return NextResponse.json({ error: error instanceof Error ? error.message : "Unknown error" }, { status: 500 });
     }
 }

@@ -13,6 +13,7 @@ export async function GET() {
 interface GenerateArticleRequest {
     url?: string;
     secret?: string;
+    status?: 'draft' | 'published';
 }
 
 export async function POST(request: NextRequest) {
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ message: "Invalid JSON body" }, { status: 400 });
     }
 
-    const { url, secret } = body ?? {};
+    const { url, secret, status = 'draft' } = body ?? {};
 
     if (secret !== process.env.ADMIN_SECRET && secret !== LEGACY_SECRET) {
         console.warn(">>> [API] Unauthorized attempt with secret:", secret ? "provided" : "none");
@@ -55,10 +56,10 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-        console.log(">>> [API] Calling processArticleFromUrl for:", url);
+        console.log(">>> [API] Calling processArticleFromUrl for:", url, "with status:", status);
         // Use relative path for dynamic import to be safe
         const { processArticleFromUrl } = await import("../../../../lib/generate-logic");
-        const data = await processArticleFromUrl(url, "draft");
+        const data = await processArticleFromUrl(url, status);
         console.log(">>> [API] Success for:", url);
         return NextResponse.json({ success: true, article: data });
     } catch (error: unknown) {
