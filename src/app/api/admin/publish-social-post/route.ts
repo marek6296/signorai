@@ -56,7 +56,6 @@ export async function POST(req: Request) {
         }
 
         const article = post.articles;
-        const articleUrl = `https://postovinky.news/article/${article?.slug}`;
 
         let finalImageUrl = customImageUrl || article?.main_image;
 
