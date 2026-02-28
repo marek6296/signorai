@@ -58,6 +58,10 @@ export async function GET(req: NextRequest) {
             });
 
             if (!isTime) {
+                await supabase
+                    .from('site_settings')
+                    .update({ value: { ...settings, last_run: new Date().toISOString(), last_status: `Aktívny (Čakám na čas publikovania: ${settings.posting_times.join(', ')})` } })
+                    .eq('key', 'social_bot');
                 return NextResponse.json({ message: "Not a scheduled time window", currentTime: bratislavaTime });
             }
         }
@@ -71,6 +75,10 @@ export async function GET(req: NextRequest) {
         // 4. Discovery
         const foundItems = await discoverNewNews(3, [category]);
         if (foundItems.length === 0) {
+            await supabase
+                .from('site_settings')
+                .update({ value: { ...settings, last_run: new Date().toISOString(), last_status: `Aktívny (Žiadne nové správy v kategórii ${category})` } })
+                .eq('key', 'social_bot');
             return NextResponse.json({ message: `No new items found for ${category}` });
         }
 
@@ -84,6 +92,10 @@ export async function GET(req: NextRequest) {
         });
 
         if (freshItems.length === 0) {
+            await supabase
+                .from('site_settings')
+                .update({ value: { ...settings, last_run: new Date().toISOString(), last_status: `Aktívny (Všetky novinky v ${category} už boli spracované)` } })
+                .eq('key', 'social_bot');
             return NextResponse.json({ message: "All discovered items are already processed" });
         }
 
@@ -112,15 +124,34 @@ export async function GET(req: NextRequest) {
         const autopilotData = await autopilotRes.json();
         console.log(`>>> [Bot] Social Autopilot finished:`, autopilotData);
 
+        const finalStatus = `Úspešne publikované: ${article.title}`;
+        await supabase
+            .from('site_settings')
+            .update({ value: { ...settings, last_run: new Date().toISOString(), last_status: finalStatus } })
+            .eq('key', 'social_bot');
+
         return NextResponse.json({
             success: true,
             article: article.title,
-            social: autopilotData
+            social: autopilotData,
+            status: finalStatus
         });
 
     } catch (error: unknown) {
         const errorMsg = error instanceof Error ? error.message : "Internal server error";
         console.error(">>> [Bot] CRITICAL ERROR:", error);
+
+        // Log error even for settings
+        try {
+            const { data: currentSettings } = await supabase.from('site_settings').select('value').eq('key', 'social_bot').single();
+            if (currentSettings) {
+                await supabase
+                    .from('site_settings')
+                    .update({ value: { ...(currentSettings.value as any), last_run: new Date().toISOString(), last_status: `Chyba: ${errorMsg}` } })
+                    .eq('key', 'social_bot');
+            }
+        } catch (e) { }
+
         return NextResponse.json({
             error: true,
             message: errorMsg

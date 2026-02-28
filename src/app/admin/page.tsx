@@ -54,6 +54,8 @@ type SocialBotSettings = {
     posting_times: string[];
     auto_publish: boolean;
     target_categories: string[];
+    last_run?: string;
+    last_status?: string;
 };
 
 type SocialPost = {
@@ -1744,9 +1746,30 @@ export default function AdminPage() {
                                                 <span className="bg-muted text-muted-foreground text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">Neaktívny</span>
                                             )}
                                         </div>
-                                        <p className="text-muted-foreground font-medium text-lg leading-relaxed mb-8">
+                                        <p className="text-muted-foreground font-medium text-lg leading-relaxed mb-6">
                                             Autonómny agent, ktorý v určených časoch sám <strong className="text-foreground">objaví</strong> novinky, <strong className="text-foreground">napíše</strong> články a <strong className="text-foreground">publikuje</strong> ich na web aj sociálne siete.
                                         </p>
+
+                                        {/* Bot Live Status Feed */}
+                                        {socialBotSettings.enabled && (
+                                            <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-2xl p-4 mb-8 flex items-center gap-4">
+                                                <div className="flex-shrink-0 relative">
+                                                    <div className="w-3 h-3 bg-indigo-500 rounded-full animate-ping opacity-75" />
+                                                    <div className="absolute inset-0 w-3 h-3 bg-indigo-500 rounded-full" />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center justify-between mb-0.5">
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Live Status Agenta</span>
+                                                        <span className="text-[9px] font-bold text-muted-foreground italic">
+                                                            {socialBotSettings.last_run ? `Posledná kontrola: ${new Date(socialBotSettings.last_run).toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : 'Čakám na prvý chod...'}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-xs font-bold text-foreground truncate">
+                                                        {socialBotSettings.last_status || 'Agent je pripravený v pohotovosti.'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                             {/* Category Selection for Bot */}
