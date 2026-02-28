@@ -119,12 +119,12 @@ export async function GET(req: NextRequest) {
         const article = await processArticleFromUrl(target.url, 'published', category);
         console.log(`>>> [Bot] Article generated: ${article.id}`);
 
-        // 7. Generate Social Posts (using existing autopilot route logic or calling it)
+        // 7. Generate Social Posts
         await supabase.from('site_settings').update({ value: { ...settings, last_run: new Date().toISOString(), last_status: `Aktívny (Publikujem na sociálne siete...)` } }).eq('key', 'social_bot');
-        const currentHost = req.headers.get("host") || "postovinky.news";
-        const protocol = currentHost.includes("localhost") ? "http" : "https";
 
-        const autopilotRes = await fetch(`${protocol}://${currentHost}/api/admin/social-autopilot`, {
+        const origin = req.nextUrl.origin;
+
+        const autopilotRes = await fetch(`${origin}/api/admin/social-autopilot`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -134,6 +134,11 @@ export async function GET(req: NextRequest) {
                 autoPublish: true
             })
         });
+
+        if (!autopilotRes.ok) {
+            const errorText = await autopilotRes.text();
+            throw new Error(`Social Autopilot failed (${autopilotRes.status}): ${errorText.substring(0, 50)}`);
+        }
 
         const autopilotData = await autopilotRes.json();
         console.log(`>>> [Bot] Social Autopilot finished:`, autopilotData);
