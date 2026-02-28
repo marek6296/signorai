@@ -57,6 +57,17 @@ export async function GET(req: NextRequest) {
                 return diff >= 0 && diff < 30;
             });
 
+            // Prevent double run: if we last run successfully less than 40 mins ago, skip
+            if (isTime && settings.last_run) {
+                const lastRunDate = new Date(settings.last_run);
+                const diffMs = now.getTime() - lastRunDate.getTime();
+                const diffMins = diffMs / (1000 * 60);
+
+                if (diffMins < 40 && settings.last_status?.includes("Úspešne publikované")) {
+                    return NextResponse.json({ message: "Already run recently for this window", lastRun: settings.last_run });
+                }
+            }
+
             if (!isTime) {
                 await supabase
                     .from('site_settings')
