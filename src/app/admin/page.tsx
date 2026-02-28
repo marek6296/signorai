@@ -154,12 +154,60 @@ export default function AdminPage() {
         }
     }, [activeTab]);
 
+    useEffect(() => {
+        if (!socialBotSettings.enabled || !socialBotSettings.posting_times?.length) {
+            setCountdownToNext("");
+            return;
+        }
+
+        const updateCountdown = () => {
+            const now = new Date();
+            const bratislavaTimeStr = new Intl.DateTimeFormat('en-GB', {
+                timeZone: 'Europe/Bratislava',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            }).format(now);
+
+            const [currH, currM, currS] = bratislavaTimeStr.split(':').map(Number);
+            const currTotalSeconds = currH * 3600 + currM * 60 + currS;
+
+            const timesInSeconds = socialBotSettings.posting_times.map(t => {
+                const [h, m] = t.split(':').map(Number);
+                return h * 3600 + m * 60;
+            }).sort((a, b) => a - b);
+
+            let nextTimeInSeconds = timesInSeconds.find(t => t > currTotalSeconds);
+            if (nextTimeInSeconds === undefined) {
+                nextTimeInSeconds = timesInSeconds[0] + 24 * 3600;
+            }
+
+            const diffSeconds = nextTimeInSeconds - currTotalSeconds;
+            const h = Math.floor(diffSeconds / 3600);
+            const m = Math.floor((diffSeconds % 3600) / 60);
+            const s = diffSeconds % 60;
+
+            const parts = [];
+            if (h > 0) parts.push(`${h}h`);
+            if (m > 0 || h > 0) parts.push(`${m}m`);
+            parts.push(`${s}s`);
+
+            setCountdownToNext(parts.join(' '));
+        };
+
+        updateCountdown();
+        const timer = setInterval(updateCountdown, 1000);
+        return () => clearInterval(timer);
+    }, [socialBotSettings.enabled, socialBotSettings.posting_times]);
+
 
     // Authentication state
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loginError, setLoginError] = useState("");
+    const [countdownToNext, setCountdownToNext] = useState<string>("");
     const [selectedDiscoveryCategory, setSelectedDiscoveryCategory] = useState("Všetky");
     const [selectedPublishedCategory, setSelectedPublishedCategory] = useState("Všetky");
     const [discoveryDays, setDiscoveryDays] = useState("3");
@@ -1761,7 +1809,7 @@ export default function AdminPage() {
                                                     <div className="flex items-center justify-between mb-0.5">
                                                         <span className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Live Status Agenta</span>
                                                         <span className="text-[9px] font-bold text-muted-foreground italic">
-                                                            {socialBotSettings.last_run ? `Posledná kontrola: ${new Date(socialBotSettings.last_run).toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : 'Čakám na prvý chod...'}
+                                                            {countdownToNext ? `Další trigger o: ${countdownToNext}` : (socialBotSettings.last_run ? `Posledná kontrola: ${new Date(socialBotSettings.last_run).toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : 'Čakám na prvý chod...')}
                                                         </span>
                                                     </div>
                                                     <p className="text-xs font-bold text-foreground truncate">
