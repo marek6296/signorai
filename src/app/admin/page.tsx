@@ -1446,8 +1446,8 @@ export default function AdminPage() {
 
                 {/* CREATE TAB */}
                 {activeTab === "create" && (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="bg-card border rounded-[40px] p-10 shadow-sm flex flex-col relative overflow-hidden h-full ring-1 ring-border/50">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 mb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="bg-card border rounded-[32px] md:rounded-[40px] p-6 md:p-10 shadow-sm flex flex-col relative overflow-hidden h-full ring-1 ring-border/50">
                             <div className="h-[200px] flex flex-col">
                                 <div className="bg-primary/10 text-primary p-4 rounded-2xl w-fit mb-6">
                                     <Sparkles className="w-8 h-8" />
@@ -1546,7 +1546,7 @@ export default function AdminPage() {
                         </div>
 
                         {/* Discovery Settings Panel */}
-                        <div className="bg-card/50 border border-border/40 p-5 md:p-6 rounded-3xl shadow-sm backdrop-blur-sm flex flex-col lg:flex-row gap-8 lg:gap-20 items-start">
+                        <div className="bg-card/50 border border-border/40 p-5 md:p-6 rounded-3xl shadow-sm backdrop-blur-sm flex flex-col lg:flex-row gap-6 md:gap-20 items-stretch md:items-start">
                             {/* Max Age Column */}
                             <div className="space-y-3">
                                 <div className="flex items-center gap-2 mb-1">
@@ -1639,10 +1639,10 @@ export default function AdminPage() {
 
                         {/* Discovery Items List */}
                         {suggestions.length === 0 ? (
-                            <div className="bg-card border border-dashed rounded-[40px] p-24 text-center">
-                                <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-8 text-3xl">✨</div>
-                                <h3 className="text-2xl font-black uppercase mb-3 text-foreground/80">Všetko je spracované</h3>
-                                <p className="text-muted-foreground font-medium">Momentálne nemáte žiadne nové návrhy.</p>
+                            <div className="bg-card border border-dashed rounded-[32px] md:rounded-[40px] p-10 md:p-24 text-center">
+                                <div className="w-16 h-16 md:w-20 md:h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-6 md:mb-8 text-2xl md:text-3xl">✨</div>
+                                <h3 className="text-xl md:text-2xl font-black uppercase mb-3 text-foreground/80">Všetko je spracované</h3>
+                                <p className="text-muted-foreground text-sm md:text-base font-medium">Momentálne nemáte žiadne nové návrhy.</p>
                             </div>
                         ) : (
                             <div className="space-y-10">
@@ -1653,12 +1653,12 @@ export default function AdminPage() {
                                     ))}
                                 </div>
 
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
                                     {suggestions.filter(s => {
                                         const itemCat = s.category || "Nezaradené";
                                         return selectedDiscoveryCategory === "Všetky" || itemCat === selectedDiscoveryCategory;
                                     }).map((suggestion) => (
-                                        <div key={suggestion.id} className="bg-card border rounded-[40px] p-10 shadow-md hover:border-primary/40 transition-all group flex flex-col h-full ring-1 ring-border/50">
+                                        <div key={suggestion.id} className="bg-card border rounded-[32px] md:rounded-[40px] p-6 md:p-10 shadow-md hover:border-primary/40 transition-all group flex flex-col h-full ring-1 ring-border/50">
                                             <div className="flex items-start justify-between mb-8">
                                                 <div className="flex flex-wrap gap-3">
                                                     <span className="bg-primary/10 text-primary px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-primary/20">{suggestion.source}</span>
@@ -1688,43 +1688,43 @@ export default function AdminPage() {
                             <p className="text-muted-foreground font-medium">Riadiace centrum pre všetkých AI agentov a automatické procesy.</p>
                         </div>
 
-                        <div className="grid grid-cols-1 gap-10">
+                        <div className="grid grid-cols-1 gap-6 md:gap-10">
                             {/* 1. Full Automation Bot (Post Publisher) - NOW AT THE TOP */}
-                            <div className="bg-gradient-to-br from-indigo-500/10 via-background to-background border-2 border-indigo-500/20 p-10 rounded-[40px] shadow-2xl relative overflow-hidden group/agent">
+                            <div className="bg-gradient-to-br from-indigo-500/10 via-background to-background border-2 border-indigo-500/20 p-5 md:p-10 rounded-[32px] md:rounded-[40px] shadow-2xl relative overflow-hidden group/agent">
                                 <div className="absolute top-0 right-0 p-8 opacity-10 group-hover/agent:opacity-20 transition-opacity">
                                     <Share2 className="w-32 h-32 text-indigo-500" />
                                 </div>
 
-                                <div className="relative z-10 flex flex-col lg:flex-row gap-10">
+                                <div className="relative z-10 flex flex-col lg:flex-row gap-6 md:gap-10">
                                     <div className="max-w-xl">
-                                        <div className="flex items-center gap-3 mb-6">
-                                            <div className="bg-indigo-500 text-white p-3 rounded-2xl shadow-lg shadow-indigo-500/30">
-                                                <Share2 className="w-6 h-6" />
+                                        <div className="flex items-center gap-3 mb-4 md:mb-6">
+                                            <div className="bg-indigo-500 text-white p-2.5 md:p-3 rounded-2xl shadow-lg shadow-indigo-500/30">
+                                                <Share2 className="w-5 h-5 md:w-6 md:h-6" />
                                             </div>
-                                            <h3 className="text-3xl font-black uppercase tracking-tight text-foreground">Full Automation Bot</h3>
+                                            <h3 className="text-xl md:text-3xl font-black uppercase tracking-tight text-foreground">Full Automation Bot</h3>
                                             {socialBotSettings.enabled ? (
                                                 <span className="bg-green-500 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest animate-pulse">Aktívny</span>
                                             ) : (
                                                 <span className="bg-muted text-muted-foreground text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">Neaktívny</span>
                                             )}
                                         </div>
-                                        <p className="text-muted-foreground font-medium text-lg leading-relaxed mb-6">
+                                        <p className="text-muted-foreground font-medium text-sm md:text-lg leading-relaxed mb-6">
                                             Autonómny agent, ktorý v určených časoch sám <strong className="text-foreground">objaví</strong> novinky, <strong className="text-foreground">napíše</strong> články a <strong className="text-foreground">publikuje</strong> ich na web aj sociálne siete.
                                         </p>
 
                                         {/* Bot Live Status Feed - Premium Countdown */}
                                         {socialBotSettings.enabled && (
-                                            <div className="bg-indigo-500/10 border-2 border-indigo-500/20 rounded-[32px] p-8 mb-10 flex flex-col items-center justify-center relative overflow-hidden group/status">
+                                            <div className="bg-indigo-500/10 border-2 border-indigo-500/20 rounded-3xl md:rounded-[32px] p-5 md:p-8 mb-8 md:mb-10 flex flex-col items-center justify-center relative overflow-hidden group/status">
                                                 {/* Animated Background Pulse */}
                                                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent" />
 
                                                 <div className="relative z-10 flex flex-col items-center gap-4">
                                                     <div className="flex items-center gap-3">
                                                         <div className="w-2.5 h-2.5 bg-indigo-500 rounded-full animate-ping" />
-                                                        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-500/80">Najbližšia automatizácia o</span>
+                                                        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-500/80">Najbližší chod o</span>
                                                     </div>
 
-                                                    <div className="text-6xl md:text-7xl font-black tabular-nums tracking-tighter text-foreground flex items-baseline gap-2">
+                                                    <div className="text-4xl md:text-7xl font-black tabular-nums tracking-tighter text-foreground flex items-baseline gap-2">
                                                         {isBotRunning ? (
                                                             <div className="flex flex-col items-center gap-2">
                                                                 <RefreshCw className="w-16 h-16 animate-spin text-indigo-500 mb-2" />
@@ -1734,11 +1734,11 @@ export default function AdminPage() {
                                                             countdownToNext.split(' ').map((part, idx) => (
                                                                 <span key={idx} className="flex items-baseline gap-1">
                                                                     {part.replace(/[a-z]/g, '')}
-                                                                    <span className="text-xl md:text-2xl text-indigo-500/40 font-black lowercase">{part.replace(/[0-9]/g, '')}</span>
+                                                                    <span className="text-base md:text-2xl text-indigo-500/40 font-black lowercase">{part.replace(/[0-9]/g, '')}</span>
                                                                 </span>
                                                             ))
                                                         ) : (
-                                                            <span className="text-2xl opacity-50 uppercase tracking-widest">Pripravujem...</span>
+                                                            <span className="text-xl md:text-2xl opacity-50 uppercase tracking-widest">Pripravujem...</span>
                                                         )}
                                                     </div>
 
@@ -1895,32 +1895,32 @@ export default function AdminPage() {
                             </div>
 
                             {/* 2. Manual Full Automation (Integrated Flow) */}
-                            <div className="bg-gradient-to-br from-purple-500/10 via-background to-background border-2 border-purple-500/20 p-10 rounded-[40px] shadow-2xl relative overflow-hidden group/manual">
+                            <div className="bg-gradient-to-br from-purple-500/10 via-background to-background border-2 border-purple-500/20 p-5 md:p-10 rounded-[32px] md:rounded-[40px] shadow-2xl relative overflow-hidden group/manual">
                                 <div className="absolute top-0 right-0 p-8 opacity-10 group-hover/manual:opacity-20 transition-opacity">
                                     <CloudLightning className="w-32 h-32 text-purple-500" />
                                 </div>
 
                                 <div className="relative z-10">
-                                    <div className="flex items-center gap-3 mb-6">
-                                        <div className="bg-purple-500 text-white p-3 rounded-2xl shadow-lg">
-                                            <CloudLightning className="w-6 h-6" />
+                                    <div className="flex items-center gap-3 mb-4 md:mb-6">
+                                        <div className="bg-purple-500 text-white p-2.5 md:p-3 rounded-2xl shadow-lg">
+                                            <CloudLightning className="w-5 h-5 md:w-6 md:h-6" />
                                         </div>
-                                        <h3 className="text-3xl font-black uppercase tracking-tight">Manuálna plná automatizácia (1 článok)</h3>
+                                        <h3 className="text-xl md:text-3xl font-black uppercase tracking-tight">Manuálna automatizácia</h3>
                                     </div>
-                                    <p className="text-muted-foreground font-medium text-lg leading-relaxed mb-8 max-w-2xl">
+                                    <p className="text-muted-foreground font-medium text-sm md:text-lg leading-relaxed mb-6 md:mb-8 max-w-2xl">
                                         Vyberte kategóriu a systém automaticky <strong className="text-foreground">vyhľadá</strong> nový článok, <strong className="text-foreground">vygeneruje</strong> ho v slovenčine a <strong className="text-foreground">publikuje</strong> ho spolu s príspevkami na sociálne siete.
                                     </p>
 
-                                    <div className="flex flex-col lg:flex-row items-center gap-8 bg-background/50 border border-border/50 p-6 rounded-3xl backdrop-blur-sm">
+                                    <div className="flex flex-col lg:flex-row items-center gap-6 md:gap-8 bg-background/50 border border-border/50 p-5 md:p-6 rounded-3xl backdrop-blur-sm">
                                         <div className="flex-grow w-full">
                                             <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 ml-2">Cieľová kategória</label>
-                                            <div className="flex flex-wrap gap-2">
+                                            <div className="flex flex-wrap gap-1.5 md:gap-2">
                                                 {["Novinky SK/CZ", "Umelá Inteligencia", "Tech", "Biznis", "Krypto", "Svet", "Politika", "Gaming"].map((cat) => (
                                                     <button
                                                         key={cat}
                                                         onClick={() => setSelectedFullAutomationCategory(cat)}
                                                         className={cn(
-                                                            "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
+                                                            "px-3 py-1.5 md:px-4 md:py-2 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all border",
                                                             selectedFullAutomationCategory === cat
                                                                 ? "bg-purple-500 text-white border-purple-500 shadow-md scale-105"
                                                                 : "bg-background/80 border-border/50 text-muted-foreground hover:border-purple-500/40 hover:text-foreground"
@@ -1945,18 +1945,18 @@ export default function AdminPage() {
                             </div>
 
                             {/* 3. AI Autopilot (Article Generator) */}
-                            <div className="bg-gradient-to-br from-primary/10 via-background to-background border-2 border-primary/20 p-10 rounded-[40px] shadow-2xl relative overflow-hidden group/auto">
+                            <div className="bg-gradient-to-br from-primary/10 via-background to-background border-2 border-primary/20 p-5 md:p-10 rounded-[32px] md:rounded-[40px] shadow-2xl relative overflow-hidden group/auto">
                                 <div className="absolute top-0 right-0 p-8 opacity-10 group-hover/auto:opacity-20 transition-opacity">
                                     <Sparkles className="w-32 h-32 text-primary" />
                                 </div>
 
-                                <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-10">
+                                <div className="relative z-10 flex flex-col @[1000px]:flex-row gap-6 md:gap-10">
                                     <div className="max-w-xl">
-                                        <div className="flex items-center gap-3 mb-6">
-                                            <div className="bg-primary text-primary-foreground p-3 rounded-2xl">
-                                                <Zap className="w-6 h-6" />
+                                        <div className="flex items-center gap-3 mb-4 md:mb-6">
+                                            <div className="bg-primary text-primary-foreground p-2.5 md:p-3 rounded-2xl shadow-lg shadow-primary/30">
+                                                <Zap className="w-5 h-5 md:w-6 md:h-6" />
                                             </div>
-                                            <h3 className="text-3xl font-black uppercase tracking-tight">AI Autopilot (Články)</h3>
+                                            <h3 className="text-xl md:text-3xl font-black uppercase tracking-tight">AI Autopilot</h3>
                                             {autopilotSettings.enabled ? (
                                                 <span className="bg-green-500 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest animate-pulse">Aktívny</span>
                                             ) : (
@@ -2021,18 +2021,18 @@ export default function AdminPage() {
 
                 {/* MANAGE TAB */}
                 {activeTab === "manage" && (
-                    <div className="space-y-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="space-y-12">
+                    <div className="space-y-12 md:space-y-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="space-y-10 md:space-y-12">
                             {/* DRAFTS */}
                             <div>
-                                <h3 className="text-2xl font-black uppercase tracking-widest mb-10 flex items-center gap-4">
+                                <h3 className="text-xl md:text-2xl font-black uppercase tracking-widest mb-6 md:mb-10 flex items-center gap-4">
                                     <span className="w-3 h-10 bg-yellow-500 rounded-full"></span> Koncepty (DRAFT)
-                                    <span className="text-sm bg-muted px-3 py-1 rounded-full text-muted-foreground ml-auto">{articles.filter(a => a.status === 'draft').length}</span>
+                                    <span className="text-[10px] md:text-sm bg-muted px-3 py-1 rounded-full text-muted-foreground ml-auto">{articles.filter(a => a.status === 'draft').length}</span>
                                 </h3>
-                                {loadingArticles ? <div className="p-20 text-center animate-pulse font-black uppercase tracking-widest text-muted-foreground">Načítavam...</div> :
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                {loadingArticles ? <div className="p-10 md:p-20 text-center animate-pulse font-black uppercase tracking-widest text-muted-foreground text-xs md:text-base">Načítavam...</div> :
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
                                         {articles.filter(a => a.status === 'draft').map((article) => (
-                                            <div key={article.id} className="bg-card border rounded-[32px] overflow-hidden flex flex-col h-full shadow-sm hover:shadow-xl transition-all ring-1 ring-border/50">
+                                            <div key={article.id} className="bg-card border rounded-3xl md:rounded-[32px] overflow-hidden flex flex-col h-full shadow-sm hover:shadow-xl transition-all ring-1 ring-border/50">
                                                 <div className="relative w-full h-44 border-b overflow-hidden">
                                                     {article.main_image && (
                                                         <Image
@@ -2409,8 +2409,8 @@ export default function AdminPage() {
                             </div>
 
                             {/* Browser Breakdown */}
-                            <div className="bg-card border rounded-[40px] p-8 shadow-sm">
-                                <h4 className="text-xs font-black uppercase tracking-[0.2em] mb-6 text-muted-foreground">Prehliadače</h4>
+                            <div className="bg-card border rounded-3xl md:rounded-[40px] p-6 md:p-8 shadow-sm">
+                                <h4 className="text-[10px] md:text-xs font-black uppercase tracking-[0.2em] mb-6 text-muted-foreground">Prehliadače</h4>
                                 <div className="space-y-4">
                                     {analytics.browsers.map((b, i) => (
                                         <div key={i} className="flex items-center justify-between">
@@ -2422,21 +2422,21 @@ export default function AdminPage() {
                             </div>
 
                             {/* Visitor ID stats - Optional additional info */}
-                            <div className="bg-card border rounded-[40px] p-8 shadow-sm flex flex-col justify-center items-center text-center">
+                            <div className="bg-card border rounded-3xl md:rounded-[40px] p-6 md:p-8 shadow-sm flex flex-col justify-center items-center text-center">
                                 <div className="text-2xl font-black mb-1">{analytics.uniqueVisitors}</div>
                                 <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Unikátnych identít</div>
                                 <p className="text-[10px] mt-4 leading-relaxed opacity-60 font-medium">Každý prehliadač má pridelený unikátny ID kľúč pre presné meranie bez cookies tretích strán.</p>
                             </div>
                         </div>
 
-                        <div className="bg-card border rounded-[40px] p-10 shadow-sm">
-                            <h3 className="text-xl font-black uppercase tracking-tight mb-8 px-2">Posledná aktivita v reálnom čase</h3>
-                            <div className="space-y-3 overflow-y-auto max-h-[600px] pr-4 custom-scrollbar">
+                        <div className="bg-card border rounded-3xl md:rounded-[40px] p-5 md:p-10 shadow-sm">
+                            <h3 className="text-lg md:text-xl font-black uppercase tracking-tight mb-8 px-2">Posledná aktivita</h3>
+                            <div className="space-y-3 overflow-y-auto max-h-[600px] pr-2 md:pr-4 no-scrollbar md:custom-scrollbar">
                                 {analytics.recentVisits.map((visit, idx) => (
-                                    <div key={idx} className="flex items-center justify-between p-5 bg-muted/10 hover:bg-muted/20 rounded-[24px] border border-border/40 transition-all group">
-                                        <div className="flex items-center gap-4 min-w-0">
-                                            <div className="w-10 h-10 rounded-xl bg-background flex items-center justify-center border border-border/50 group-hover:scale-110 transition-transform">
-                                                {visit.device === 'mobile' ? <Smartphone size={16} /> : <Monitor size={16} />}
+                                    <div key={idx} className="flex items-center justify-between p-4 md:p-5 bg-muted/10 hover:bg-muted/20 rounded-2xl md:rounded-[24px] border border-border/40 transition-all group">
+                                        <div className="flex items-center gap-3 md:gap-4 min-w-0">
+                                            <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-background flex items-center justify-center border border-border/50 group-hover:scale-110 transition-transform flex-shrink-0">
+                                                {visit.device === 'mobile' ? <Smartphone size={14} /> : <Monitor size={14} />}
                                             </div>
                                             <div className="min-w-0">
                                                 <div className="flex items-center gap-2 mb-1">
@@ -2469,15 +2469,15 @@ export default function AdminPage() {
 
                 {
                     activeTab === "social" && (
-                        <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="space-y-10 md:space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
                             {/* Header & Platform Selection */}
-                            <div className="bg-card border rounded-[40px] p-10 shadow-sm ring-1 ring-border/50">
-                                <h2 className="text-3xl font-black uppercase tracking-tight mb-8 flex items-center gap-4">
-                                    <Share2 className="w-8 h-8 text-primary" />
-                                    Social Media Generátor
+                            <div className="bg-card border rounded-3xl md:rounded-[40px] p-6 md:p-10 shadow-sm ring-1 ring-border/50">
+                                <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight mb-8 flex items-center gap-4">
+                                    <Share2 className="w-6 h-6 md:w-8 md:h-8 text-primary" />
+                                    Social Media Studio
                                 </h2>
 
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8 md:mb-10">
                                     {[
                                         { id: "Instagram", icon: Instagram, color: "text-pink-500" },
                                         { id: "Facebook", icon: Facebook, color: "text-blue-600" },
