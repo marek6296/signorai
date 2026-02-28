@@ -1689,128 +1689,7 @@ export default function AdminPage() {
                         </div>
 
                         <div className="grid grid-cols-1 gap-10">
-                            {/* 0. Manual Full Automation (Integrated Flow) */}
-                            <div className="bg-gradient-to-br from-purple-500/10 via-background to-background border-2 border-purple-500/20 p-10 rounded-[40px] shadow-2xl relative overflow-hidden group/manual">
-                                <div className="absolute top-0 right-0 p-8 opacity-10 group-hover/manual:opacity-20 transition-opacity">
-                                    <CloudLightning className="w-32 h-32 text-purple-500" />
-                                </div>
-
-                                <div className="relative z-10">
-                                    <div className="flex items-center gap-3 mb-6">
-                                        <div className="bg-purple-500 text-white p-3 rounded-2xl shadow-lg">
-                                            <CloudLightning className="w-6 h-6" />
-                                        </div>
-                                        <h3 className="text-3xl font-black uppercase tracking-tight">Manuálna plná automatizácia (1 článok)</h3>
-                                    </div>
-                                    <p className="text-muted-foreground font-medium text-lg leading-relaxed mb-8 max-w-2xl">
-                                        Vyberte kategóriu a systém automaticky <strong className="text-foreground">vyhľadá</strong> nový článok, <strong className="text-foreground">vygeneruje</strong> ho v slovenčine a <strong className="text-foreground">publikuje</strong> ho spolu s príspevkami na sociálne siete.
-                                    </p>
-
-                                    <div className="flex flex-col lg:flex-row items-center gap-8 bg-background/50 border border-border/50 p-6 rounded-3xl backdrop-blur-sm">
-                                        <div className="flex-grow w-full">
-                                            <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 ml-2">Cieľová kategória</label>
-                                            <div className="flex flex-wrap gap-2">
-                                                {["Novinky SK/CZ", "Umelá Inteligencia", "Tech", "Biznis", "Krypto", "Svet", "Politika", "Gaming"].map((cat) => (
-                                                    <button
-                                                        key={cat}
-                                                        onClick={() => setSelectedFullAutomationCategory(cat)}
-                                                        className={cn(
-                                                            "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
-                                                            selectedFullAutomationCategory === cat
-                                                                ? "bg-purple-500 text-white border-purple-500 shadow-md scale-105"
-                                                                : "bg-background/80 border-border/50 text-muted-foreground hover:border-purple-500/40 hover:text-foreground"
-                                                        )}
-                                                    >
-                                                        {cat}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                        <button
-                                            onClick={handleFullAutomationSingle}
-                                            disabled={isFullAutomationLoading}
-                                            className="whitespace-nowrap bg-purple-600 text-white px-10 py-5 rounded-[20px] font-black text-xs uppercase tracking-widest hover:bg-purple-700 active:scale-95 transition-all flex items-center gap-3 shadow-xl shadow-purple-500/20 disabled:opacity-50 disabled:cursor-not-allowed group"
-                                        >
-                                            <Zap className={cn("w-5 h-5", isFullAutomationLoading && "animate-spin")} />
-                                            {isFullAutomationLoading ? "Prebieha automatizácia..." : "Automatizovať 1 článok"}
-                                            {!isFullAutomationLoading && <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />}
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            {/* 1. AI Autopilot (Article Generator) */}
-                            <div className="bg-gradient-to-br from-primary/10 via-background to-background border-2 border-primary/20 p-10 rounded-[40px] shadow-2xl relative overflow-hidden group/auto">
-                                <div className="absolute top-0 right-0 p-8 opacity-10 group-hover/auto:opacity-20 transition-opacity">
-                                    <Sparkles className="w-32 h-32 text-primary" />
-                                </div>
-
-                                <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-10">
-                                    <div className="max-w-xl">
-                                        <div className="flex items-center gap-3 mb-6">
-                                            <div className="bg-primary text-primary-foreground p-3 rounded-2xl">
-                                                <Zap className="w-6 h-6" />
-                                            </div>
-                                            <h3 className="text-3xl font-black uppercase tracking-tight">AI Autopilot (Články)</h3>
-                                            {autopilotSettings.enabled ? (
-                                                <span className="bg-green-500 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest animate-pulse">Aktívny</span>
-                                            ) : (
-                                                <span className="bg-muted text-muted-foreground text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">Vypnutý</span>
-                                            )}
-                                        </div>
-                                        <p className="text-muted-foreground font-medium text-lg leading-relaxed mb-8">
-                                            <strong className="text-foreground">Každú hodinu</strong> automaticky vyhľadá najlepšie svetové trendy, spracuje ich a publikuje priamo na web.
-                                        </p>
-
-                                        <div className="flex flex-wrap gap-6 text-sm font-bold uppercase tracking-widest">
-                                            <div className="flex flex-col">
-                                                <span className="text-muted-foreground text-[10px] mb-1">Posledný beh</span>
-                                                <span className="text-foreground">{autopilotSettings.last_run ? new Date(autopilotSettings.last_run).toLocaleString('sk-SK') : 'Nikdy'}</span>
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <div className="flex flex-col group/count relative">
-                                                    <span className="text-muted-foreground text-[10px] mb-1">Spracovaných článkov</span>
-                                                    <div className="flex items-center gap-3">
-                                                        <button
-                                                            onClick={handleOpenAutopilotHistory}
-                                                            className="text-foreground hover:text-primary transition-colors flex items-center gap-2 group-hover/count:underline decoration-primary/30"
-                                                        >
-                                                            {autopilotSettings.processed_count}
-                                                            <History className="w-3 h-3 opacity-30" />
-                                                        </button>
-                                                        <button
-                                                            onClick={handleResetAutopilotCount}
-                                                            className="p-1.5 hover:bg-red-500/10 hover:text-red-500 rounded-lg transition-all opacity-0 group-hover/count:opacity-100"
-                                                            title="Vynulovať počítadlo"
-                                                        >
-                                                            <RotateCcw className="w-3 h-3" />
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex flex-col gap-4 min-w-[240px]">
-                                        <button
-                                            onClick={handleToggleAutopilot}
-                                            disabled={status === "loading"}
-                                            className={cn(
-                                                "w-full py-5 rounded-2xl font-black uppercase tracking-[0.2em] text-xs transition-all flex items-center justify-center gap-3 shadow-xl",
-                                                autopilotSettings.enabled
-                                                    ? "bg-red-500 text-white hover:bg-red-600 shadow-red-500/20"
-                                                    : "bg-green-500 text-white hover:bg-green-600 shadow-green-500/20"
-                                            )}
-                                        >
-                                            {status === "loading" && isGeneratingModalOpen ? (
-                                                <RefreshCw className="w-4 h-4 animate-spin" />
-                                            ) : null}
-                                            {autopilotSettings.enabled ? "Vypnúť Autopilota" : "Zapnúť Autopilota"}
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* 2. Social Sites Agent (Post Publisher) */}
+                            {/* 1. Full Automation Bot (Post Publisher) - NOW AT THE TOP */}
                             <div className="bg-gradient-to-br from-indigo-500/10 via-background to-background border-2 border-indigo-500/20 p-10 rounded-[40px] shadow-2xl relative overflow-hidden group/agent">
                                 <div className="absolute top-0 right-0 p-8 opacity-10 group-hover/agent:opacity-20 transition-opacity">
                                     <Share2 className="w-32 h-32 text-indigo-500" />
@@ -2011,6 +1890,128 @@ export default function AdminPage() {
                                                 )}
                                             </button>
                                         </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* 2. Manual Full Automation (Integrated Flow) */}
+                            <div className="bg-gradient-to-br from-purple-500/10 via-background to-background border-2 border-purple-500/20 p-10 rounded-[40px] shadow-2xl relative overflow-hidden group/manual">
+                                <div className="absolute top-0 right-0 p-8 opacity-10 group-hover/manual:opacity-20 transition-opacity">
+                                    <CloudLightning className="w-32 h-32 text-purple-500" />
+                                </div>
+
+                                <div className="relative z-10">
+                                    <div className="flex items-center gap-3 mb-6">
+                                        <div className="bg-purple-500 text-white p-3 rounded-2xl shadow-lg">
+                                            <CloudLightning className="w-6 h-6" />
+                                        </div>
+                                        <h3 className="text-3xl font-black uppercase tracking-tight">Manuálna plná automatizácia (1 článok)</h3>
+                                    </div>
+                                    <p className="text-muted-foreground font-medium text-lg leading-relaxed mb-8 max-w-2xl">
+                                        Vyberte kategóriu a systém automaticky <strong className="text-foreground">vyhľadá</strong> nový článok, <strong className="text-foreground">vygeneruje</strong> ho v slovenčine a <strong className="text-foreground">publikuje</strong> ho spolu s príspevkami na sociálne siete.
+                                    </p>
+
+                                    <div className="flex flex-col lg:flex-row items-center gap-8 bg-background/50 border border-border/50 p-6 rounded-3xl backdrop-blur-sm">
+                                        <div className="flex-grow w-full">
+                                            <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 ml-2">Cieľová kategória</label>
+                                            <div className="flex flex-wrap gap-2">
+                                                {["Novinky SK/CZ", "Umelá Inteligencia", "Tech", "Biznis", "Krypto", "Svet", "Politika", "Gaming"].map((cat) => (
+                                                    <button
+                                                        key={cat}
+                                                        onClick={() => setSelectedFullAutomationCategory(cat)}
+                                                        className={cn(
+                                                            "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
+                                                            selectedFullAutomationCategory === cat
+                                                                ? "bg-purple-500 text-white border-purple-500 shadow-md scale-105"
+                                                                : "bg-background/80 border-border/50 text-muted-foreground hover:border-purple-500/40 hover:text-foreground"
+                                                        )}
+                                                    >
+                                                        {cat}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={handleFullAutomationSingle}
+                                            disabled={isFullAutomationLoading}
+                                            className="whitespace-nowrap bg-purple-600 text-white px-10 py-5 rounded-[20px] font-black text-xs uppercase tracking-widest hover:bg-purple-700 active:scale-95 transition-all flex items-center gap-3 shadow-xl shadow-purple-500/20 disabled:opacity-50 disabled:cursor-not-allowed group"
+                                        >
+                                            <Zap className={cn("w-5 h-5", isFullAutomationLoading && "animate-spin")} />
+                                            {isFullAutomationLoading ? "Prebieha automatizácia..." : "Automatizovať 1 článok"}
+                                            {!isFullAutomationLoading && <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* 3. AI Autopilot (Article Generator) */}
+                            <div className="bg-gradient-to-br from-primary/10 via-background to-background border-2 border-primary/20 p-10 rounded-[40px] shadow-2xl relative overflow-hidden group/auto">
+                                <div className="absolute top-0 right-0 p-8 opacity-10 group-hover/auto:opacity-20 transition-opacity">
+                                    <Sparkles className="w-32 h-32 text-primary" />
+                                </div>
+
+                                <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-10">
+                                    <div className="max-w-xl">
+                                        <div className="flex items-center gap-3 mb-6">
+                                            <div className="bg-primary text-primary-foreground p-3 rounded-2xl">
+                                                <Zap className="w-6 h-6" />
+                                            </div>
+                                            <h3 className="text-3xl font-black uppercase tracking-tight">AI Autopilot (Články)</h3>
+                                            {autopilotSettings.enabled ? (
+                                                <span className="bg-green-500 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest animate-pulse">Aktívny</span>
+                                            ) : (
+                                                <span className="bg-muted text-muted-foreground text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">Vypnutý</span>
+                                            )}
+                                        </div>
+                                        <p className="text-muted-foreground font-medium text-lg leading-relaxed mb-8">
+                                            <strong className="text-foreground">Každú hodinu</strong> automaticky vyhľadá najlepšie svetové trendy, spracuje ich a publikuje priamo na web.
+                                        </p>
+
+                                        <div className="flex flex-wrap gap-6 text-sm font-bold uppercase tracking-widest">
+                                            <div className="flex flex-col">
+                                                <span className="text-muted-foreground text-[10px] mb-1">Posledný beh</span>
+                                                <span className="text-foreground">{autopilotSettings.last_run ? new Date(autopilotSettings.last_run).toLocaleString('sk-SK') : 'Nikdy'}</span>
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <div className="flex flex-col group/count relative">
+                                                    <span className="text-muted-foreground text-[10px] mb-1">Spracovaných článkov</span>
+                                                    <div className="flex items-center gap-3">
+                                                        <button
+                                                            onClick={handleOpenAutopilotHistory}
+                                                            className="text-foreground hover:text-primary transition-colors flex items-center gap-2 group-hover/count:underline decoration-primary/30"
+                                                        >
+                                                            {autopilotSettings.processed_count}
+                                                            <History className="w-3 h-3 opacity-30" />
+                                                        </button>
+                                                        <button
+                                                            onClick={handleResetAutopilotCount}
+                                                            className="p-1.5 hover:bg-red-500/10 hover:text-red-500 rounded-lg transition-all opacity-0 group-hover/count:opacity-100"
+                                                            title="Vynulovať počítadlo"
+                                                        >
+                                                            <RotateCcw className="w-3 h-3" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex flex-col gap-4 min-w-[240px]">
+                                        <button
+                                            onClick={handleToggleAutopilot}
+                                            disabled={status === "loading"}
+                                            className={cn(
+                                                "w-full py-5 rounded-2xl font-black uppercase tracking-[0.2em] text-xs transition-all flex items-center justify-center gap-3 shadow-xl",
+                                                autopilotSettings.enabled
+                                                    ? "bg-red-500 text-white hover:bg-red-600 shadow-red-500/20"
+                                                    : "bg-green-500 text-white hover:bg-green-600 shadow-green-500/20"
+                                            )}
+                                        >
+                                            {status === "loading" && isGeneratingModalOpen ? (
+                                                <RefreshCw className="w-4 h-4 animate-spin" />
+                                            ) : null}
+                                            {autopilotSettings.enabled ? "Vypnúť Autopilota" : "Zapnúť Autopilota"}
+                                        </button>
                                     </div>
                                 </div>
                             </div>

@@ -22,12 +22,12 @@ PRAVIDLÁ:
 4. Štruktúra: 
    - Krátky "hook" (jedna veta max).
    - Jedna až dve vety o tom, čo sa v článku píše (faktograficky).
-   - Čistý link na konci na samostatnom riadku.
-5. Zákaz: Nepoužívaj Markdown ([text](url)). Iba čistá URL: ${url}
+   - ${platform === 'Instagram' ? "Namiesto linku napíš na konci text 'Link v bio'." : "Čistý link na konci na samostatnom riadku."}
+5. Zákaz: Nepoužívaj Markdown ([text](url)). ${platform === 'Instagram' ? "V príspevku nesmie byť žiadna URL adresa." : `Iba čistá URL: ${url}`}
 
 ŠPECIFIKÁCIE PRE PLATFORMY:
 - Facebook: Max 3 vety + otázka na vyvolanie diskusie.
-- Instagram: Krátky, estetický text, max 3-4 vety. Hashtagy daj na samostatný blok nižšie (max 5 kusov). HASHTAGY MUSIA BYŤ BEZ DIAKRITIKY.
+- Instagram: Krátky, estetický text, max 3-4 vety. Hashtagy daj na samostatný blok nižšie (max 5 kusov). HASHTAGY MUSIA BYŤ BEZ DIAKRITIKY. Namiesto odkazu použi vetu "Link v bio".
 - X (Twitter): Extrémne stručný news-flash. HASHTAGY MUSIA BYŤ BEZ DIAKRITIKY.
 
 HASHTAGY: Musia byť trefné a ZÁSADNE BEZ DIAKRITIKY (napr. #technologia namiesto #technológia).
