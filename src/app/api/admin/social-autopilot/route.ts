@@ -186,6 +186,7 @@ Perex: ${article.excerpt}`;
         }
 
         // 6. Save and optionally publish
+        const savedPosts = [];
         const publishedResults = [];
         for (const post of generatedPosts) {
             const { data: savedPost, error: insertError } = await supabase
@@ -195,6 +196,7 @@ Perex: ${article.excerpt}`;
                 .single();
 
             if (insertError) continue;
+            savedPosts.push(savedPost);
 
             if (autoPublish && savedPost) {
                 try {
@@ -232,7 +234,7 @@ Perex: ${article.excerpt}`;
 
         return NextResponse.json({
             message: autoPublish ? "Príspevky boli vygenerované a spracované." : "Príspevky boli uložené ako koncepty.",
-            posts: generatedPosts,
+            posts: savedPosts,
             publishResults: publishedResults
         });
 

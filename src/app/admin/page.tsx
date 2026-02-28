@@ -335,13 +335,6 @@ export default function AdminPage() {
                 // STEP 5: High-Quality Browser-Based Publishing
                 setGeneratingStage(`Publikujem na Facebook a Instagram...`);
 
-                // Fetch the saved posts to get their real IDs
-                await fetchPlannedPosts();
-                const postsToPublish = (socialData.posts as any[]).map(p => {
-                    // Try to find the real saved post in our newly fetched posts
-                    return plannedPosts.find(pp => pp.article_id === p.article_id && pp.platform === p.platform) || p;
-                });
-
                 // Set data for hidden renderer
                 setAutomationArticleData({ id: newlyCreatedArticleId, title: genData.article.title });
 
@@ -361,7 +354,7 @@ export default function AdminPage() {
                     const imageBlob = await toBlob(previewEl, { cacheBust: true, width: 1080, height: 1080, pixelRatio: 1 });
 
                     let socialSuccessCount = 0;
-                    for (const post of socialData.posts) {
+                    for (const post of (socialData.posts as { id: string, platform: string }[])) {
                         if (post.platform === 'X') continue; // Skip X for now as requested
 
                         setGeneratingStage(`Odosielam príspevok na ${post.platform}...`);
