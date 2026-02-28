@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
+import { publishToFacebook, publishToInstagram } from "@/lib/meta-api";
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
@@ -24,7 +25,7 @@ interface SocialPost {
 
 export async function POST(req: Request) {
     try {
-        const { platforms } = await req.json();
+        const { platforms, autoPublish } = await req.json();
 
         if (!platforms || !Array.isArray(platforms) || platforms.length === 0) {
             return NextResponse.json({ error: "Missing platforms" }, { status: 400 });
@@ -35,7 +36,7 @@ export async function POST(req: Request) {
 
         const { data: articles, error: articlesError } = await supabase
             .from("articles")
-            .select("id, title, excerpt, category, slug, published_at")
+            .select("id, title, excerpt, category, slug, published_at, main_image")
             .eq("status", "published")
             .gte("published_at", twentyFourHoursAgo)
             .order("published_at", { ascending: false });
@@ -170,18 +171,51 @@ Perex: ${article.excerpt}`;
             }
         }
 
-        // 6. Save to DB automatically
+        // 6. Save to DB and Optionally Publish
+        const publishedResults = [];
         if (generatedPosts.length > 0) {
-            const { error: insertError } = await supabase
-                .from("social_posts")
-                .insert(generatedPosts);
+            for (const post of generatedPosts) {
+                // Insert into DB
+                const { data: savedPost, error: insertError } = await supabase
+                    .from("social_posts")
+                    .insert(post)
+                    .select()
+                    .single();
 
-            if (insertError) {
-                console.error("Failed to save posts to DB:", insertError);
+                if (insertError) {
+                    console.error("Failed to save post to DB:", insertError);
+                    continue;
+                }
+
+                // If autoPublish is true, publish it now
+                if (autoPublish && savedPost) {
+                    try {
+                        const article = selectedArticles.find(a => a.id === post.article_id);
+                        const articleUrl = `https://postovinky.news/article/${article?.slug}`;
+                        const imageUrl = article?.main_image;
+
+                        if (post.platform === 'Facebook') {
+                            await publishToFacebook(post.content || "", articleUrl);
+                            await supabase.from("social_posts").update({ status: 'posted', posted_at: new Date().toISOString() }).eq('id', savedPost.id);
+                            publishedResults.push({ id: savedPost.id, platform: 'Facebook', success: true });
+                        } else if (post.platform === 'Instagram' && imageUrl) {
+                            await publishToInstagram(imageUrl, post.content || "");
+                            await supabase.from("social_posts").update({ status: 'posted', posted_at: new Date().toISOString() }).eq('id', savedPost.id);
+                            publishedResults.push({ id: savedPost.id, platform: 'Instagram', success: true });
+                        }
+                    } catch (publishError) {
+                        console.error(`Auto-publish failed for post ${savedPost.id}:`, publishError);
+                        publishedResults.push({ id: savedPost.id, platform: post.platform, success: false, error: String(publishError) });
+                    }
+                }
             }
         }
 
-        return NextResponse.json({ posts: generatedPosts });
+        return NextResponse.json({
+            message: autoPublish ? "Príspevky boli vygenerované a odoslané." : "Príspevky boli uložené ako koncepty.",
+            posts: generatedPosts,
+            publishResults: publishedResults
+        });
 
     } catch (error: unknown) {
         console.error("Social autopilot failed:", error);
