@@ -128,7 +128,8 @@ export async function POST(req: Request) {
         let result;
         if (post.platform === 'Facebook') {
             // Pre Facebook chceme čistý Link Post (aby si FB sám stiahol obrázok z webu)
-            result = await publishToFacebook(post.content, articleUrl);
+            // Používame len text (message), pretože v ňom už je link a FB si náhľad vygeneruje sám.
+            result = await publishToFacebook(post.content);
         } else if (post.platform === 'Instagram') {
             if (!finalImageUrl) throw new Error("Instagram requires an image.");
             result = await publishToInstagram(finalImageUrl, post.content);
