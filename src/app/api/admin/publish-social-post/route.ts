@@ -66,7 +66,7 @@ export async function POST(req: Request) {
 
                 // Step B: Upload to Supabase Storage
                 const fileName = `${id}-${Date.now()}.png`;
-                const { data: uploadData, error: uploadError } = await supabase.storage
+                const { error: uploadError } = await supabase.storage
                     .from("social-images")
                     .upload(fileName, imageBuffer, {
                         contentType: 'image/png',
