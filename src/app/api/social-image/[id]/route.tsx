@@ -41,7 +41,7 @@ export async function GET(
             syneBold = await fetch(
                 new URL('https://fonts.gstatic.com/s/syne/v22/8UA9YrtN6Z7S6Z5Y2Q.woff', 'https://fonts.googleapis.com')
             ).then((res) => res.arrayBuffer());
-        } catch (e) {
+        } catch {
             console.error("Font load failed, using system font");
         }
 
