@@ -1749,6 +1749,39 @@ export default function AdminPage() {
                                         </p>
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                            {/* Category Selection for Bot */}
+                                            <div className="space-y-4 md:col-span-2">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <Globe className="w-4 h-4 text-indigo-500" />
+                                                    <label className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground block">Cieľové kategórie bota</label>
+                                                </div>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {["Novinky SK/CZ", "Umelá Inteligencia", "Tech", "Biznis", "Krypto", "Svet", "Politika", "Gaming"].map((cat) => {
+                                                        const isSelected = socialBotSettings.target_categories?.includes(cat);
+                                                        return (
+                                                            <button
+                                                                key={cat}
+                                                                onClick={() => {
+                                                                    const current = socialBotSettings.target_categories || [];
+                                                                    const next = isSelected
+                                                                        ? current.filter(c => c !== cat)
+                                                                        : [...current, cat];
+                                                                    handleSaveSocialBotSettings({ ...socialBotSettings, target_categories: next });
+                                                                }}
+                                                                className={cn(
+                                                                    "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5",
+                                                                    isSelected
+                                                                        ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/20"
+                                                                        : "bg-background/40 text-muted-foreground border border-white/5 hover:border-indigo-500/30"
+                                                                )}
+                                                            >
+                                                                {isSelected && <Check className="w-3 h-3" />}
+                                                                {cat}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
                                             <div className="space-y-4">
                                                 <div className="flex items-center gap-2 mb-1">
                                                     <Calendar className="w-4 h-4 text-indigo-500" />
