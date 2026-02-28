@@ -163,10 +163,14 @@ export async function GET(req: NextRequest) {
                         style: 'normal',
                     },
                 ],
+                headers: {
+                    'Content-Type': 'image/png',
+                    'Cache-Control': 'public, max-age=31536000, immutable',
+                },
             }
         );
     } catch (e: unknown) {
         console.error('OG Generation Error:', e instanceof Error ? e.message : String(e));
-        return new Response(`Failed to generate the image`, { status: 500 });
+        return new Response(`Error generating photo`, { status: 400 });
     }
 }
