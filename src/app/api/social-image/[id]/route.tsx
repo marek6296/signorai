@@ -17,13 +17,14 @@ export async function GET(
     try {
         const id = params.id.split('.')[0];
 
-        // Fetch the social post with article title
+        // Fetch the social post with article title and main_image
         const { data: post, error: postError } = await supabase
             .from("social_posts")
             .select(`
                 *,
                 articles (
-                    title
+                    title,
+                    main_image
                 )
             `)
             .eq("id", id)
@@ -72,12 +73,43 @@ export async function GET(
                         alignItems: 'center',
                         justifyContent: 'center',
                         backgroundColor: '#000',
-                        backgroundImage: 'radial-gradient(circle at top right, rgba(18, 246, 198, 0.08), transparent 400px), radial-gradient(circle at bottom left, rgba(18, 246, 198, 0.05), transparent 400px)',
                         padding: '80px',
                         position: 'relative',
                         overflow: 'hidden',
                     }}
                 >
+                    {/* Article Image as Background */}
+                    {post.articles?.main_image && (
+                        <img
+                            src={post.articles.main_image}
+                            alt=""
+                            style={{
+                                position: 'absolute',
+                                inset: 0,
+                                objectFit: 'cover',
+                                opacity: 0.1,
+                                filter: 'blur(30px)',
+                            }}
+                        />
+                    )}
+
+                    <div
+                        style={{
+                            position: 'absolute',
+                            inset: 0,
+                            background: 'radial-gradient(circle at top right, rgba(18, 246, 198, 0.08), transparent 400px), radial-gradient(circle at bottom left, rgba(18, 246, 198, 0.05), transparent 400px)',
+                        }}
+                    />
+
+                    {/* Gradient Overlay */}
+                    <div
+                        style={{
+                            position: 'absolute',
+                            inset: 0,
+                            background: 'linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(0,0,0,0.7))',
+                        }}
+                    />
+
                     {/* Background Blurred Logo Effect */}
                     <div
                         style={{

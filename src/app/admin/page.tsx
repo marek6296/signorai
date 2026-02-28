@@ -175,7 +175,7 @@ export default function AdminPage() {
                 const data = await res.json();
                 console.log("Bot auto-triggered from UI:", data);
                 await fetchAutopilotSettings();
-            } catch (e: any) {
+            } catch (e: unknown) {
                 console.error("Failed to auto-trigger bot:", e);
             } finally {
                 setIsBotRunning(false);
@@ -2296,14 +2296,14 @@ export default function AdminPage() {
                                     </div>
                                 ) : (
                                     analytics.dailyStats.map((day, i) => {
-                                        const maxVisits = Math.max(...analytics.dailyStats.map(d => d.visits), 5); // Fallback to 5 to avoid div by zero
+                                        const maxVisits = Math.max(...analytics.dailyStats.map(d => d.visits), 5);
                                         const heightPercent = (day.visits / maxVisits) * 100;
 
                                         return (
                                             <div key={day.date} className="flex-grow flex flex-col items-center group relative cursor-crosshair">
                                                 {/* Tooltip */}
                                                 <div className="absolute bottom-full mb-6 left-1/2 -translate-x-1/2 bg-foreground text-background text-[9px] font-black p-3 rounded-2xl opacity-0 group-hover:opacity-100 transition-all duration-200 whitespace-nowrap z-50 pointer-events-none shadow-2xl scale-90 group-hover:scale-100 border border-white/10">
-                                                    <div className="mb-1 text-primary-foreground/50 border-b border-primary-foreground/10 pb-1">
+                                                    <div className="mb-2 text-primary-foreground/50 border-b border-primary-foreground/10 pb-1">
                                                         {new Date(day.date).toLocaleDateString('sk-SK', { day: 'numeric', month: 'long', year: 'numeric' })}
                                                     </div>
                                                     <div className="flex items-center justify-between gap-4 mt-1">
@@ -2380,7 +2380,7 @@ export default function AdminPage() {
                                             </div>
                                             <div className="flex items-center gap-4">
                                                 <div className="w-32 h-2 bg-muted rounded-full overflow-hidden hidden sm:block">
-                                                    <div className="h-full bg-primary" style={{ width: `${(c.count / analytics.totalVisits) * 100}%` }}></div>
+                                                    <div className="h-full bg-primary" style={{ width: `${(c.count / (analytics.totalVisits || 1)) * 100}%` }}></div>
                                                 </div>
                                                 <span className="bg-primary/10 text-primary px-3 py-1 rounded-lg text-[10px] font-black">{c.count}</span>
                                             </div>
@@ -2402,15 +2402,15 @@ export default function AdminPage() {
                                                 {d.name === 'mobile' ? <Smartphone className="w-4 h-4" /> : <Monitor className="w-4 h-4" />}
                                                 <span className="text-[10px] font-bold uppercase">{d.name}</span>
                                             </div>
-                                            <span className="text-[10px] font-black">{Math.round((d.count / analytics.totalVisits) * 100)}%</span>
+                                            <span className="text-[10px] font-black">{Math.round((d.count / (analytics.totalVisits || 1)) * 100)}%</span>
                                         </div>
                                     ))}
                                 </div>
                             </div>
 
                             {/* Browser Breakdown */}
-                            <div className="bg-card border rounded-3xl md:rounded-[40px] p-6 md:p-8 shadow-sm">
-                                <h4 className="text-[10px] md:text-xs font-black uppercase tracking-[0.2em] mb-6 text-muted-foreground">Prehliadače</h4>
+                            <div className="bg-card border rounded-[40px] p-8 shadow-sm">
+                                <h4 className="text-xs font-black uppercase tracking-[0.2em] mb-6 text-muted-foreground">Prehliadače</h4>
                                 <div className="space-y-4">
                                     {analytics.browsers.map((b, i) => (
                                         <div key={i} className="flex items-center justify-between">
@@ -2422,20 +2422,20 @@ export default function AdminPage() {
                             </div>
 
                             {/* Visitor ID stats - Optional additional info */}
-                            <div className="bg-card border rounded-3xl md:rounded-[40px] p-6 md:p-8 shadow-sm flex flex-col justify-center items-center text-center">
+                            <div className="bg-card border rounded-[40px] p-8 shadow-sm flex flex-col justify-center items-center text-center">
                                 <div className="text-2xl font-black mb-1">{analytics.uniqueVisitors}</div>
                                 <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Unikátnych identít</div>
-                                <p className="text-[10px] mt-4 leading-relaxed opacity-60 font-medium">Každý prehliadač má pridelený unikátny ID kľúč pre presné meranie bez cookies tretích strán.</p>
+                                <p className="text-[10px] mt-4 leading-relaxed opacity-60 font-medium italic">Presné meranie bez cookies tretích strán.</p>
                             </div>
                         </div>
 
-                        <div className="bg-card border rounded-3xl md:rounded-[40px] p-5 md:p-10 shadow-sm">
-                            <h3 className="text-lg md:text-xl font-black uppercase tracking-tight mb-8 px-2">Posledná aktivita</h3>
-                            <div className="space-y-3 overflow-y-auto max-h-[600px] pr-2 md:pr-4 no-scrollbar md:custom-scrollbar">
+                        <div className="bg-card border rounded-[40px] p-10 shadow-sm">
+                            <h3 className="text-xl font-black uppercase tracking-tight mb-8">Posledná aktivita</h3>
+                            <div className="space-y-3 overflow-y-auto max-h-[600px] pr-4 custom-scrollbar">
                                 {analytics.recentVisits.map((visit, idx) => (
-                                    <div key={idx} className="flex items-center justify-between p-4 md:p-5 bg-muted/10 hover:bg-muted/20 rounded-2xl md:rounded-[24px] border border-border/40 transition-all group">
-                                        <div className="flex items-center gap-3 md:gap-4 min-w-0">
-                                            <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-background flex items-center justify-center border border-border/50 group-hover:scale-110 transition-transform flex-shrink-0">
+                                    <div key={idx} className="flex items-center justify-between p-5 bg-muted/10 hover:bg-muted/20 rounded-[24px] border border-border/40 transition-all group">
+                                        <div className="flex items-center gap-4 min-w-0">
+                                            <div className="w-10 h-10 rounded-xl bg-background flex items-center justify-center border border-border/50 group-hover:scale-110 transition-transform flex-shrink-0">
                                                 {visit.device === 'mobile' ? <Smartphone size={14} /> : <Monitor size={14} />}
                                             </div>
                                             <div className="min-w-0">
@@ -2449,7 +2449,7 @@ export default function AdminPage() {
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="text-right flex-shrink-0">
+                                        <div className="text-right">
                                             <div className="text-[10px] font-black uppercase text-muted-foreground mb-1">
                                                 {new Date(visit.created_at).toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' })}
                                             </div>
@@ -2464,8 +2464,7 @@ export default function AdminPage() {
                         </div>
 
                     </div>
-                )
-                }
+                )}
 
                 {
                     activeTab === "social" && (
@@ -2862,390 +2861,390 @@ export default function AdminPage() {
                         </div>
                     )
                 }
-            </div >
-            {/* MODALS - Simplified & High Z-Index */}
-            {
-                isDiscoveringModalOpen && typeof document !== "undefined" && createPortal(
-                    <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4">
-                        <div className="absolute inset-0 bg-background/60 backdrop-blur-xl"></div>
-                        <div className="bg-card w-full max-w-sm border border-border/50 rounded-[40px] p-12 shadow-2xl flex flex-col items-center text-center relative overflow-hidden ring-1 ring-white/10">
-                            <div className="absolute inset-0 bg-primary/5 animate-pulse"></div>
-                            <div className="relative mb-10 text-primary w-24 h-24 rounded-full flex flex-col items-center justify-center bg-primary/10">
-                                <Search className="w-10 h-10 animate-pulse text-primary z-10" />
-                                <div className="absolute inset-0 border-[4px] border-primary/20 border-t-primary rounded-full animate-spin"></div>
-                            </div>
-                            <h3 className="text-2xl font-black uppercase tracking-widest mb-4 z-10">AI Discovery</h3>
-                            <div className="h-16 flex items-center justify-center overflow-hidden z-10 w-full px-2 text-sm text-muted-foreground font-medium">
-                                {discoveryStage}
-                            </div>
-                        </div>
-                    </div>,
-                    document.body
-                )
-            }
-
-            {
-                isGeneratingModalOpen && typeof document !== "undefined" && createPortal(
-                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-                        <div className="absolute inset-0 bg-background/60 backdrop-blur-2xl"></div>
-                        <div className="bg-card w-full max-w-sm border border-border/50 rounded-[40px] p-12 shadow-2xl flex flex-col items-center text-center relative overflow-hidden ring-1 ring-white/10">
-                            <div className="absolute inset-0 bg-primary/5 animate-pulse"></div>
-                            <div className="relative mb-10">
-                                <div className="relative text-primary w-24 h-24 rounded-full flex flex-col items-center justify-center bg-primary/10 shadow-[0_0_50px_-12px_rgba(var(--primary),0.5)]">
-                                    <Sparkles className="w-10 h-10 animate-pulse text-primary z-10" />
+                {/* MODALS - Simplified & High Z-Index */}
+                {
+                    isDiscoveringModalOpen && typeof document !== "undefined" && createPortal(
+                        <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4">
+                            <div className="absolute inset-0 bg-background/60 backdrop-blur-xl"></div>
+                            <div className="bg-card w-full max-w-sm border border-border/50 rounded-[40px] p-12 shadow-2xl flex flex-col items-center text-center relative overflow-hidden ring-1 ring-white/10">
+                                <div className="absolute inset-0 bg-primary/5 animate-pulse"></div>
+                                <div className="relative mb-10 text-primary w-24 h-24 rounded-full flex flex-col items-center justify-center bg-primary/10">
+                                    <Search className="w-10 h-10 animate-pulse text-primary z-10" />
                                     <div className="absolute inset-0 border-[4px] border-primary/20 border-t-primary rounded-full animate-spin"></div>
                                 </div>
-                                <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping -z-10 opacity-30"></div>
-                            </div>
-                            <h3 className="text-2xl font-black uppercase tracking-widest mb-4 z-10 tracking-[0.2em]">AI Studio</h3>
-                            <div className="h-20 flex items-center justify-center overflow-hidden z-10 w-full px-2 text-sm text-muted-foreground font-medium italic">
-                                {generatingStage}
-                            </div>
-                            <div className="flex gap-2 mt-4">
-                                <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]"></div>
-                                <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]"></div>
-                                <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce"></div>
-                            </div>
-                        </div>
-                    </div>,
-                    document.body
-                )
-            }
-
-            {
-                isAutopilotLoadingModalOpen && typeof document !== "undefined" && createPortal(
-                    <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4">
-                        <div className="absolute inset-0 bg-background/60 backdrop-blur-xl z-0"></div>
-                        <div className="relative z-10 bg-card w-full max-w-sm border border-border/50 rounded-[40px] p-12 shadow-2xl flex flex-col items-center text-center overflow-hidden ring-1 ring-white/10">
-                            <div className="absolute inset-0 bg-primary/5 animate-pulse"></div>
-                            <div className="relative mb-10 text-primary w-24 h-24 rounded-full flex flex-col items-center justify-center bg-primary/10">
-                                <Zap className="w-10 h-10 animate-pulse text-primary z-10" />
-                                <div className="absolute inset-0 border-[4px] border-primary/20 border-t-primary rounded-full animate-spin"></div>
-                            </div>
-                            <h3 className="text-2xl font-black uppercase tracking-widest mb-4 z-10">AI Autopilot</h3>
-                            <div className="h-16 flex items-center justify-center overflow-hidden z-10 w-full px-2 text-sm text-muted-foreground font-medium">
-                                {autopilotLoadingStage}
-                            </div>
-                        </div>
-                    </div>,
-                    document.body
-                )
-            }
-
-            {
-                isAutopilotHistoryOpen && typeof document !== "undefined" && createPortal(
-                    <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 md:p-8" style={{ pointerEvents: 'auto' }}>
-                        {/* Raw Backdrop */}
-                        <div
-                            className="absolute inset-0 bg-black/80 backdrop-blur-xl cursor-pointer"
-                            style={{ zIndex: 0 }}
-                            onClick={() => setIsAutopilotHistoryOpen(false)}
-                        ></div>
-
-                        {/* Raw Modal Content */}
-                        <div
-                            className="relative bg-[#121212] w-full max-w-3xl rounded-[32px] border border-[#2a2a2a] flex flex-col max-h-[85vh] shadow-[0_0_100px_rgba(0,0,0,0.8)] overflow-hidden"
-                            style={{ zIndex: 10 }}
-                        >
-
-                            {/* Header */}
-                            <div className="px-8 py-6 border-b border-[#2a2a2a] flex items-center justify-between bg-[#1a1a1a] text-white">
-                                <div className="flex items-center gap-4">
-                                    <div className="bg-[#2a2a2a] p-2 rounded-xl text-white">
-                                        <History className="w-5 h-5" />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-xl font-black uppercase tracking-widest leading-none mb-1 text-white">História Autopilota</h3>
-                                        <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Spracované a Publikované články</p>
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setIsAutopilotHistoryOpen(false);
-                                    }}
-                                    className="p-3 bg-[#2a2a2a] hover:bg-red-500/20 hover:text-red-500 rounded-2xl transition-colors cursor-pointer text-zinc-300 pointer-events-auto"
-                                >
-                                    <XCircle className="w-6 h-6" />
-                                </button>
-                            </div>
-
-                            {/* Content Area */}
-                            <div className="p-8 overflow-y-auto space-y-4 flex-grow w-full bg-[#121212] text-white">
-                                {loadingHistory ? (
-                                    <div className="flex flex-col items-center justify-center py-20 gap-4 text-zinc-400">
-                                        <RefreshCw className="w-10 h-10 animate-spin text-white" />
-                                        <span className="text-xs font-bold uppercase tracking-widest text-zinc-300">Načítavam dáta z databázy...</span>
-                                    </div>
-                                ) : autopilotHistory.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center py-24 text-center border-2 border-dashed border-[#2a2a2a] rounded-3xl mx-4">
-                                        <div className="w-16 h-16 bg-[#1a1a1a] rounded-full flex items-center justify-center mb-6">
-                                            <History className="w-8 h-8 text-zinc-500" />
-                                        </div>
-                                        <h4 className="text-lg font-black uppercase tracking-widest text-white mb-2">Žiadna história</h4>
-                                        <p className="text-sm font-medium text-zinc-400 max-w-[250px]">Modul Ai Autopilota zatiaľ nespracoval žiadne témy.</p>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-10 px-2 pb-6">
-                                        {Object.entries(autopilotHistory.reduce((acc, curr) => {
-                                            const cat = curr.category || "Nezaradené";
-                                            if (!acc[cat]) acc[cat] = [];
-                                            acc[cat].push(curr);
-                                            return acc;
-                                        }, {} as Record<string, AutopilotHistoryItem[]>)).map(([category, items]) => (
-                                            <div key={category} className="space-y-4">
-                                                <h4 className="flex items-center gap-3 text-white text-sm font-black uppercase tracking-widest border-b border-[#2a2a2a] pb-3">
-                                                    <div className="w-2.5 h-2.5 rounded-full bg-white/20 flex items-center justify-center">
-                                                        <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></div>
-                                                    </div>
-                                                    {category}
-                                                    <span className="text-zinc-400 bg-[#2a2a2a] px-2 py-0.5 rounded-full text-[10px] ml-auto">({(items as AutopilotHistoryItem[]).length})</span>
-                                                </h4>
-                                                <div className="grid gap-3">
-                                                    {(items as AutopilotHistoryItem[]).map((item, idx) => (
-                                                        <div
-                                                            key={idx}
-                                                            className="flex flex-col sm:flex-row gap-4 sm:items-center p-5 rounded-2xl bg-[#1a1a1a] border border-[#2a2a2a] hover:border-white/30 transition-all group"
-                                                        >
-                                                            <div className="flex-grow w-full">
-                                                                <div className="flex justify-between items-center mb-2">
-                                                                    <span className="text-[10px] text-zinc-400 font-bold tracking-wider bg-[#2a2a2a] px-2 py-1 rounded-md">
-                                                                        {new Date(item.created_at).toLocaleString('sk-SK')}
-                                                                    </span>
-                                                                </div>
-                                                                <h4 className="font-bold text-white text-sm xl:text-base leading-snug group-hover:text-zinc-200 transition-colors line-clamp-2 mb-3">
-                                                                    {item.title}
-                                                                </h4>
-                                                                <a
-                                                                    href={item.url}
-                                                                    target="_blank"
-                                                                    rel="noopener noreferrer"
-                                                                    className="text-[11px] font-black uppercase tracking-widest text-zinc-500 hover:text-white flex items-center gap-2 transition-colors w-fit border-b border-transparent hover:border-white pb-0.5"
-                                                                >
-                                                                    <Globe className="w-3.5 h-3.5" />
-                                                                    Otvoriť zdroj
-                                                                </a>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Footer Area */}
-                            <div className="px-8 py-5 border-t border-[#2a2a2a] bg-[#1a1a1a] text-center z-20">
-                                <p className="text-[11px] text-zinc-400 font-black uppercase tracking-[0.15em]">
-                                    Celkovo spravovaných sekcií: {Object.keys(autopilotHistory.reduce((acc, curr) => { acc[curr.category || ""] = true; return acc; }, {} as Record<string, boolean>)).length}
-                                </p>
-                            </div>
-                        </div>
-                    </div>,
-                    document.body
-                )
-            }
-
-            {
-                selectedPlannerArticle && typeof document !== "undefined" && (() => {
-                    const posts = plannedPosts.filter(p => p.article_id === selectedPlannerArticle);
-                    if (posts.length === 0) return null;
-                    const articleTitle = posts[0].articles?.title || "Neznámy článok";
-
-                    return createPortal(
-                        <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 md:p-8">
-                            <div
-                                className="absolute inset-0 bg-black/80 backdrop-blur-xl cursor-pointer"
-                                onClick={() => setSelectedPlannerArticle(null)}
-                            ></div>
-                            <div className="relative bg-[#121212] w-full max-w-5xl rounded-[40px] border border-white/10 flex flex-col max-h-[90vh] shadow-[0_0_100px_rgba(0,0,0,0.8)] overflow-hidden">
-                                {/* Header */}
-                                <div className="px-10 py-8 border-b border-white/5 flex items-center justify-between bg-[#1a1a1a] text-white">
-                                    <div className="flex items-center gap-6">
-                                        <div className="bg-primary/20 p-3 rounded-2xl">
-                                            <Sparkles className="w-6 h-6 text-primary" />
-                                        </div>
-                                        <div>
-                                            <h3 className="text-2xl font-black uppercase tracking-widest leading-none mb-2 text-white line-clamp-1 max-w-[500px]">{articleTitle}</h3>
-                                            <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Detail sociálnych postov</p>
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={() => setSelectedPlannerArticle(null)}
-                                        className="p-4 bg-white/5 hover:bg-red-500/20 hover:text-red-500 rounded-2xl transition-all"
-                                    >
-                                        <XCircle className="w-8 h-8" />
-                                    </button>
-                                </div>
-
-                                {/* Scrollable Content */}
-                                <div className="flex-grow overflow-y-auto w-full relative">
-                                    {/* Bulk Actions Bar */}
-                                    {selectedPostsForPublishing.length > 0 && (
-                                        <div className="sticky top-0 z-20 bg-indigo-600 text-white px-10 py-4 flex items-center justify-between shadow-2xl animate-in slide-in-from-top-full duration-300">
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-                                                    <Zap className="w-4 h-4 text-white" />
-                                                </div>
-                                                <span className="text-[10px] font-black uppercase tracking-[0.2em]">
-                                                    Vybrané: {selectedPostsForPublishing.length} formáty
-                                                </span>
-                                            </div>
-                                            <div className="flex gap-4">
-                                                <button
-                                                    onClick={() => setSelectedPostsForPublishing([])}
-                                                    className="text-[9px] font-black uppercase tracking-widest px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl transition-all"
-                                                >
-                                                    Zrušiť výber
-                                                </button>
-                                                <button
-                                                    onClick={handlePublishMultiplePosts}
-                                                    className="text-[9px] font-black uppercase tracking-widest px-6 py-2 bg-white text-indigo-600 rounded-xl transition-all hover:scale-105 active:scale-95 flex items-center gap-2 shadow-lg shadow-black/20"
-                                                >
-                                                    Publikovať simultánne
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    <div className="grid grid-cols-1 lg:grid-cols-2 min-h-full">
-                                        {/* Posts Column */}
-                                        <div className="p-8 lg:p-10 space-y-8 bg-muted/5 border-r border-white/5">
-                                            {posts.map((post) => (
-                                                <div key={post.id} className={cn(
-                                                    "rounded-[32px] border-2 p-8 transition-all",
-                                                    post.status === 'posted' ? "bg-muted/10 border-green-500/20" : "bg-[#1a1a1a] border-white/5 shadow-xl"
-                                                )}>
-                                                    <div className="flex items-center justify-between mb-8">
-                                                        <div className="flex items-center gap-6">
-                                                            {/* Checkbox for selection */}
-                                                            {post.status !== 'posted' && (
-                                                                <button
-                                                                    onClick={() => {
-                                                                        setSelectedPostsForPublishing(prev =>
-                                                                            prev.includes(post.id) ? prev.filter(id => id !== post.id) : [...prev, post.id]
-                                                                        );
-                                                                    }}
-                                                                    className={cn(
-                                                                        "w-8 h-8 rounded-xl border-2 flex items-center justify-center transition-all",
-                                                                        selectedPostsForPublishing.includes(post.id)
-                                                                            ? "bg-indigo-500 border-indigo-500 text-white"
-                                                                            : "border-white/10 hover:border-white/30"
-                                                                    )}
-                                                                >
-                                                                    {selectedPostsForPublishing.includes(post.id) && <Check className="w-4 h-4" />}
-                                                                </button>
-                                                            )}
-                                                            <div className="flex items-center gap-4">
-                                                                <div className={cn(
-                                                                    "w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg",
-                                                                    post.platform === 'Instagram' ? "bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600" :
-                                                                        post.platform === 'Facebook' ? "bg-blue-600" : "bg-white text-black"
-                                                                )}>
-                                                                    {post.platform === 'Instagram' && <Instagram size={22} />}
-                                                                    {post.platform === 'Facebook' && <Facebook size={22} />}
-                                                                    {post.platform === 'X' && <XIcon size={22} />}
-                                                                </div>
-                                                                <span className="text-lg font-black uppercase tracking-[0.1em]">{post.platform}</span>
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex gap-3">
-                                                            {post.status !== 'posted' && (post.platform === 'Facebook' || post.platform === 'Instagram') && (
-                                                                <button
-                                                                    onClick={() => handlePublishSocialPost(post.id)}
-                                                                    className="p-3 bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500 hover:text-white rounded-xl transition-all shadow-md"
-                                                                    title="Publikovať teraz cez API"
-                                                                >
-                                                                    <Zap size={20} />
-                                                                </button>
-                                                            )}
-                                                            <button
-                                                                onClick={() => handleToggleSocialPosted(post)}
-                                                                className={cn(
-                                                                    "p-3 rounded-xl transition-all shadow-md",
-                                                                    post.status === 'posted' ? "bg-green-500 text-white" : "bg-white/5 text-zinc-400 hover:bg-primary/20 hover:text-primary"
-                                                                )}
-                                                                title={post.status === 'posted' ? "Už publikované" : "Označiť ako publikované (manuálne)"}
-                                                            >
-                                                                <CheckCircle2 size={20} />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => {
-                                                                    if (confirm('Naozaj zmazať príspevok?')) {
-                                                                        handleDeleteSocialPost(post.id);
-                                                                        if (posts.length <= 1) setSelectedPlannerArticle(null);
-                                                                    }
-                                                                }}
-                                                                className="p-3 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all shadow-md"
-                                                            >
-                                                                <Trash2 size={20} />
-                                                            </button>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="space-y-4">
-                                                        <div className="flex items-center justify-between">
-                                                            <span className="text-[11px] font-black uppercase tracking-widest text-zinc-500">Obsah príspevku</span>
-                                                            <button
-                                                                onClick={() => { copyToClipboard(post.content); alert(`Text pre ${post.platform} bol skopírovaný.`); }}
-                                                                className="text-[11px] font-black uppercase tracking-widest text-primary hover:text-primary/80 flex items-center gap-2 transition-colors"
-                                                            >
-                                                                <Copy size={14} /> Skopírovať
-                                                            </button>
-                                                        </div>
-                                                        <div className="bg-black/40 border border-white/5 rounded-2xl p-6 text-sm font-medium leading-relaxed max-h-[250px] overflow-y-auto whitespace-pre-wrap text-zinc-300 ring-1 ring-inset ring-white/5">
-                                                            {post.content}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-
-                                        {/* Preview Column */}
-                                        <div className="p-8 lg:p-10 bg-black flex flex-col items-center justify-center lg:sticky lg:top-0 h-fit lg:h-[calc(90vh-100px)] min-h-[500px]">
-                                            <div className="w-full max-w-[450px] scale-90 md:scale-100">
-                                                <InstagramPreview title={articleTitle} />
-                                            </div>
-                                            <p className="mt-12 text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 text-center">
-                                                Náhľad vizuálu postu
-                                            </p>
-                                        </div>
-                                    </div>
+                                <h3 className="text-2xl font-black uppercase tracking-widest mb-4 z-10">AI Discovery</h3>
+                                <div className="h-16 flex items-center justify-center overflow-hidden z-10 w-full px-2 text-sm text-muted-foreground font-medium">
+                                    {discoveryStage}
                                 </div>
                             </div>
                         </div>,
                         document.body
-                    );
-                })()
-            }
+                    )
+                }
 
-            {
-                status === "loading" && message && !isDiscoveringModalOpen && !isGeneratingModalOpen && !isAutopilotLoadingModalOpen && (
-                    <div className="fixed bottom-12 left-1/2 -translate-x-1/2 bg-foreground text-background px-10 py-6 rounded-[32px] shadow-2xl flex items-center gap-4 z-[999] border border-white/10 ring-8 ring-black/5 whitespace-nowrap">
-                        <RefreshCw className="w-6 h-6 animate-spin text-primary" />
-                        <span className="text-sm font-black uppercase tracking-widest">{message}</span>
-                    </div>
-                )
-            }
+                {
+                    isGeneratingModalOpen && typeof document !== "undefined" && createPortal(
+                        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+                            <div className="absolute inset-0 bg-background/60 backdrop-blur-2xl"></div>
+                            <div className="bg-card w-full max-w-sm border border-border/50 rounded-[40px] p-12 shadow-2xl flex flex-col items-center text-center relative overflow-hidden ring-1 ring-white/10">
+                                <div className="absolute inset-0 bg-primary/5 animate-pulse"></div>
+                                <div className="relative mb-10">
+                                    <div className="relative text-primary w-24 h-24 rounded-full flex flex-col items-center justify-center bg-primary/10 shadow-[0_0_50px_-12px_rgba(var(--primary),0.5)]">
+                                        <Sparkles className="w-10 h-10 animate-pulse text-primary z-10" />
+                                        <div className="absolute inset-0 border-[4px] border-primary/20 border-t-primary rounded-full animate-spin"></div>
+                                    </div>
+                                    <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping -z-10 opacity-30"></div>
+                                </div>
+                                <h3 className="text-2xl font-black uppercase tracking-widest mb-4 z-10 tracking-[0.2em]">AI Studio</h3>
+                                <div className="h-20 flex items-center justify-center overflow-hidden z-10 w-full px-2 text-sm text-muted-foreground font-medium italic">
+                                    {generatingStage}
+                                </div>
+                                <div className="flex gap-2 mt-4">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]"></div>
+                                    <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]"></div>
+                                    <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce"></div>
+                                </div>
+                            </div>
+                        </div>,
+                        document.body
+                    )
+                }
 
-            {/* HIDDEN RENDERER FOR AUTOMATION */}
-            {
-                automationArticleData && (
-                    <div style={{
-                        position: 'fixed',
-                        top: '-10000px',
-                        left: '0px',
-                        width: '1080px',
-                        height: '1080px',
-                        zIndex: -100,
-                        pointerEvents: 'none',
-                        background: 'black'
-                    }}>
-                        <InstagramPreview title={automationArticleData.title} id="automation-preview-capture" />
-                    </div>
-                )
-            }
+                {
+                    isAutopilotLoadingModalOpen && typeof document !== "undefined" && createPortal(
+                        <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4">
+                            <div className="absolute inset-0 bg-background/60 backdrop-blur-xl z-0"></div>
+                            <div className="relative z-10 bg-card w-full max-w-sm border border-border/50 rounded-[40px] p-12 shadow-2xl flex flex-col items-center text-center overflow-hidden ring-1 ring-white/10">
+                                <div className="absolute inset-0 bg-primary/5 animate-pulse"></div>
+                                <div className="relative mb-10 text-primary w-24 h-24 rounded-full flex flex-col items-center justify-center bg-primary/10">
+                                    <Zap className="w-10 h-10 animate-pulse text-primary z-10" />
+                                    <div className="absolute inset-0 border-[4px] border-primary/20 border-t-primary rounded-full animate-spin"></div>
+                                </div>
+                                <h3 className="text-2xl font-black uppercase tracking-widest mb-4 z-10">AI Autopilot</h3>
+                                <div className="h-16 flex items-center justify-center overflow-hidden z-10 w-full px-2 text-sm text-muted-foreground font-medium">
+                                    {autopilotLoadingStage}
+                                </div>
+                            </div>
+                        </div>,
+                        document.body
+                    )
+                }
+
+                {
+                    isAutopilotHistoryOpen && typeof document !== "undefined" && createPortal(
+                        <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 md:p-8" style={{ pointerEvents: 'auto' }}>
+                            {/* Raw Backdrop */}
+                            <div
+                                className="absolute inset-0 bg-black/80 backdrop-blur-xl cursor-pointer"
+                                style={{ zIndex: 0 }}
+                                onClick={() => setIsAutopilotHistoryOpen(false)}
+                            ></div>
+
+                            {/* Raw Modal Content */}
+                            <div
+                                className="relative bg-[#121212] w-full max-w-3xl rounded-[32px] border border-[#2a2a2a] flex flex-col max-h-[85vh] shadow-[0_0_100px_rgba(0,0,0,0.8)] overflow-hidden"
+                                style={{ zIndex: 10 }}
+                            >
+
+                                {/* Header */}
+                                <div className="px-8 py-6 border-b border-[#2a2a2a] flex items-center justify-between bg-[#1a1a1a] text-white">
+                                    <div className="flex items-center gap-4">
+                                        <div className="bg-[#2a2a2a] p-2 rounded-xl text-white">
+                                            <History className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-xl font-black uppercase tracking-widest leading-none mb-1 text-white">História Autopilota</h3>
+                                            <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Spracované a Publikované články</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setIsAutopilotHistoryOpen(false);
+                                        }}
+                                        className="p-3 bg-[#2a2a2a] hover:bg-red-500/20 hover:text-red-500 rounded-2xl transition-colors cursor-pointer text-zinc-300 pointer-events-auto"
+                                    >
+                                        <XCircle className="w-6 h-6" />
+                                    </button>
+                                </div>
+
+                                {/* Content Area */}
+                                <div className="p-8 overflow-y-auto space-y-4 flex-grow w-full bg-[#121212] text-white">
+                                    {loadingHistory ? (
+                                        <div className="flex flex-col items-center justify-center py-20 gap-4 text-zinc-400">
+                                            <RefreshCw className="w-10 h-10 animate-spin text-white" />
+                                            <span className="text-xs font-bold uppercase tracking-widest text-zinc-300">Načítavam dáta z databázy...</span>
+                                        </div>
+                                    ) : autopilotHistory.length === 0 ? (
+                                        <div className="flex flex-col items-center justify-center py-24 text-center border-2 border-dashed border-[#2a2a2a] rounded-3xl mx-4">
+                                            <div className="w-16 h-16 bg-[#1a1a1a] rounded-full flex items-center justify-center mb-6">
+                                                <History className="w-8 h-8 text-zinc-500" />
+                                            </div>
+                                            <h4 className="text-lg font-black uppercase tracking-widest text-white mb-2">Žiadna história</h4>
+                                            <p className="text-sm font-medium text-zinc-400 max-w-[250px]">Modul Ai Autopilota zatiaľ nespracoval žiadne témy.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-10 px-2 pb-6">
+                                            {Object.entries(autopilotHistory.reduce((acc, curr) => {
+                                                const cat = curr.category || "Nezaradené";
+                                                if (!acc[cat]) acc[cat] = [];
+                                                acc[cat].push(curr);
+                                                return acc;
+                                            }, {} as Record<string, AutopilotHistoryItem[]>)).map(([category, items]) => (
+                                                <div key={category} className="space-y-4">
+                                                    <h4 className="flex items-center gap-3 text-white text-sm font-black uppercase tracking-widest border-b border-[#2a2a2a] pb-3">
+                                                        <div className="w-2.5 h-2.5 rounded-full bg-white/20 flex items-center justify-center">
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></div>
+                                                        </div>
+                                                        {category}
+                                                        <span className="text-zinc-400 bg-[#2a2a2a] px-2 py-0.5 rounded-full text-[10px] ml-auto">({(items as AutopilotHistoryItem[]).length})</span>
+                                                    </h4>
+                                                    <div className="grid gap-3">
+                                                        {(items as AutopilotHistoryItem[]).map((item, idx) => (
+                                                            <div
+                                                                key={idx}
+                                                                className="flex flex-col sm:flex-row gap-4 sm:items-center p-5 rounded-2xl bg-[#1a1a1a] border border-[#2a2a2a] hover:border-white/30 transition-all group"
+                                                            >
+                                                                <div className="flex-grow w-full">
+                                                                    <div className="flex justify-between items-center mb-2">
+                                                                        <span className="text-[10px] text-zinc-400 font-bold tracking-wider bg-[#2a2a2a] px-2 py-1 rounded-md">
+                                                                            {new Date(item.created_at).toLocaleString('sk-SK')}
+                                                                        </span>
+                                                                    </div>
+                                                                    <h4 className="font-bold text-white text-sm xl:text-base leading-snug group-hover:text-zinc-200 transition-colors line-clamp-2 mb-3">
+                                                                        {item.title}
+                                                                    </h4>
+                                                                    <a
+                                                                        href={item.url}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="text-[11px] font-black uppercase tracking-widest text-zinc-500 hover:text-white flex items-center gap-2 transition-colors w-fit border-b border-transparent hover:border-white pb-0.5"
+                                                                    >
+                                                                        <Globe className="w-3.5 h-3.5" />
+                                                                        Otvoriť zdroj
+                                                                    </a>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Footer Area */}
+                                <div className="px-8 py-5 border-t border-[#2a2a2a] bg-[#1a1a1a] text-center z-20">
+                                    <p className="text-[11px] text-zinc-400 font-black uppercase tracking-[0.15em]">
+                                        Celkovo spravovaných sekcií: {Object.keys(autopilotHistory.reduce((acc, curr) => { acc[curr.category || ""] = true; return acc; }, {} as Record<string, boolean>)).length}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>,
+                        document.body
+                    )
+                }
+
+                {
+                    selectedPlannerArticle && typeof document !== "undefined" && (() => {
+                        const posts = plannedPosts.filter(p => p.article_id === selectedPlannerArticle);
+                        if (posts.length === 0) return null;
+                        const articleTitle = posts[0].articles?.title || "Neznámy článok";
+
+                        return createPortal(
+                            <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 md:p-8">
+                                <div
+                                    className="absolute inset-0 bg-black/80 backdrop-blur-xl cursor-pointer"
+                                    onClick={() => setSelectedPlannerArticle(null)}
+                                ></div>
+                                <div className="relative bg-[#121212] w-full max-w-5xl rounded-[40px] border border-white/10 flex flex-col max-h-[90vh] shadow-[0_0_100px_rgba(0,0,0,0.8)] overflow-hidden">
+                                    {/* Header */}
+                                    <div className="px-10 py-8 border-b border-white/5 flex items-center justify-between bg-[#1a1a1a] text-white">
+                                        <div className="flex items-center gap-6">
+                                            <div className="bg-primary/20 p-3 rounded-2xl">
+                                                <Sparkles className="w-6 h-6 text-primary" />
+                                            </div>
+                                            <div>
+                                                <h3 className="text-2xl font-black uppercase tracking-widest leading-none mb-2 text-white line-clamp-1 max-w-[500px]">{articleTitle}</h3>
+                                                <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Detail sociálnych postov</p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => setSelectedPlannerArticle(null)}
+                                            className="p-4 bg-white/5 hover:bg-red-500/20 hover:text-red-500 rounded-2xl transition-all"
+                                        >
+                                            <XCircle className="w-8 h-8" />
+                                        </button>
+                                    </div>
+
+                                    {/* Scrollable Content */}
+                                    <div className="flex-grow overflow-y-auto w-full relative">
+                                        {/* Bulk Actions Bar */}
+                                        {selectedPostsForPublishing.length > 0 && (
+                                            <div className="sticky top-0 z-20 bg-indigo-600 text-white px-10 py-4 flex items-center justify-between shadow-2xl animate-in slide-in-from-top-full duration-300">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+                                                        <Zap className="w-4 h-4 text-white" />
+                                                    </div>
+                                                    <span className="text-[10px] font-black uppercase tracking-[0.2em]">
+                                                        Vybrané: {selectedPostsForPublishing.length} formáty
+                                                    </span>
+                                                </div>
+                                                <div className="flex gap-4">
+                                                    <button
+                                                        onClick={() => setSelectedPostsForPublishing([])}
+                                                        className="text-[9px] font-black uppercase tracking-widest px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl transition-all"
+                                                    >
+                                                        Zrušiť výber
+                                                    </button>
+                                                    <button
+                                                        onClick={handlePublishMultiplePosts}
+                                                        className="text-[9px] font-black uppercase tracking-widest px-6 py-2 bg-white text-indigo-600 rounded-xl transition-all hover:scale-105 active:scale-95 flex items-center gap-2 shadow-lg shadow-black/20"
+                                                    >
+                                                        Publikovať simultánne
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div className="grid grid-cols-1 lg:grid-cols-2 min-h-full">
+                                            {/* Posts Column */}
+                                            <div className="p-8 lg:p-10 space-y-8 bg-muted/5 border-r border-white/5">
+                                                {posts.map((post) => (
+                                                    <div key={post.id} className={cn(
+                                                        "rounded-[32px] border-2 p-8 transition-all",
+                                                        post.status === 'posted' ? "bg-muted/10 border-green-500/20" : "bg-[#1a1a1a] border-white/5 shadow-xl"
+                                                    )}>
+                                                        <div className="flex items-center justify-between mb-8">
+                                                            <div className="flex items-center gap-6">
+                                                                {/* Checkbox for selection */}
+                                                                {post.status !== 'posted' && (
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setSelectedPostsForPublishing(prev =>
+                                                                                prev.includes(post.id) ? prev.filter(id => id !== post.id) : [...prev, post.id]
+                                                                            );
+                                                                        }}
+                                                                        className={cn(
+                                                                            "w-8 h-8 rounded-xl border-2 flex items-center justify-center transition-all",
+                                                                            selectedPostsForPublishing.includes(post.id)
+                                                                                ? "bg-indigo-500 border-indigo-500 text-white"
+                                                                                : "border-white/10 hover:border-white/30"
+                                                                        )}
+                                                                    >
+                                                                        {selectedPostsForPublishing.includes(post.id) && <Check className="w-4 h-4" />}
+                                                                    </button>
+                                                                )}
+                                                                <div className="flex items-center gap-4">
+                                                                    <div className={cn(
+                                                                        "w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg",
+                                                                        post.platform === 'Instagram' ? "bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600" :
+                                                                            post.platform === 'Facebook' ? "bg-blue-600" : "bg-white text-black"
+                                                                    )}>
+                                                                        {post.platform === 'Instagram' && <Instagram size={22} />}
+                                                                        {post.platform === 'Facebook' && <Facebook size={22} />}
+                                                                        {post.platform === 'X' && <XIcon size={22} />}
+                                                                    </div>
+                                                                    <span className="text-lg font-black uppercase tracking-[0.1em]">{post.platform}</span>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex gap-3">
+                                                                {post.status !== 'posted' && (post.platform === 'Facebook' || post.platform === 'Instagram') && (
+                                                                    <button
+                                                                        onClick={() => handlePublishSocialPost(post.id)}
+                                                                        className="p-3 bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500 hover:text-white rounded-xl transition-all shadow-md"
+                                                                        title="Publikovať teraz cez API"
+                                                                    >
+                                                                        <Zap size={20} />
+                                                                    </button>
+                                                                )}
+                                                                <button
+                                                                    onClick={() => handleToggleSocialPosted(post)}
+                                                                    className={cn(
+                                                                        "p-3 rounded-xl transition-all shadow-md",
+                                                                        post.status === 'posted' ? "bg-green-500 text-white" : "bg-white/5 text-zinc-400 hover:bg-primary/20 hover:text-primary"
+                                                                    )}
+                                                                    title={post.status === 'posted' ? "Už publikované" : "Označiť ako publikované (manuálne)"}
+                                                                >
+                                                                    <CheckCircle2 size={20} />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        if (confirm('Naozaj zmazať príspevok?')) {
+                                                                            handleDeleteSocialPost(post.id);
+                                                                            if (posts.length <= 1) setSelectedPlannerArticle(null);
+                                                                        }
+                                                                    }}
+                                                                    className="p-3 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all shadow-md"
+                                                                >
+                                                                    <Trash2 size={20} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="space-y-4">
+                                                            <div className="flex items-center justify-between">
+                                                                <span className="text-[11px] font-black uppercase tracking-widest text-zinc-500">Obsah príspevku</span>
+                                                                <button
+                                                                    onClick={() => { copyToClipboard(post.content); alert(`Text pre ${post.platform} bol skopírovaný.`); }}
+                                                                    className="text-[11px] font-black uppercase tracking-widest text-primary hover:text-primary/80 flex items-center gap-2 transition-colors"
+                                                                >
+                                                                    <Copy size={14} /> Skopírovať
+                                                                </button>
+                                                            </div>
+                                                            <div className="bg-black/40 border border-white/5 rounded-2xl p-6 text-sm font-medium leading-relaxed max-h-[250px] overflow-y-auto whitespace-pre-wrap text-zinc-300 ring-1 ring-inset ring-white/5">
+                                                                {post.content}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            {/* Preview Column */}
+                                            <div className="p-8 lg:p-10 bg-black flex flex-col items-center justify-center lg:sticky lg:top-0 h-fit lg:h-[calc(90vh-100px)] min-h-[500px]">
+                                                <div className="w-full max-w-[450px] scale-90 md:scale-100">
+                                                    <InstagramPreview title={articleTitle} />
+                                                </div>
+                                                <p className="mt-12 text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 text-center">
+                                                    Náhľad vizuálu postu
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>,
+                            document.body
+                        );
+                    })()
+                }
+
+                {
+                    status === "loading" && message && !isDiscoveringModalOpen && !isGeneratingModalOpen && !isAutopilotLoadingModalOpen && (
+                        <div className="fixed bottom-12 left-1/2 -translate-x-1/2 bg-foreground text-background px-10 py-6 rounded-[32px] shadow-2xl flex items-center gap-4 z-[999] border border-white/10 ring-8 ring-black/5 whitespace-nowrap">
+                            <RefreshCw className="w-6 h-6 animate-spin text-primary" />
+                            <span className="text-sm font-black uppercase tracking-widest">{message}</span>
+                        </div>
+                    )
+                }
+
+                {/* HIDDEN RENDERER FOR AUTOMATION */}
+                {
+                    automationArticleData && (
+                        <div style={{
+                            position: 'fixed',
+                            top: '-10000px',
+                            left: '0px',
+                            width: '1080px',
+                            height: '1080px',
+                            zIndex: -100,
+                            pointerEvents: 'none',
+                            background: 'black'
+                        }}>
+                            <InstagramPreview title={automationArticleData.title} id="automation-preview-capture" />
+                        </div>
+                    )
+                }
+            </div>
         </>
     );
 }

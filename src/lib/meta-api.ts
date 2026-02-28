@@ -15,9 +15,8 @@ export async function publishToFacebook(message: string, link?: string, imageUrl
     const isPhoto = !!imageUrl;
     const url = `https://graph.facebook.com/v22.0/${FB_PAGE_ID}/${isPhoto ? 'photos' : 'feed'}`;
 
-    // Ak máme obrázok, pridáme link priamo do správy (caption), 
-    // pretože photo post nepodporuje 'link' parameter rovnakým spôsobom ako feed
-    const finalMessage = isPhoto && link ? `${message}\n\nČítajte viac: ${link}` : message;
+    // Pridáme link priamo do správy (caption/message), aby bol vždy viditeľný a klikateľný v texte
+    const finalMessage = link ? `${message}\n\nČítajte viac: ${link}` : message;
 
     const params: Record<string, string> = {
         access_token: META_ACCESS_TOKEN,
@@ -31,15 +30,18 @@ export async function publishToFacebook(message: string, link?: string, imageUrl
         if (link) params.link = link;
     }
 
-    const searchParams = new URLSearchParams(params);
-
     console.log(`[Meta API] Publishing to Facebook (${isPhoto ? 'Photo' : 'Feed'})...`);
+
+    // Používame POST body pre lepší handling dlhých správ (vyhneme sa URI limitom) / We use POST body for better handling of long messages
+    const body = new URLSearchParams(params);
 
     // Retry logic pre Facebook
     let lastError = null;
     for (let attempt = 1; attempt <= 2; attempt++) {
-        const response = await fetch(`${url}?${searchParams.toString()}`, {
+        const response = await fetch(url, {
             method: "POST",
+            body: body,
+            // Header Content-Type netreba explicitne, URLSearchParams ho nastaví automaticky / URLSearchParams handles content-type automatically
         });
 
         const data = await response.json();

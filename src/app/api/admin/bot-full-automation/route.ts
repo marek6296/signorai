@@ -38,7 +38,6 @@ export async function GET(req: NextRequest) {
         // 2. Time Check (unless forced)
         if (!force && settings.posting_times && settings.posting_times.length > 0) {
             const now = new Date();
-            // Get time in Europe/Bratislava (approximate via offset or just UTC if simplified, but let's try to be smart)
             const bratislavaTime = new Intl.DateTimeFormat('en-GB', {
                 timeZone: 'Europe/Bratislava',
                 hour: '2-digit',
@@ -48,32 +47,43 @@ export async function GET(req: NextRequest) {
 
             console.log(`>>> [Bot] Current Bratislava Time: ${bratislavaTime}`);
 
+            const [currH, currM] = bratislavaTime.split(':').map(Number);
+            const currTotalMinutes = currH * 60 + currM;
+
+            // Find the closest scheduled time that has passed but not been executed yet
             const isTime = settings.posting_times.some((t: string) => {
                 const [h, m] = t.split(':').map(Number);
-                const [currH, currM] = bratislavaTime.split(':').map(Number);
+                const scheduledMinutes = h * 60 + m;
 
-                // 30 minute window
-                const diff = (currH * 60 + currM) - (h * 60 + m);
-                return diff >= 0 && diff < 30;
+                // We allow a large window (e.g. 5 hours) but the 'last_run' will prevent double execution.
+                // This ensures that if the cron runs 10 mins late, it still catches the window.
+                const diff = currTotalMinutes - scheduledMinutes;
+
+                // If the scheduled time is in the future but within the day, diff will be negative.
+                // If the scheduled time was earlier today, diff is positive.
+                return diff >= 0 && diff < 60; // 60 minute window for cron to catch it
             });
 
-            // Prevent double run: if we last run successfully less than 40 mins ago, skip
-            if (isTime && settings.last_run) {
-                const lastRunDate = new Date(settings.last_run);
-                const diffMs = now.getTime() - lastRunDate.getTime();
-                const diffMins = diffMs / (1000 * 60);
+            // Double run protection: If we are in a valid window, check when we last succeeded.
+            if (isTime) {
+                const lastRunDate = settings.last_run ? new Date(settings.last_run) : null;
+                if (lastRunDate) {
+                    const diffMs = now.getTime() - lastRunDate.getTime();
+                    const diffMins = diffMs / (1000 * 60);
 
-                if (diffMins < 40 && settings.last_status?.includes("Úspešne publikované")) {
-                    return NextResponse.json({ message: "Already run recently for this window", lastRun: settings.last_run });
+                    // If we run successfully less than 70 minutes ago, don't run again in this window.
+                    if (diffMins < 70 && settings.last_status?.includes("Úspešne publikované")) {
+                        console.log(`>>> [Bot] Skipping: Already run successfully ${Math.round(diffMins)} mins ago.`);
+                        return NextResponse.json({ message: "Already run recently for this window", lastRun: settings.last_run });
+                    }
                 }
-            }
-
-            if (!isTime) {
+            } else {
+                // Not in any scheduled window
                 await supabase
                     .from('site_settings')
                     .update({ value: { ...settings, last_run: new Date().toISOString(), last_status: `Aktívny (Čakám na čas publikovania: ${settings.posting_times.join(', ')})` } })
                     .eq('key', 'social_bot');
-                return NextResponse.json({ message: "Not a scheduled time window", currentTime: bratislavaTime });
+                return NextResponse.json({ message: "Not a scheduled time window", currentTime: bratislavaTime, scheduled: settings.posting_times });
             }
         }
 
