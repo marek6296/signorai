@@ -7,32 +7,53 @@ const FB_PAGE_ID = process.env.FB_PAGE_ID;
 const IG_BUSINESS_ACCOUNT_ID = process.env.IG_BUSINESS_ACCOUNT_ID;
 const META_ACCESS_TOKEN = process.env.META_ACCESS_TOKEN;
 
-export async function publishToFacebook(message: string, link?: string) {
+export async function publishToFacebook(message: string, link?: string, imageUrl?: string) {
     if (!FB_PAGE_ID || !META_ACCESS_TOKEN) {
         throw new Error("Missing Facebook configuration (FB_PAGE_ID or META_ACCESS_TOKEN)");
     }
 
-    const url = `https://graph.facebook.com/v22.0/${FB_PAGE_ID}/feed`;
-    const params = new URLSearchParams({
-        message,
+    const isPhoto = !!imageUrl;
+    const url = `https://graph.facebook.com/v22.0/${FB_PAGE_ID}/${isPhoto ? 'photos' : 'feed'}`;
+
+    // Ak máme obrázok, pridáme link priamo do správy (caption), 
+    // pretože photo post nepodporuje 'link' parameter rovnakým spôsobom ako feed
+    const finalMessage = isPhoto && link ? `${message}\n\nČítajte viac: ${link}` : message;
+
+    const params: Record<string, string> = {
         access_token: META_ACCESS_TOKEN,
-    });
+    };
 
-    if (link) {
-        params.append("link", link);
+    if (isPhoto) {
+        params.url = imageUrl!;
+        params.caption = finalMessage;
+    } else {
+        params.message = finalMessage;
+        if (link) params.link = link;
     }
 
-    const response = await fetch(`${url}?${params.toString()}`, {
-        method: "POST",
-    });
+    const searchParams = new URLSearchParams(params);
 
-    const data = await response.json();
-    if (!response.ok) {
-        console.error("Facebook API Error:", data);
-        throw new Error(data.error?.message || "Failed to post to Facebook");
+    console.log(`[Meta API] Publishing to Facebook (${isPhoto ? 'Photo' : 'Feed'})...`);
+
+    // Retry logic pre Facebook
+    let lastError = null;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+        const response = await fetch(`${url}?${searchParams.toString()}`, {
+            method: "POST",
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+            console.log(`[Meta API] Facebook post successful: ${data.id || data.post_id}`);
+            return data;
+        }
+
+        lastError = data.error?.message || "Failed to post to Facebook";
+        console.warn(`[Meta API] Facebook attempt ${attempt} failed: ${lastError}`);
+        if (attempt < 2) await new Promise(r => setTimeout(r, 2000));
     }
 
-    return data;
+    throw new Error(lastError);
 }
 
 export async function publishToInstagram(imageUrl: string, caption: string) {
