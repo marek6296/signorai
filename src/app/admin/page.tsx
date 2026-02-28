@@ -99,6 +99,14 @@ export default function AdminPage() {
     }>({ totalVisits: 0, uniqueVisitors: 0, todayVisits: 0, todayUnique: 0, topPages: [], countries: [], devices: [], browsers: [], recentVisits: [] });
     const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
+    // Social Tab State
+    const [socialSelectedArticles, setSocialSelectedArticles] = useState<string[]>([]);
+    const [socialArticleSearch, setSocialArticleSearch] = useState("");
+    const [socialPlatforms, setSocialPlatforms] = useState<("Facebook" | "Instagram" | "X")[]>([]);
+    const [socialResults, setSocialResults] = useState<Record<string, Record<string, string>>>({});
+    const [isGeneratingSocial, setIsGeneratingSocial] = useState(false);
+    const [selectedPlannerArticle, setSelectedPlannerArticle] = useState<string | null>(null);
+
     // Tab control – obnovíme z localStorage pri refreshi (prvý zápis preskočíme, aby sme neprepísali obnovenú kartu)
     const [activeTab, setActiveTab] = useState<"create" | "manage" | "discovery" | "analytics" | "social" | "autopilot">("manage");
     const skipNextSaveRef = useRef(true);
@@ -117,15 +125,13 @@ export default function AdminPage() {
             return;
         }
         localStorage.setItem("admin-active-tab", activeTab);
+
+        // Reset social platforms when entering the social tab
+        if (activeTab === "social") {
+            setSocialPlatforms([]);
+        }
     }, [activeTab]);
 
-    // Social Tab State
-    const [socialSelectedArticles, setSocialSelectedArticles] = useState<string[]>([]);
-    const [socialArticleSearch, setSocialArticleSearch] = useState("");
-    const [socialPlatforms, setSocialPlatforms] = useState<("Facebook" | "Instagram" | "X")[]>(["Instagram"]);
-    const [socialResults, setSocialResults] = useState<Record<string, Record<string, string>>>({});
-    const [isGeneratingSocial, setIsGeneratingSocial] = useState(false);
-    const [selectedPlannerArticle, setSelectedPlannerArticle] = useState<string | null>(null);
 
     // Authentication state
     const [isLoggedIn, setIsLoggedIn] = useState(false);
