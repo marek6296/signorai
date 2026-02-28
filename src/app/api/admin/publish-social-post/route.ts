@@ -49,19 +49,25 @@ export async function POST(req: Request) {
 
         if (post.platform === 'Instagram' && !customImageUrl) {
             try {
-                // Generate the dynamic image URL
-                const host = req.headers.get("host") || "postovinky.news";
-                const protocol = host.includes("localhost") ? "http" : "https";
-                const generatorUrl = `${protocol}://${host}/api/social-image/${id}.png?t=${Date.now()}`;
+                // Hardcode prod hostname for Meta's convenience
+                const generatorUrl = `https://postovinky.news/api/social-image/${id}.png?t=${Date.now()}`;
 
                 console.log(`[Instagram Storage] Fetching image from: ${generatorUrl}`);
 
+                // Give the generator 1 second to breathe if it was just deployed
+                await new Promise(r => setTimeout(r, 1000));
+
                 // Step A: Fetch the image bytes from our own generator
                 const imageRes = await fetch(generatorUrl);
+
+                if (!imageRes.ok) {
+                    throw new Error(`Generator returned status ${imageRes.status}`);
+                }
+
                 const imageBuffer = await imageRes.arrayBuffer();
 
-                if (imageBuffer.byteLength === 0) {
-                    throw new Error("Generator returned 0 bytes. Fallback to main image.");
+                if (imageBuffer.byteLength < 1000) {
+                    throw new Error(`Generator returned 0 bytes or suspiciously small file: ${imageBuffer.byteLength} bytes.`);
                 }
 
                 // Step B: Upload to Supabase Storage
@@ -81,11 +87,11 @@ export async function POST(req: Request) {
                     .getPublicUrl(fileName);
 
                 finalImageUrl = publicUrl;
-                console.log(`[Instagram Storage] Successfully uploaded to: ${finalImageUrl}`);
+                console.log(`[Instagram Storage] Successfully uploaded and using brand image: ${finalImageUrl}`);
 
             } catch (storageError) {
-                console.error("[Instagram Storage Error]", storageError);
-                // Fallback to article main image if generation/upload fails
+                console.error("[Instagram Storage Error - Fallback triggered]", storageError);
+                // Last resort fallback
                 finalImageUrl = article?.main_image || finalImageUrl;
             }
         }
