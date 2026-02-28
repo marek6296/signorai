@@ -46,7 +46,7 @@ export function Navbar() {
         <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className="container mx-auto flex flex-col items-center justify-center py-2 md:py-3 relative px-4 sm:px-6 lg:px-8">
 
-                {/* Center: Brand Logo */}
+                {/* Brand Logo Section */}
                 <Link href="/" className="flex items-baseline gap-2 group px-8 md:px-0" onClick={() => setIsMenuOpen(false)}>
                     <span className="font-syne font-extrabold text-2xl md:text-6xl tracking-tighter uppercase 
                         bg-gradient-to-r from-foreground via-foreground/50 to-foreground 
@@ -114,8 +114,8 @@ export function Navbar() {
                     })}
                 </nav>
 
-                {/* Top Right: Actions */}
-                <div className="absolute right-2 sm:right-4 lg:right-8 top-1/2 -translate-y-1/2 flex items-center gap-2 scale-90 md:scale-100 origin-right">
+                {/* Top Right: Theme Toggle (Repositioned to top to avoid menu overlap) */}
+                <div className="absolute right-4 lg:right-10 top-4 md:top-6 flex items-center">
                     <ThemeToggle />
                 </div>
             </div>

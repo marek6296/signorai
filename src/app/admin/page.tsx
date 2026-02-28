@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabase";
 import { Article } from "@/lib/data";
 import Link from "next/link";
-import { Edit, ArrowDown, Trash2, Sparkles, Plus, Globe, Search, CheckCircle2, XCircle, RefreshCw, Zap, Play, History, RotateCcw, BarChart3, Users, Share2, Copy, Facebook, Instagram, Calendar, Clock, ChevronDown, ChevronUp, Smartphone, Monitor } from "lucide-react";
+import { Edit, ArrowDown, Trash2, Sparkles, Plus, Globe, Search, CheckCircle2, XCircle, RefreshCw, Zap, Play, History, RotateCcw, BarChart3, Users, Share2, Copy, Facebook, Instagram, Calendar, Clock, ChevronDown, ChevronUp, Smartphone, Monitor, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ArticleCard } from "@/components/ArticleCard";
 import Image from "next/image";
@@ -46,6 +46,13 @@ type AutopilotSettings = {
     enabled: boolean;
     last_run: string | null;
     processed_count: number;
+};
+
+type SocialBotSettings = {
+    enabled: boolean;
+    interval_hours: number;
+    posting_times: string[];
+    auto_publish: boolean;
 };
 
 type SocialPost = {
@@ -108,6 +115,14 @@ export default function AdminPage() {
     const [socialResults, setSocialResults] = useState<Record<string, Record<string, string>>>({});
     const [isGeneratingSocial, setIsGeneratingSocial] = useState(false);
     const [selectedPlannerArticle, setSelectedPlannerArticle] = useState<string | null>(null);
+    const [selectedPostsForPublishing, setSelectedPostsForPublishing] = useState<string[]>([]);
+    const [socialStats, setSocialStats] = useState({ total_published: 0, pending_drafts: 0 });
+    const [socialBotSettings, setSocialBotSettings] = useState<SocialBotSettings>({
+        enabled: false,
+        interval_hours: 12,
+        posting_times: ["09:00", "18:00"],
+        auto_publish: false
+    });
 
     // Tab control – obnovíme z localStorage pri refreshi (prvý zápis preskočíme, aby sme neprepísali obnovenú kartu)
     const [activeTab, setActiveTab] = useState<"create" | "manage" | "discovery" | "analytics" | "social" | "autopilot">("manage");
@@ -201,7 +216,13 @@ export default function AdminPage() {
             const res = await fetch("/api/admin/social-posts");
             const data = await res.json();
             console.log("Fetched planned posts:", data);
-            if (!data.error) setPlannedPosts(data);
+            if (!data.error) {
+                setPlannedPosts(data);
+                // Stats update
+                const published = (data || []).filter((p: any) => p.status === 'posted').length;
+                const drafts = (data || []).filter((p: any) => p.status === 'draft').length;
+                setSocialStats({ total_published: published, pending_drafts: drafts });
+            }
         } catch (e) {
             console.error("Failed to fetch planned posts", e);
         }
@@ -328,15 +349,172 @@ export default function AdminPage() {
         }
     };
 
+    const handlePublishMultiplePosts = async () => {
+        if (selectedPostsForPublishing.length === 0) return;
+        if (!confirm(`Chcete publikovať vybraných ${selectedPostsForPublishing.length} príspevkov na sociálne siete?`)) return;
+
+        setStatus("loading");
+
+        let successCount = 0;
+
+        try {
+            setMessage("Pripravujem vizuál príspevkov...");
+            const previewEl = document.getElementById('instagram-preview-capture');
+            let imageBlob: Blob | null = null;
+
+            if (previewEl) {
+                imageBlob = await toBlob(previewEl, {
+                    cacheBust: true,
+                    width: 1080,
+                    height: 1080,
+                    pixelRatio: 1,
+                });
+            }
+
+            for (const postId of selectedPostsForPublishing) {
+                setMessage(`Publikujem ${successCount + 1}/${selectedPostsForPublishing.length}...`);
+                const formData = new FormData();
+                formData.append("id", postId);
+                formData.append("secret", "make-com-webhook-secret");
+                if (imageBlob) {
+                    formData.append("image", imageBlob, "social-post.png");
+                }
+
+                const res = await fetch("/api/admin/publish-social-post", {
+                    method: "POST",
+                    body: formData,
+                });
+                if (res.ok) successCount++;
+            }
+
+            setStatus("success");
+            setMessage(`Úspešne publikovaných ${successCount} príspevkov.`);
+            setSelectedPostsForPublishing([]);
+            await fetchPlannedPosts();
+        } catch (e: unknown) {
+            console.error(e);
+            setStatus("error");
+            setMessage("Vyskytla sa chyba pri hromadnom publikovaní.");
+        } finally {
+            setTimeout(() => setStatus("idle"), 4000);
+        }
+    };
+
+    const handlePublishNextPendingArticle = async () => {
+        // Find next eligible article (has both IG and FB as drafts, but none as posted)
+        const grouped = plannedPosts.reduce((acc, post) => {
+            if (!acc[post.article_id]) acc[post.article_id] = [];
+            acc[post.article_id].push(post);
+            return acc;
+        }, {} as Record<string, SocialPost[]>);
+
+        let targetArticleId = null;
+        let postsToPublish: SocialPost[] = [];
+
+        // Hľadáme článok, ktorý má obe platformy (IG aj FB) v stave 'draft' a nemá ani jednu 'posted'
+        for (const articleId in grouped) {
+            const posts = grouped[articleId];
+            const instagram = posts.find(p => p.platform === 'Instagram' && p.status === 'draft');
+            const facebook = posts.find(p => p.platform === 'Facebook' && p.status === 'draft');
+            const alreadyPosted = posts.some(p => p.status === 'posted' && (p.platform === 'Instagram' || p.platform === 'Facebook'));
+
+            if (instagram && facebook && !alreadyPosted) {
+                targetArticleId = articleId;
+                postsToPublish = [instagram, facebook];
+                break;
+            }
+        }
+
+        if (!targetArticleId) {
+            setMessage("Nenašiel sa žiadny nový článok čakajúci na obe platformy.");
+            setStatus("error");
+            setTimeout(() => setStatus("idle"), 3000);
+            return;
+        }
+
+        // 1. Zmeníme stav na loading a otvoríme "virtuálne" náhľad (cez modal)
+        setSelectedPlannerArticle(targetArticleId);
+        setStatus("loading");
+        setMessage("Príprava vizuálu...");
+
+        // 2. Musíme počkať na render DOM prvku preview
+        await new Promise(r => setTimeout(r, 1200));
+
+        try {
+            const previewEl = document.getElementById('instagram-preview-capture');
+            let imageBlob: Blob | null = null;
+            if (previewEl) {
+                imageBlob = await toBlob(previewEl, { cacheBust: true, width: 1080, height: 1080, pixelRatio: 1 });
+            }
+
+            let successCount = 0;
+            for (const post of postsToPublish) {
+                setMessage(`Publikujem na ${post.platform}...`);
+                const formData = new FormData();
+                formData.append("id", post.id);
+                formData.append("secret", "make-com-webhook-secret");
+                if (imageBlob) {
+                    formData.append("image", imageBlob, "social-post.png");
+                }
+
+                const res = await fetch("/api/admin/publish-social-post", { method: "POST", body: formData });
+                if (res.ok) successCount++;
+            }
+
+            if (successCount > 0) {
+                setStatus("success");
+                setMessage(`Článok úspešne publikovaný na ${successCount} platformy!`);
+                await fetchPlannedPosts();
+            } else {
+                throw new Error("Nepodarilo sa publikovať ani na jednu platformu.");
+            }
+        } catch (e) {
+            console.error(e);
+            setStatus("error");
+            setMessage("Chyba pri automatickom publikovaní príspevku.");
+        } finally {
+            setSelectedPlannerArticle(null);
+            setTimeout(() => setStatus("idle"), 4000);
+        }
+    };
+
     const fetchAutopilotSettings = async () => {
-        const { data, error } = await supabase
+        // Fetch Auto Pilot
+        const { data: apData, error: apError } = await supabase
             .from('site_settings')
             .select('value')
             .eq('key', 'auto_pilot')
             .single();
 
-        if (!error && data) {
-            setAutopilotSettings(data.value as AutopilotSettings);
+        if (!apError && apData) {
+            setAutopilotSettings(apData.value as AutopilotSettings);
+        }
+
+        // Fetch Social Bot
+        const { data: sbData, error: sbError } = await supabase
+            .from('site_settings')
+            .select('value')
+            .eq('key', 'social_bot')
+            .single();
+
+        if (!sbError && sbData) {
+            setSocialBotSettings(sbData.value as SocialBotSettings);
+        }
+    };
+
+    const handleSaveSocialBotSettings = async (settings: SocialBotSettings) => {
+        setSocialBotSettings(settings);
+        const { error } = await supabase
+            .from('site_settings')
+            .upsert({ key: 'social_bot', value: settings }, { onConflict: 'key' });
+
+        if (!error) {
+            setStatus("success");
+            setMessage("Nastavenia Social Bot-a boli uložené.");
+            setTimeout(() => setStatus("idle"), 3000);
+        } else {
+            setStatus("error");
+            setMessage("Chyba pri ukladaní nastavení.");
         }
     };
 
@@ -2050,6 +2228,149 @@ export default function AdminPage() {
                             </div>
                         </div>
 
+                        {/* SOCIAL SITES AGENT SETTINGS */}
+                        <div className="bg-gradient-to-br from-indigo-500/10 via-background to-background border-2 border-indigo-500/20 p-10 rounded-[40px] shadow-2xl relative overflow-hidden group/agent">
+                            <div className="absolute top-0 right-0 p-8 opacity-10 group-hover/agent:opacity-20 transition-opacity">
+                                <Share2 className="w-32 h-32 text-indigo-500" />
+                            </div>
+
+                            <div className="relative z-10 flex flex-col lg:flex-row gap-10">
+                                <div className="max-w-xl">
+                                    <div className="flex items-center gap-3 mb-6">
+                                        <div className="bg-indigo-500 text-white p-3 rounded-2xl shadow-lg shadow-indigo-500/30">
+                                            <Share2 className="w-6 h-6" />
+                                        </div>
+                                        <h3 className="text-3xl font-black uppercase tracking-tight text-foreground">Social Sites Agent</h3>
+                                        {socialBotSettings.enabled ? (
+                                            <span className="bg-green-500 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest animate-pulse">Aktívny</span>
+                                        ) : (
+                                            <span className="bg-muted text-muted-foreground text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">Neaktívny</span>
+                                        )}
+                                    </div>
+                                    <p className="text-muted-foreground font-medium text-lg leading-relaxed mb-8">
+                                        Inteligentný agent, ktorý automaticky publikuje naplánované príspevky v stanovených časoch a intervaloch pomocou Meta API a OpenAI.
+                                    </p>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                        <div className="space-y-4">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <Calendar className="w-4 h-4 text-indigo-500" />
+                                                <label className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground block">Interval publikovania</label>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <div className="relative">
+                                                    <input
+                                                        type="number"
+                                                        value={socialBotSettings.interval_hours}
+                                                        min="1"
+                                                        max="168"
+                                                        onChange={(e) => setSocialBotSettings({ ...socialBotSettings, interval_hours: parseInt(e.target.value) || 1 })}
+                                                        onBlur={() => handleSaveSocialBotSettings(socialBotSettings)}
+                                                        className="w-24 bg-background border-2 border-border rounded-xl px-4 py-3 text-center font-bold focus:border-indigo-500 focus:outline-none transition-all shadow-inner"
+                                                    />
+                                                </div>
+                                                <span className="text-xs font-black text-muted-foreground uppercase tracking-widest">Hodín</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <Clock className="w-4 h-4 text-indigo-500" />
+                                                <label className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground block">Presné časy (Fixné okná)</label>
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                {socialBotSettings.posting_times.map((time, idx) => (
+                                                    <div key={idx} className="flex items-center gap-2 bg-muted/30 hover:bg-muted/50 px-3.5 py-2 rounded-xl border border-border/50 group/time transition-all">
+                                                        <span className="text-xs font-black tabular-nums">{time}</span>
+                                                        <button
+                                                            onClick={() => {
+                                                                const newTimes = socialBotSettings.posting_times.filter((_, i) => i !== idx);
+                                                                handleSaveSocialBotSettings({ ...socialBotSettings, posting_times: newTimes });
+                                                            }}
+                                                            className="text-muted-foreground hover:text-red-500 transition-colors opacity-0 group-hover/time:opacity-100"
+                                                        >
+                                                            <XCircle className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                                <button
+                                                    onClick={() => {
+                                                        const time = prompt("Zadajte čas publikovania (HH:MM):", "12:00");
+                                                        if (time && /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(time)) {
+                                                            handleSaveSocialBotSettings({ ...socialBotSettings, posting_times: [...socialBotSettings.posting_times, time].sort() });
+                                                        } else if (time) {
+                                                            alert("Neplatný formát času. Použite HH:MM (napr. 09:30 alebo 21:00)");
+                                                        }
+                                                    }}
+                                                    className="px-4 py-2 bg-indigo-500/10 text-indigo-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 hover:text-white transition-all border-2 border-dashed border-indigo-500/30 flex items-center gap-2"
+                                                >
+                                                    <Plus className="w-3.5 h-3.5" /> Pridať okno
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-col gap-4 min-w-[280px] lg:mt-auto">
+                                    <div className="bg-background/40 backdrop-blur-md border border-white/10 p-6 rounded-[32px] space-y-4 shadow-xl ring-1 ring-black/5">
+                                        <div className="flex items-center justify-between gap-4">
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-foreground">Auto-Publish</span>
+                                                <span className="text-[9px] text-muted-foreground font-medium italic">Okamžité odosielanie</span>
+                                            </div>
+                                            <button
+                                                onClick={() => handleSaveSocialBotSettings({ ...socialBotSettings, auto_publish: !socialBotSettings.auto_publish })}
+                                                className={cn(
+                                                    "w-12 h-6 rounded-full transition-all relative flex-shrink-0",
+                                                    socialBotSettings.auto_publish ? "bg-green-500 shadow-md shadow-green-500/20" : "bg-neutral-600"
+                                                )}
+                                            >
+                                                <div className={cn(
+                                                    "absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm",
+                                                    socialBotSettings.auto_publish ? "left-7" : "left-1"
+                                                )} />
+                                            </button>
+                                        </div>
+
+                                        <div className="pt-4 border-t border-white/5 grid grid-cols-2 gap-4">
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Publikované</span>
+                                                <span className="text-xl font-black text-foreground">{socialStats.total_published}</span>
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">V plánovači</span>
+                                                <span className="text-xl font-black text-indigo-500">{socialStats.pending_drafts}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        onClick={() => handleSaveSocialBotSettings({ ...socialBotSettings, enabled: !socialBotSettings.enabled })}
+                                        className={cn(
+                                            "w-full py-5 rounded-2xl font-black uppercase tracking-[0.2em] text-xs transition-all flex items-center justify-center gap-3 shadow-2xl",
+                                            socialBotSettings.enabled
+                                                ? "bg-red-500 text-white hover:bg-red-600 shadow-red-500/20"
+                                                : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-600/30"
+                                        )}
+                                    >
+                                        {socialBotSettings.enabled ? (
+                                            <><RefreshCw className="w-4 h-4 animate-spin" /> Vypnúť Agenta</>
+                                        ) : (
+                                            <><Zap className="w-4 h-4 fill-current" /> Zapnúť Agenta</>
+                                        )}
+                                    </button>
+
+                                    <button
+                                        onClick={handlePublishNextPendingArticle}
+                                        disabled={status === "loading"}
+                                        className="w-full py-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-indigo-500/30 transition-all font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-3 mt-2 shadow-lg"
+                                    >
+                                        <Share2 className="w-4 h-4 text-indigo-500" /> Publikovať ďalší článok (FB + IG)
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
                         {/* Social Media Planner Section */}
                         <div className="bg-card border rounded-[40px] p-8 md:p-12 shadow-sm ring-1 ring-border/50">
                             {/* Header Row 1: Title & Refresh */}
@@ -2451,7 +2772,35 @@ export default function AdminPage() {
                                 </div>
 
                                 {/* Scrollable Content */}
-                                <div className="flex-grow overflow-y-auto w-full">
+                                <div className="flex-grow overflow-y-auto w-full relative">
+                                    {/* Bulk Actions Bar */}
+                                    {selectedPostsForPublishing.length > 0 && (
+                                        <div className="sticky top-0 z-20 bg-indigo-600 text-white px-10 py-4 flex items-center justify-between shadow-2xl animate-in slide-in-from-top-full duration-300">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+                                                    <Zap className="w-4 h-4 text-white" />
+                                                </div>
+                                                <span className="text-[10px] font-black uppercase tracking-[0.2em]">
+                                                    Vybrané: {selectedPostsForPublishing.length} formáty
+                                                </span>
+                                            </div>
+                                            <div className="flex gap-4">
+                                                <button
+                                                    onClick={() => setSelectedPostsForPublishing([])}
+                                                    className="text-[9px] font-black uppercase tracking-widest px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl transition-all"
+                                                >
+                                                    Zrušiť výber
+                                                </button>
+                                                <button
+                                                    onClick={handlePublishMultiplePosts}
+                                                    className="text-[9px] font-black uppercase tracking-widest px-6 py-2 bg-white text-indigo-600 rounded-xl transition-all hover:scale-105 active:scale-95 flex items-center gap-2 shadow-lg shadow-black/20"
+                                                >
+                                                    Publikovať simultánne
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     <div className="grid grid-cols-1 lg:grid-cols-2 min-h-full">
                                         {/* Posts Column */}
                                         <div className="p-8 lg:p-10 space-y-8 bg-muted/5 border-r border-white/5">
@@ -2461,17 +2810,37 @@ export default function AdminPage() {
                                                     post.status === 'posted' ? "bg-muted/10 border-green-500/20" : "bg-[#1a1a1a] border-white/5 shadow-xl"
                                                 )}>
                                                     <div className="flex items-center justify-between mb-8">
-                                                        <div className="flex items-center gap-4">
-                                                            <div className={cn(
-                                                                "w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg",
-                                                                post.platform === 'Instagram' ? "bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600" :
-                                                                    post.platform === 'Facebook' ? "bg-blue-600" : "bg-white text-black"
-                                                            )}>
-                                                                {post.platform === 'Instagram' && <Instagram size={22} />}
-                                                                {post.platform === 'Facebook' && <Facebook size={22} />}
-                                                                {post.platform === 'X' && <XIcon size={22} />}
+                                                        <div className="flex items-center gap-6">
+                                                            {/* Checkbox for selection */}
+                                                            {post.status !== 'posted' && (
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setSelectedPostsForPublishing(prev =>
+                                                                            prev.includes(post.id) ? prev.filter(id => id !== post.id) : [...prev, post.id]
+                                                                        );
+                                                                    }}
+                                                                    className={cn(
+                                                                        "w-8 h-8 rounded-xl border-2 flex items-center justify-center transition-all",
+                                                                        selectedPostsForPublishing.includes(post.id)
+                                                                            ? "bg-indigo-500 border-indigo-500 text-white"
+                                                                            : "border-white/10 hover:border-white/30"
+                                                                    )}
+                                                                >
+                                                                    {selectedPostsForPublishing.includes(post.id) && <Check className="w-4 h-4" />}
+                                                                </button>
+                                                            )}
+                                                            <div className="flex items-center gap-4">
+                                                                <div className={cn(
+                                                                    "w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg",
+                                                                    post.platform === 'Instagram' ? "bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600" :
+                                                                        post.platform === 'Facebook' ? "bg-blue-600" : "bg-white text-black"
+                                                                )}>
+                                                                    {post.platform === 'Instagram' && <Instagram size={22} />}
+                                                                    {post.platform === 'Facebook' && <Facebook size={22} />}
+                                                                    {post.platform === 'X' && <XIcon size={22} />}
+                                                                </div>
+                                                                <span className="text-lg font-black uppercase tracking-[0.1em]">{post.platform}</span>
                                                             </div>
-                                                            <span className="text-lg font-black uppercase tracking-[0.1em]">{post.platform}</span>
                                                         </div>
                                                         <div className="flex gap-3">
                                                             {post.status !== 'posted' && (post.platform === 'Facebook' || post.platform === 'Instagram') && (

@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Moon, Sun, Palette } from "lucide-react";
 import { useTheme } from "next-themes";
+import { cn } from "@/lib/utils";
 
 export function ThemeToggle() {
     const { setTheme, theme, resolvedTheme } = useTheme();
@@ -30,12 +31,12 @@ export function ThemeToggle() {
     return (
         <button
             onClick={toggleTheme}
-            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-10 w-10 relative"
+            className="flex items-center justify-center h-10 w-10 bg-muted/40 backdrop-blur-md rounded-full border border-border/40 shadow-sm hover:bg-muted/60 transition-all active:scale-95"
             title="Prepnúť tému"
         >
-            {currentTheme === "light" && <Sun className="h-[1.2rem] w-[1.2rem] transition-all" />}
-            {currentTheme === "dark" && <Moon className="h-[1.2rem] w-[1.2rem] transition-all" />}
-            {currentTheme === "colorful" && <Palette className="h-[1.2rem] w-[1.2rem] transition-all" />}
+            {currentTheme === "light" && <Sun className="h-5 w-5 text-zinc-900" />}
+            {currentTheme === "dark" && <Moon className="h-5 w-5 text-white" />}
+            {currentTheme === "colorful" && <Palette className="h-5 w-5 text-primary" />}
             <span className="sr-only">Prepnúť tému</span>
         </button>
     );
