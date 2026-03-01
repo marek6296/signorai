@@ -37,6 +37,7 @@ export async function GET(
         const title = post.articles?.title || 'Novinky zo sveta AI';
 
         let syneBold: ArrayBuffer | undefined;
+        let interBlack: ArrayBuffer | undefined;
         try {
             const fontRes = await fetch(
                 new URL('https://fonts.gstatic.com/s/syne/v24/8vIS7w4qzmVxsWxjBZRjr0FKM_24vj6k.ttf'),
@@ -48,7 +49,21 @@ export async function GET(
                 syneBold = buffer;
             }
         } catch (e) {
-            console.error("[Social Image] Font load failed:", e);
+            console.error("[Social Image] Syne font load failed:", e);
+        }
+
+        try {
+            const fontRes = await fetch(
+                new URL('https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuBWYMZg.ttf'),
+                { cache: 'force-cache' }
+            );
+
+            if (fontRes.ok) {
+                const buffer = await fontRes.arrayBuffer();
+                interBlack = buffer;
+            }
+        } catch (e) {
+            console.error("[Social Image] Inter font load failed:", e);
         }
 
         return new ImageResponse(
@@ -93,7 +108,7 @@ export async function GET(
                         </div>
                         <div
                             style={{
-                                color: 'rgba(18, 246, 198, 0.8)',
+                                color: 'rgba(255, 255, 255, 0.8)',
                                 fontWeight: 900,
                                 fontSize: 16,
                                 textTransform: 'uppercase',
@@ -138,7 +153,7 @@ export async function GET(
                                 paddingLeft: 20,
                                 paddingRight: 20,
                                 letterSpacing: '-0.01em',
-                                fontFamily: 'sans-serif',
+                                fontFamily: interBlack ? 'Inter' : 'sans-serif',
                                 textAlign: 'center',
                             }}
                         >
@@ -181,6 +196,7 @@ export async function GET(
                                 fontSize: 26,
                                 letterSpacing: '0.15em',
                                 textTransform: 'uppercase',
+                                fontFamily: interBlack ? 'Inter' : 'sans-serif',
                             }}
                         >
                             WWW.POSTOVINKY.NEWS
@@ -191,16 +207,20 @@ export async function GET(
             {
                 width: 1080,
                 height: 1080,
-                ...(syneBold ? {
-                    fonts: [
-                        {
-                            name: 'Syne',
-                            data: syneBold,
-                            weight: 800,
-                            style: 'normal',
-                        }
-                    ]
-                } : {})
+                fonts: [
+                    ...(syneBold ? [{
+                        name: 'Syne',
+                        data: syneBold,
+                        weight: 800 as const,
+                        style: 'normal' as const,
+                    }] : []),
+                    ...(interBlack ? [{
+                        name: 'Inter',
+                        data: interBlack,
+                        weight: 900 as const,
+                        style: 'normal' as const,
+                    }] : [])
+                ]
             }
         );
     } catch (e: unknown) {
