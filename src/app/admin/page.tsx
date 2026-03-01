@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabase";
 import { Article } from "@/lib/data";
 import Link from "next/link";
-import { Edit, ArrowDown, Trash2, Sparkles, Plus, Globe, Search, CheckCircle2, XCircle, RefreshCw, Zap, History, RotateCcw, BarChart3, Users, Share2, Copy, Facebook, Instagram, Calendar, Clock, ChevronDown, ChevronUp, Smartphone, Monitor, Check, CloudLightning, ChevronRight } from "lucide-react";
+import { Edit, ArrowDown, Trash2, Sparkles, Plus, Globe, Search, CheckCircle2, XCircle, RefreshCw, Zap, History, RotateCcw, BarChart3, Users, Share2, Copy, Facebook, Instagram, Calendar, Clock, ChevronDown, ChevronUp, Smartphone, Monitor, Check, CloudLightning, ChevronRight, Image as ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ArticleCard } from "@/components/ArticleCard";
 import Image from "next/image";
@@ -61,15 +61,17 @@ type SocialBotSettings = {
 
 type SocialPost = {
     id: string;
+    created_at?: string;
     article_id: string;
     platform: 'Instagram' | 'Facebook' | 'X';
     content: string;
     status: 'draft' | 'posted';
-    created_at: string;
+    posted_at?: string;
     articles?: {
         title: string;
         slug: string;
         category: string;
+        image_url?: string;
     };
 };
 
@@ -2911,12 +2913,9 @@ export default function AdminPage() {
                                                     <p className="font-bold uppercase text-xs tracking-widest">Zatiaľ žiadne naplánované príspevky</p>
                                                 </div>
                                             ) : (
-                                                <div className="grid grid-cols-1 gap-4">
+                                                <div className="grid grid-cols-1 gap-6 md:gap-8 lg:gap-10">
                                                     {(() => {
-                                                        // Group posts by article_id
                                                         const grouped: Record<string, typeof plannedPosts> = {};
-
-                                                        // Filter by category first
                                                         const filteredPosts = plannedCategoryFilter === 'all'
                                                             ? plannedPosts
                                                             : plannedPosts.filter(p => p.articles?.category === plannedCategoryFilter);
@@ -2931,9 +2930,9 @@ export default function AdminPage() {
 
                                                         if (groups.length === 0) {
                                                             return (
-                                                                <div className="py-20 text-center border-2 border-dashed rounded-[32px] text-muted-foreground">
+                                                                <div className="py-24 text-center border-2 border-dashed border-white/5 rounded-[40px] bg-white/[0.02]">
                                                                     <Sparkles className="w-12 h-12 mx-auto mb-4 opacity-10" />
-                                                                    <p className="font-bold uppercase text-xs tracking-widest">Žiadne príspevky v kategórii &quot;{plannedCategoryFilter}&quot;</p>
+                                                                    <p className="font-black uppercase text-[10px] tracking-[0.3em] opacity-40">Túto kategóriu ešte boti neobjavili</p>
                                                                 </div>
                                                             );
                                                         }
@@ -2942,66 +2941,88 @@ export default function AdminPage() {
                                                             const firstPost = posts[0];
                                                             const articleTitle = firstPost.articles?.title || "Neznámy článok";
                                                             const articleCategory = firstPost.articles?.category || "Novinka";
+                                                            const articleImage = firstPost.articles?.image_url;
 
                                                             return (
-                                                                <div key={articleId} className="bg-card border-2 border-primary/5 rounded-[40px] overflow-hidden shadow-sm hover:shadow-xl transition-all mb-6">
-                                                                    {/* Article Header (Always Visible) */}
-                                                                    <div className="p-8 md:p-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 bg-muted/5">
-                                                                        <div className="flex items-center gap-6 flex-grow min-w-0">
-                                                                            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                                                                                <Sparkles className="w-8 h-8 text-primary" />
+                                                                <div key={articleId} className="group relative bg-[#121212] border border-white/[0.03] rounded-[32px] md:rounded-[40px] overflow-hidden transition-all duration-500 hover:bg-[#151515] hover:border-primary/20 flex flex-col md:flex-row shadow-2xl">
+                                                                    {/* Thumbnail Section */}
+                                                                    <div className="w-full h-56 md:w-64 lg:w-72 md:h-auto relative overflow-hidden bg-muted/10 flex-shrink-0">
+                                                                        {articleImage ? (
+                                                                            <img
+                                                                                src={articleImage}
+                                                                                alt={articleTitle}
+                                                                                className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
+                                                                            />
+                                                                        ) : (
+                                                                            <div className="w-full h-full flex items-center justify-center bg-white/[0.02]">
+                                                                                <ImageIcon className="w-10 h-10 opacity-5" />
                                                                             </div>
-                                                                            <div className="min-w-0">
-                                                                                <div className="flex items-center gap-2 mb-1">
-                                                                                    <span className="text-[10px] font-black uppercase tracking-widest text-primary">{articleCategory}</span>
-                                                                                    <span className="text-[10px] text-muted-foreground">•</span>
-                                                                                    <span className="text-[10px] font-bold text-muted-foreground uppercase">{posts.length} sociálne formáty</span>
-                                                                                </div>
-                                                                                <h4 className="text-xl md:text-2xl font-black tracking-tight">{articleTitle}</h4>
-                                                                                <div className="flex flex-wrap gap-2 mt-3">
-                                                                                    {posts.map(p => (
-                                                                                        <span key={p.id} className={cn(
-                                                                                            "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5",
-                                                                                            p.status === 'posted' ? "bg-green-500/10 text-green-500" : "bg-muted text-muted-foreground"
-                                                                                        )}>
-                                                                                            {p.platform === 'Instagram' && <Instagram size={10} />}
-                                                                                            {p.platform === 'Facebook' && <Facebook size={10} />}
-                                                                                            {p.platform === 'X' && <XIcon size={10} />}
-                                                                                            {p.platform}
-                                                                                            {p.status === 'posted' && <CheckCircle2 size={10} />}
-                                                                                        </span>
-                                                                                    ))}
-                                                                                </div>
-                                                                            </div>
+                                                                        )}
+                                                                        <div className="absolute top-5 left-5 z-10">
+                                                                            <span className="px-3 py-1.5 bg-black/60 backdrop-blur-xl border border-white/10 rounded-xl text-[9px] font-black uppercase tracking-widest text-primary shadow-2xl">
+                                                                                {articleCategory}
+                                                                            </span>
                                                                         </div>
-                                                                        <div className="flex flex-col items-center gap-4 w-full lg:w-[190px] flex-shrink-0">
-                                                                            <div className="flex items-center justify-center gap-3 px-5 py-2.5 bg-background/50 rounded-2xl border border-border/50 shadow-inner h-[50px] min-w-[120px]">
-                                                                                {['Instagram', 'Facebook', 'X'].filter(platform => posts.some(p => p.platform === platform)).map(platform => {
-                                                                                    const post = posts.find(p => p.platform === platform);
-                                                                                    const isPosted = post?.status === 'posted';
-                                                                                    return (
-                                                                                        <div key={platform} className={cn(
-                                                                                            "flex items-center gap-1.5 transition-all",
-                                                                                            isPosted ? "opacity-100 scale-110" : "opacity-40 scale-90"
-                                                                                        )}>
-                                                                                            <div className={cn(
-                                                                                                "w-7 h-7 rounded-lg flex items-center justify-center text-white shadow-sm",
-                                                                                                platform === 'Instagram' ? "bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600" :
-                                                                                                    platform === 'Facebook' ? "bg-blue-600" : "bg-black border border-white/20"
-                                                                                            )}>
-                                                                                                {platform === 'Instagram' && <Instagram size={14} />}
-                                                                                                {platform === 'Facebook' && <Facebook size={14} />}
-                                                                                                {platform === 'X' && <XIcon size={14} />}
-                                                                                            </div>
-                                                                                        </div>
-                                                                                    );
-                                                                                })}
+                                                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                                                                    </div>
+
+                                                                    {/* Content Area Section */}
+                                                                    <div className="p-6 md:p-8 lg:p-10 flex flex-col justify-center flex-grow min-w-0">
+                                                                        <div className="flex items-center gap-3 mb-4">
+                                                                            <div className="flex -space-x-1.5 overflow-hidden">
+                                                                                {['Instagram', 'Facebook', 'X'].filter(pform => posts.some(p => p.platform === pform)).map((pform, idx) => (
+                                                                                    <div key={pform} className={cn(
+                                                                                        "w-7 h-7 rounded-full border-2 border-[#121212] flex items-center justify-center text-white shadow-lg",
+                                                                                        pform === 'Instagram' ? "bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600" :
+                                                                                            pform === 'Facebook' ? "bg-[#1877F2]" : "bg-black border border-white/10"
+                                                                                    )} style={{ zIndex: 10 - idx }}>
+                                                                                        {pform === 'Instagram' && <Instagram size={11} />}
+                                                                                        {pform === 'Facebook' && <Facebook size={11} />}
+                                                                                        {pform === 'X' && <XIcon size={11} />}
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest opacity-60">
+                                                                                {posts.length} sociálne formáty
+                                                                            </span>
+                                                                        </div>
+
+                                                                        <h4 className="text-xl md:text-2xl lg:text-3xl font-black text-white leading-tight mb-5 group-hover:text-primary transition-colors line-clamp-2 md:line-clamp-3">
+                                                                            {articleTitle}
+                                                                        </h4>
+
+                                                                        <div className="flex flex-wrap gap-2 mb-8">
+                                                                            {posts.map(p => (
+                                                                                <div key={p.id} className={cn(
+                                                                                    "flex items-center gap-2 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all",
+                                                                                    p.status === 'posted'
+                                                                                        ? "bg-green-500/10 text-green-500 border border-green-500/20"
+                                                                                        : "bg-white/[0.03] text-zinc-500 border border-white/[0.05]"
+                                                                                )}>
+                                                                                    {p.platform === 'Instagram' && <Instagram size={10} />}
+                                                                                    {p.platform === 'Facebook' && <Facebook size={10} />}
+                                                                                    {p.platform === 'X' && <XIcon size={10} />}
+                                                                                    <span>{p.platform}</span>
+                                                                                    {p.status === 'posted' && <CheckCircle2 size={10} className="ml-1" />}
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+
+                                                                        <div className="flex flex-col sm:flex-row items-center justify-between gap-6 pt-8 border-t border-white/[0.03] mt-auto">
+                                                                            <div className="flex items-center gap-4 w-full sm:w-auto">
+                                                                                <div className="flex items-center gap-3 px-4 py-2 bg-white/[0.02] rounded-2xl border border-white/[0.03]">
+                                                                                    <Clock className="w-3.5 h-3.5 text-primary opacity-50" />
+                                                                                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                                                                                        {firstPost.created_at ? new Date(firstPost.created_at).toLocaleDateString('sk-SK') : 'Dnes'}
+                                                                                    </span>
+                                                                                </div>
                                                                             </div>
                                                                             <button
                                                                                 onClick={() => setSelectedPlannerArticle(articleId)}
-                                                                                className="w-full bg-foreground text-background px-8 py-4 rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] shadow-xl hover:scale-105 active:scale-95 transition-all text-center whitespace-nowrap"
+                                                                                className="w-full sm:w-auto bg-white text-black px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-primary hover:text-white transition-all flex items-center justify-center gap-3 active:scale-95 group/btn"
                                                                             >
                                                                                 Rozbaliť možnosti
+                                                                                <ChevronRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
                                                                             </button>
                                                                         </div>
                                                                     </div>

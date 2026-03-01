@@ -15,7 +15,8 @@ export async function GET() {
                 articles (
                     title,
                     slug,
-                    category
+                    category,
+                    image_url
                 )
             `)
             .order("created_at", { ascending: false });
