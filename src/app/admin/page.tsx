@@ -2675,22 +2675,35 @@ export default function AdminPage() {
                                 </button>
                             </div>
 
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                                {/* Article Selection */}
-                                <div className="bg-card border rounded-[40px] p-8 md:p-10 shadow-sm h-fit">
-                                    <h3 className="text-xl font-black uppercase tracking-tight mb-6">Vyberte články</h3>
-                                    <p className="text-sm text-muted-foreground mb-4">Kliknite na článok pre výber. Vybrané články môžete použiť na generovanie príspevkov.</p>
-                                    <div className="relative mb-4">
-                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+                                {/* Article Selection - Takes 5/12 columns */}
+                                <div className="lg:col-span-5 bg-[#121212] border border-white/[0.03] rounded-[40px] p-8 md:p-10 shadow-2xl h-fit border-t-white/[0.08] relative">
+                                    <div className="flex items-center justify-between mb-8">
+                                        <div>
+                                            <h3 className="text-2xl font-black uppercase tracking-tighter text-white">Vyberte články</h3>
+                                            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Základ pre AI generovanie</p>
+                                        </div>
+                                        {socialSelectedArticles.length > 0 && (
+                                            <div className="px-4 py-2 bg-primary/20 border border-primary/30 rounded-2xl animate-in zoom-in-95 duration-300">
+                                                <span className="text-[10px] font-black text-primary uppercase tracking-widest">
+                                                    {socialSelectedArticles.length} vybrané
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="relative mb-6">
+                                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
                                         <input
                                             type="text"
-                                            placeholder="Hľadať podľa názvu alebo kategórie..."
+                                            placeholder="Hľadať v správach..."
                                             value={socialArticleSearch}
                                             onChange={(e) => setSocialArticleSearch(e.target.value)}
-                                            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                                            className="w-full pl-12 pr-4 py-4 rounded-[20px] border border-white/[0.05] bg-white/[0.02] text-sm placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all focus:bg-white/[0.05]"
                                         />
                                     </div>
-                                    <div className="space-y-3 max-h-[min(75vh,620px)] overflow-y-auto pr-2 custom-scrollbar">
+
+                                    <div className="space-y-4 max-h-[700px] overflow-y-auto pr-3 custom-scrollbar">
                                         {(() => {
                                             const q = socialArticleSearch.trim().toLowerCase();
                                             const filtered = q
@@ -2702,9 +2715,12 @@ export default function AdminPage() {
                                             const toShow = filtered.slice(0, 50);
                                             if (toShow.length === 0) {
                                                 return (
-                                                    <p className="py-8 text-center text-muted-foreground text-sm">
-                                                        {q ? "Žiadny článok nevyhovuje hľadaniu. Skúste iný výraz." : "Žiadne články."}
-                                                    </p>
+                                                    <div className="py-20 text-center bg-white/[0.01] rounded-[32px] border border-dashed border-white/5">
+                                                        <Search className="w-10 h-10 mx-auto mb-4 opacity-10" />
+                                                        <p className="text-[10px] font-black uppercase tracking-widest opacity-40">
+                                                            Nič sme nenašli
+                                                        </p>
+                                                    </div>
                                                 );
                                             }
                                             return toShow.map((article) => {
@@ -2716,44 +2732,43 @@ export default function AdminPage() {
                                                             isSelected ? prev.filter(id => id !== article.id) : [...prev, article.id]
                                                         )}
                                                         className={cn(
-                                                            "relative overflow-hidden group rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-4 p-4",
+                                                            "group relative overflow-hidden rounded-[24px] border transition-all flex items-center gap-4 p-4 cursor-pointer active:scale-[0.98]",
                                                             isSelected
-                                                                ? "bg-primary/10 border-primary shadow-lg shadow-primary/10"
-                                                                : "bg-muted/10 border-border/40 hover:border-primary/40 hover:bg-muted/20"
+                                                                ? "bg-primary/[0.08] border-primary/30 shadow-lg shadow-primary/5"
+                                                                : "bg-white/[0.01] border-white/[0.03] hover:border-white/10 hover:bg-white/[0.03]"
                                                         )}
                                                     >
-                                                        {/* Article Image Thumbnail */}
-                                                        <div className="relative w-24 h-24 md:w-28 md:h-28 rounded-xl overflow-hidden flex-shrink-0 shadow-md">
+                                                        <div className="relative w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 shadow-2xl ring-1 ring-white/10">
                                                             <Image
                                                                 src={article.main_image}
                                                                 alt={article.title}
                                                                 fill
-                                                                className="object-cover transition-transform group-hover:scale-105"
+                                                                className="object-cover transition-transform duration-700 group-hover:scale-110"
                                                             />
                                                         </div>
 
-                                                        <div className="flex-grow min-w-0">
-                                                            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                                                                <span className="text-xs font-bold uppercase tracking-wide text-primary bg-primary/15 px-2.5 py-1 rounded-full">
+                                                        <div className="flex-grow min-w-0 pr-2">
+                                                            <div className="flex items-center gap-3 mb-2">
+                                                                <span className="text-[9px] font-black uppercase tracking-widest text-primary">
                                                                     {article.category}
                                                                 </span>
-                                                                <span className="text-xs text-muted-foreground">
+                                                                <span className="w-1 h-1 rounded-full bg-white/10" />
+                                                                <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
                                                                     {new Date(article.published_at).toLocaleDateString('sk-SK')}
                                                                 </span>
                                                             </div>
-                                                            <h4 className="text-base font-bold leading-snug line-clamp-2 text-foreground">
+                                                            <h4 className="text-sm font-black leading-tight line-clamp-2 text-white group-hover:text-primary transition-colors">
                                                                 {article.title}
                                                             </h4>
                                                         </div>
 
-                                                        {/* Selection Indicator */}
                                                         <div className={cn(
-                                                            "w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0",
+                                                            "w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 shadow-lg",
                                                             isSelected
-                                                                ? "bg-primary border-primary text-primary-foreground"
-                                                                : "border-muted-foreground/30 bg-background"
+                                                                ? "bg-primary border-primary text-white"
+                                                                : "border-white/10 bg-black/40 text-white/10 group-hover:border-primary/40 group-hover:text-primary/40"
                                                         )}>
-                                                            {isSelected ? <CheckCircle2 className="w-5 h-5" /> : <Plus className="w-5 h-5 text-muted-foreground/50" />}
+                                                            {isSelected ? <CheckCircle2 className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
                                                         </div>
                                                     </div>
                                                 );
@@ -2762,68 +2777,103 @@ export default function AdminPage() {
                                     </div>
                                 </div>
 
-                                {/* Generated Content Preview */}
-                                <div className="space-y-6">
-                                    <h3 className="text-xl font-black uppercase tracking-tight">Náhľady príspevkov</h3>
-                                    {socialSelectedArticles.length === 0 && (
-                                        <div className="bg-muted/10 border border-dashed rounded-[40px] p-20 text-center text-muted-foreground">
-                                            <Sparkles className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                                            <p className="font-bold uppercase text-xs tracking-widest">Vyberte články pre zobrazenie náhľadov</p>
+                                {/* Generated Content Preview - Sticky (Takes 7/12 columns) */}
+                                <div className="lg:col-span-7 space-y-8 lg:sticky lg:top-24">
+                                    <div className="flex items-center justify-between px-2">
+                                        <div>
+                                            <h3 className="text-2xl font-black uppercase tracking-tighter text-white">Náhľady príspevkov</h3>
+                                            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Kontrola výstupov pred publikáciou</p>
+                                        </div>
+                                    </div>
+
+                                    {socialSelectedArticles.length === 0 ? (
+                                        <div className="bg-[#121212] border border-dashed border-white/5 rounded-[40px] p-24 text-center">
+                                            <div className="w-20 h-20 bg-white/[0.02] rounded-full flex items-center justify-center mx-auto mb-6 scale-animation">
+                                                <Sparkles className="w-10 h-10 text-primary opacity-20" />
+                                            </div>
+                                            <p className="text-[11px] font-black uppercase tracking-[0.3em] text-zinc-600">
+                                                Čakáme na výber článkov
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-6 max-h-[calc(100vh-250px)] overflow-y-auto pr-3 custom-scrollbar">
+                                            {socialSelectedArticles.map((articleId) => {
+                                                const article = articles.find(a => a.id === articleId);
+                                                const result = socialResults[articleId];
+                                                if (!article) return null;
+
+                                                return (
+                                                    <div key={articleId} className="bg-[#121212] border border-white/[0.05] rounded-[32px] p-8 shadow-2xl animate-in fade-in slide-in-from-right-4 relative overflow-hidden group">
+                                                        <div className="absolute top-0 left-0 w-1 h-full bg-primary/40 opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                                                        <div className="flex items-center gap-4 mb-8 pb-6 border-b border-white/[0.03]">
+                                                            <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 ring-1 ring-white/10">
+                                                                <img src={article.main_image} alt="" className="w-full h-full object-cover" />
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                <span className="text-[9px] font-black text-primary uppercase tracking-widest block mb-1">{article.category}</span>
+                                                                <h4 className="text-sm font-black text-white truncate">{article.title}</h4>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="space-y-10">
+                                                            {socialPlatforms.map((platform) => {
+                                                                const platformResult = result?.[platform];
+                                                                return (
+                                                                    <div key={platform} className="animate-in fade-in slide-in-from-bottom-2">
+                                                                        <div className="flex items-center justify-between mb-4">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <div className={cn(
+                                                                                    "w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-lg",
+                                                                                    platform === 'Instagram' ? "bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600" :
+                                                                                        platform === 'Facebook' ? "bg-[#1877F2]" : "bg-black border border-white/10"
+                                                                                )}>
+                                                                                    {platform === "Instagram" && <Instagram size={14} />}
+                                                                                    {platform === "Facebook" && <Facebook size={14} />}
+                                                                                    {platform === "X" && <XIcon size={14} />}
+                                                                                </div>
+                                                                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{platform} príspevok</span>
+                                                                            </div>
+                                                                            {platformResult && (
+                                                                                <button
+                                                                                    onClick={() => copyToClipboard(platformResult)}
+                                                                                    className="flex items-center gap-2 px-4 py-2 bg-white/[0.03] hover:bg-primary/10 hover:text-primary rounded-xl transition-all text-[9px] font-black uppercase tracking-widest border border-white/5 active:scale-95"
+                                                                                >
+                                                                                    <Copy className="w-3.5 h-3.5" />
+                                                                                    Kopírovať
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
+
+                                                                        {platformResult ? (
+                                                                            <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-6 relative group transition-colors hover:bg-white/[0.04]">
+                                                                                <div className="whitespace-pre-wrap text-sm leading-relaxed font-medium text-zinc-300">
+                                                                                    {platformResult}
+                                                                                </div>
+                                                                            </div>
+                                                                        ) : (
+                                                                            <div className="bg-white/[0.02] border border-dashed border-white/5 rounded-2xl p-8 text-center text-[10px] font-black uppercase tracking-widest text-zinc-600 italic">
+                                                                                {isGeneratingSocial ? (
+                                                                                    <div className="flex items-center justify-center gap-3">
+                                                                                        <RefreshCw className="w-3 h-3 animate-spin text-primary" />
+                                                                                        <span>AI pripravuje...</span>
+                                                                                    </div>
+                                                                                ) : "Čaká na vygenerovanie"}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                            {/* Image Generator Preview - Integrated into card */}
+                                                            <div className="mt-10 pt-8 border-t border-white/[0.03]">
+                                                                <InstagramPreview title={article.title} />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     )}
-                                    {socialSelectedArticles.map((articleId) => {
-                                        const article = articles.find(a => a.id === articleId);
-                                        const result = socialResults[articleId];
-                                        if (!article) return null;
-
-                                        return (
-                                            <div key={articleId} className="bg-card border rounded-[32px] p-8 shadow-md ring-1 ring-border/50 animate-in fade-in slide-in-from-right-4">
-                                                <div className="space-y-6">
-                                                    {socialPlatforms.map((platform) => {
-                                                        const platformResult = result?.[platform];
-                                                        return (
-                                                            <div key={platform} className="animate-in fade-in slide-in-from-bottom-2">
-                                                                <div className="flex items-center justify-between mb-3 px-2">
-                                                                    <div className="flex items-center gap-2">
-                                                                        {platform === "Instagram" && <Instagram className="w-3.5 h-3.5 text-pink-500" />}
-                                                                        {platform === "Facebook" && <Facebook className="w-3.5 h-3.5 text-blue-600" />}
-                                                                        {platform === "X" && <XIcon size={14} />}
-                                                                        <span className="text-[10px] font-black uppercase tracking-widest">{platform} príspevok</span>
-                                                                    </div>
-                                                                    {platformResult && (
-                                                                        <button
-                                                                            onClick={() => copyToClipboard(platformResult)}
-                                                                            className="flex items-center gap-2 px-3 py-1 bg-muted hover:bg-primary/20 hover:text-primary rounded-lg transition-all text-[9px] font-black uppercase tracking-wider"
-                                                                        >
-                                                                            <Copy className="w-3 h-3" />
-                                                                            Kopírovať
-                                                                        </button>
-                                                                    )}
-                                                                </div>
-
-                                                                {platformResult ? (
-                                                                    <div className="bg-muted/30 rounded-2xl p-6 relative group">
-                                                                        <div className="whitespace-pre-wrap text-sm leading-relaxed font-medium">
-                                                                            {platformResult}
-                                                                        </div>
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="bg-muted/10 rounded-2xl p-8 text-center text-[9px] font-black uppercase tracking-widest text-muted-foreground italic">
-                                                                        {isGeneratingSocial ? "AI pripravuje..." : "Čaká na vygenerovanie"}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-
-                                                {/* Image Generator Preview */}
-                                                <div className="mt-8 pt-8 border-t border-border/50">
-                                                    <InstagramPreview title={article.title} />
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
                                 </div>
                             </div>
 
@@ -2887,7 +2937,7 @@ export default function AdminPage() {
                                             <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Vymazať</span>
                                         </button>
                                     </div>
-                                </div>
+                                </div >
 
                                 {isPlannerOpen && (
                                     <div className="animate-in fade-in slide-in-from-top-4 duration-500">
@@ -3039,9 +3089,10 @@ export default function AdminPage() {
                                             )}
                                         </div>
                                     </div>
-                                )}
-                            </div>
-                        </div>
+                                )
+                                }
+                            </div >
+                        </div >
                     )
                 }
                 {/* MODALS - Simplified & High Z-Index */}
@@ -3434,7 +3485,7 @@ export default function AdminPage() {
                         </div>
                     )
                 }
-            </div>
+            </div >
         </>
     );
 }
