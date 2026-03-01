@@ -108,7 +108,7 @@ VÝSTUP MUSÍ BYŤ EXAKTNE VO FORMÁTE JSON:
     "excerpt": "Perex v slovenčine (1-2 pútavé odseky).",
     "content": "Samotný syntetizovaný článok v HTML. Obsahuje text aj <img> značky s obrázkami zo zoznamu!",
     "ai_summary": "Extrémne stručné a inteligentné zhrnutie (max 2 vety).",
-    "category": "Umelá Inteligencia, Tech, Biznis, Krypto, Svet, Politika, Veda, Gaming, Návody & Tipy, Newsletter",
+    "category": "Umelá Inteligencia, Tech, Biznis, Krypto, Svet, Politika, Veda, Gaming, Návody & Tipy, Newsletter, Iné",
     "selected_main_image_url": "URL kľúčového obrázka pre miniatúru článku",
     "research_insights": "Krátky postreh o syntéze."
 }
@@ -135,14 +135,14 @@ Vráť len čistý JSON.`;
         }
 
         // Validate category
-        const validCategories = ["Umelá Inteligencia", "Tech", "Biznis", "Krypto", "Svet", "Politika", "Veda", "Gaming", "Návody & Tipy", "Newsletter"];
+        const validCategories = ["Umelá Inteligencia", "Tech", "Biznis", "Krypto", "Svet", "Politika", "Veda", "Gaming", "Návody & Tipy", "Newsletter", "Iné"];
         let finalCategory = articleData.category;
         if (typeof finalCategory === 'string') {
             finalCategory = finalCategory.trim();
             const matchingCategory = validCategories.find(c => c.toLowerCase() === finalCategory.toLowerCase());
-            finalCategory = matchingCategory || "Umelá Inteligencia";
+            finalCategory = matchingCategory || "Iné";
         } else {
-            finalCategory = "Umelá Inteligencia";
+            finalCategory = "Iné";
         }
 
         // 4. Save to Supabase

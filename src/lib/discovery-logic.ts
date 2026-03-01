@@ -277,11 +277,11 @@ KATEGORIZÁCIA (Buď veľmi prísny a presný!):
 - Tech: Spotrebná elektronika, softvér, internetové služby a gadgety.
 - Biznis: Akcie, ekonomika, fúzie firiem, startupy.
 - Politika: Vládne témy, voľby, medzinárodná diplomacia a štátne záležitosti (mimo SR/ČR).
-- Svet: Zaujímavosti zo sveta, prírodné udalosti a témy bez politickému charakteru.
 - Veda: Vesmír, medicína a akademický výskum.
 - Návody & Tipy: "Ako urobiť...", tutoriály.
+- Iné: Ak téma absolútne nezapadá do žiadnej z vyššie uvedených kategórií.
 
-Kategória MUSÍ byť presne jedna z: ${ALLOWED_CATEGORIES.join(" | ")}. Ak téma do žiadnej z nich nespadá, nevkladaj ju.
+Kategória MUSÍ byť presne jedna z: ${ALLOWED_CATEGORIES.join(" | ")}. Ak téma do žiadnej z nich nespadá, zvoľ "Iné".
 Vráť EXAKTNE JSON: {"title": "Slovenský titulok", "summary": "Slovenské zhrnutie...", "category": "jedna z uvedených kategórií"}`
                     },
                     { role: "user", content: `Pôvodný titulok: ${item.title}\nUkážka: ${item.contentSnippet.substring(0, 500)}\nOdporúčaná kategória podľa zdroja: ${item.groupHint}` }
@@ -291,16 +291,13 @@ Vráť EXAKTNE JSON: {"title": "Slovenský titulok", "summary": "Slovenské zhrn
 
             const aiData = JSON.parse(completion.choices[0].message.content || "{}");
 
-            // Iba naše kategórie – ak AI priradí niečo mimo zoznamu, položku vôbec neberieme
-            let assignedCategory = (aiData.category || item.groupHint || "").trim();
-            const lowerAssigned = assignedCategory.toLowerCase();
+            const aiCategory = (aiData.category || item.groupHint || "").trim();
+            const lowerAssigned = aiCategory.toLowerCase();
             const matchedCat = ALLOWED_CATEGORIES.find(c =>
                 c.toLowerCase() === lowerAssigned || lowerAssigned.includes(c.toLowerCase()) || c.toLowerCase().includes(lowerAssigned)
             );
 
-            if (!matchedCat) continue; // nespadá do žiadnej našej kategórie – vôbec nenavrhujeme
-
-            assignedCategory = matchedCat;
+            const assignedCategory = matchedCat || "Iné";
             processedUrls.add(normalizeUrl(item.url));
 
             suggestionsWithAI.push({
@@ -316,7 +313,7 @@ Vráť EXAKTNE JSON: {"title": "Slovenský titulok", "summary": "Slovenské zhrn
         }
     }
 
-    // 4. Doplnenie: v každej kategórii chceme aspoň 3 návrhy; ak je menej, skúsime spracovať ďalšie kandidáty z danej skupiny
+    // 4. Doplnenie
     const byCategory = new Map<string, typeof suggestionsWithAI>();
     for (const s of suggestionsWithAI) {
         const list = byCategory.get(s.category) || [];
@@ -340,7 +337,7 @@ Vráť EXAKTNE JSON: {"title": "Slovenský titulok", "summary": "Slovenské zhrn
                         {
                             role: "system",
                             content: `Si profesionálny slovenský redaktor portálu POSTOVINKY. Priraď tému do PRESNE JEDNEJ kategórie.
-Kategória MUSÍ byť presne jedna z: ${ALLOWED_CATEGORIES.join(" | ")}. Ak téma do žiadnej z nich nespadá, nevkladaj ju.
+Kategória MUSÍ byť presne jedna z: ${ALLOWED_CATEGORIES.join(" | ")}. Ak téma do žiadnej z nich nespadá, zvoľ "Iné".
 Vráť EXAKTNE JSON: {"title": "Slovenský titulok", "summary": "Slovenské zhrnutie...", "category": "jedna z uvedených kategórií"}`
                         },
                         { role: "user", content: `Pôvodný titulok: ${item.title}\nUkážka: ${item.contentSnippet.substring(0, 500)}\nOdporúčaná kategória: ${item.groupHint}` }
@@ -349,14 +346,13 @@ Vráť EXAKTNE JSON: {"title": "Slovenský titulok", "summary": "Slovenské zhrn
                 });
 
                 const aiData = JSON.parse(completion.choices[0].message.content || "{}");
-                let assignedCategory = (aiData.category || "").trim();
-                const lowerAssigned = assignedCategory.toLowerCase();
+                const aiCategory = (aiData.category || "").trim();
+                const lowerAssigned = aiCategory.toLowerCase();
                 const matchedCat = ALLOWED_CATEGORIES.find(c =>
                     c.toLowerCase() === lowerAssigned || lowerAssigned.includes(c.toLowerCase()) || c.toLowerCase().includes(lowerAssigned)
                 );
-                if (!matchedCat) continue;
 
-                assignedCategory = matchedCat;
+                const assignedCategory = matchedCat || "Iné";
                 processedUrls.add(normalizeUrl(item.url));
                 suggestionsWithAI.push({
                     url: item.url,

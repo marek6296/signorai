@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
         // Fetch articles
         const { data: articles, error: fetchError } = await supabase
             .from('articles')
-            .select('id, title, excerpt')
+            .select('id, title, excerpt, ai_summary')
             .in('id', articleIds);
 
         if (fetchError || !articles) {
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
         }
 
         const results = await Promise.allSettled(articles.map(async (article) => {
-            const promptSystem = `Pred sebou máš názov a perex technologického/spravodajského článku v slovenčine. 
+            const promptSystem = `Pred sebou máš názov, perex a detailné zhrnutie technologického článku v slovenčine. 
 Tvojou jedinou úlohou je vrátiť EXAKTNE JEDEN kľúč kategórie v JSON formáte na základe tém:
 
 KATEGÓRIE NA VÝBER:
@@ -55,12 +55,14 @@ KATEGÓRIE NA VÝBER:
 - Veda
 - Gaming
 - Návody & Tipy
+- Iné
 
 Pravidlá určovania:
-- Ak ide o Slovensko alebo Česko, automaticky zvoľ "Novinky SK/CZ" (je to priorita!)
+- Ak ide o Slovensko alebo Česko (firmy, politici, lokálne témy), automaticky zvoľ "Novinky SK/CZ" (je to priorita!)
 - Ak ide o Bitcoin/krypto, zvoľ "Krypto".
 - Ak ide o AI/LLM, zvoľ "Umelá Inteligencia".
 - Ak ide o hry a konzoly, zvoľ "Gaming".
+- AK TÉMA NESEDÍ NA ŽIADNU Z VYŠŠIE UVEDENÝCH, ZVOĽ "Iné".
 
 Výstup musí byť STRICT JSON formát:
 {
@@ -70,10 +72,10 @@ Výstup musí byť STRICT JSON formát:
 Nepíš žiadne iné slová okolo.`;
 
             const completion = await getOpenAIClient().chat.completions.create({
-                model: "gpt-4o", // using gpt-4o for high accuracy
+                model: "gpt-4o",
                 messages: [
                     { role: "system", content: promptSystem },
-                    { role: "user", content: `Názov: ${article.title}\n\nPerex: ${article.excerpt}` }
+                    { role: "user", content: `Názov: ${article.title}\n\nPerex: ${article.excerpt}\n\nAI Zhrnutie: ${article.ai_summary}` }
                 ],
                 response_format: { type: "json_object" }
             });
@@ -82,7 +84,12 @@ Nepíš žiadne iné slová okolo.`;
             if (!content) throw new Error("Empty AI response");
 
             const parsed = JSON.parse(content);
-            const category = parsed.category || "Nezaradené";
+            const validCategories = ["Novinky SK/CZ", "Umelá Inteligencia", "Tech", "Biznis", "Krypto", "Svet", "Politika", "Veda", "Gaming", "Návody & Tipy", "Iné"];
+            let category = parsed.category || "Iné";
+
+            if (!validCategories.includes(category)) {
+                category = "Iné";
+            }
 
             // Update in DB
             const { error: updateError } = await supabase.from('articles').update({ category }).eq('id', article.id);

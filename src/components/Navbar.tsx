@@ -23,6 +23,7 @@ const categories = [
     { name: "Veda", href: "/kategoria/veda" },
     { name: "Gaming", href: "/kategoria/gaming" },
     { name: "Návody & Tipy", href: "/kategoria/navody" },
+    { name: "Iné", href: "/kategoria/ine" },
 ];
 
 export function Navbar() {

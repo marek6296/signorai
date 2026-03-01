@@ -25,7 +25,8 @@ export const CATEGORY_MAP: Record<string, string> = {
     "veda": "Veda",
     "navody": "Návody & Tipy",
     "gaming": "Gaming",
-    "novinky": "Novinky SK/CZ"
+    "novinky": "Novinky SK/CZ",
+    "ine": "Iné"
 };
 
 export async function getLatestArticle(): Promise<Article | null> {
