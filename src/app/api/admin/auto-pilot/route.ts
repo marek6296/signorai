@@ -24,12 +24,14 @@ export async function POST(request: NextRequest) {
 }
 
 async function handleAutopilot(request: NextRequest, mode: 'automated' | 'manual', providedSecret?: string) {
-    console.log(`>>> [Autopilot] Starting mode: ${mode}`);
+    const isVercelCron = request.headers.get("x-vercel-cron") === "1";
+    console.log(`>>> [Autopilot] Starting mode: ${mode} (Vercel Cron: ${isVercelCron})`);
+
     try {
         const secret = providedSecret || request.nextUrl.searchParams.get('secret') || request.headers.get('x-api-key');
 
-        if (secret !== process.env.ADMIN_SECRET && secret !== 'make-com-webhook-secret') {
-            console.warn(">>> [Autopilot] Unauthorized attempt");
+        if (secret !== process.env.ADMIN_SECRET && secret !== 'make-com-webhook-secret' && !isVercelCron) {
+            console.warn(`>>> [Autopilot] Unauthorized attempt (Mode: ${mode}, Secret Provided: ${!!secret})`);
             return NextResponse.json({ message: "Invalid token" }, { status: 401 });
         }
 

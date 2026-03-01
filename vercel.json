@@ -4,11 +4,11 @@
     "outputDirectory": ".next",
     "crons": [
         {
-            "path": "/api/admin/auto-pilot?secret=make-com-webhook-secret",
+            "path": "/api/admin/auto-pilot",
             "schedule": "0 * * * *"
         },
         {
-            "path": "/api/admin/bot-full-automation?secret=make-com-webhook-secret",
+            "path": "/api/admin/bot-full-automation",
             "schedule": "*/20 * * * *"
         }
     ]

@@ -13,8 +13,13 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const secret = url.searchParams.get("secret");
     const force = url.searchParams.get("force") === "true";
+    const isVercelCron = req.headers.get("x-vercel-cron") === "1";
 
-    if (secret !== process.env.ADMIN_SECRET && secret !== LEGACY_SECRET) {
+    console.log(`>>> [Bot] Request received. Cron Header: ${isVercelCron}, Force: ${force}`);
+
+    // Auth check: allow if secret matches OR if it's a legitimate Vercel Cron request
+    if (secret !== process.env.ADMIN_SECRET && secret !== LEGACY_SECRET && !isVercelCron) {
+        console.warn(">>> [Bot] Unauthorized attempt (Invalid secret and not a Vercel Cron)");
         return NextResponse.json({ message: "Invalid secret" }, { status: 401 });
     }
 
