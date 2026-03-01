@@ -13,14 +13,13 @@ export async function publishToFacebook(message: string, link?: string, imageUrl
     }
 
     const isPhoto = !!imageUrl;
-    const url = `https://graph.facebook.com/v22.0/${FB_PAGE_ID}/${isPhoto ? 'photos' : 'feed'}`;
+    // Používame v19.0 pre lepšiu kompatibilitu so staršími tokenmi / Using v19.0 for better compatibility
+    const baseUrl = `https://graph.facebook.com/v19.0/${FB_PAGE_ID}/${isPhoto ? 'photos' : 'feed'}`;
 
     // Pridáme link priamo do správy (caption/message), aby bol vždy viditeľný a klikateľný v texte
     const finalMessage = link ? `${message}\n\nČítajte viac: ${link}` : message;
 
-    const params: Record<string, string> = {
-        access_token: META_ACCESS_TOKEN,
-    };
+    const params: Record<string, string> = {};
 
     if (isPhoto) {
         params.url = imageUrl!;
@@ -32,7 +31,8 @@ export async function publishToFacebook(message: string, link?: string, imageUrl
 
     console.log(`[Meta API] Publishing to Facebook (${isPhoto ? 'Photo' : 'Feed'})...`);
 
-    // Používame POST body pre lepší handling dlhých správ (vyhneme sa URI limitom) / We use POST body for better handling of long messages
+    // Pridáme access_token do URL (nie do body), čo je pre Meta Graph API stabilnejšie
+    const url = `${baseUrl}?access_token=${META_ACCESS_TOKEN}`;
     const body = new URLSearchParams(params);
 
     // Retry logic pre Facebook
@@ -41,7 +41,6 @@ export async function publishToFacebook(message: string, link?: string, imageUrl
         const response = await fetch(url, {
             method: "POST",
             body: body,
-            // Header Content-Type netreba explicitne, URLSearchParams ho nastaví automaticky / URLSearchParams handles content-type automatically
         });
 
         const data = await response.json();
@@ -52,6 +51,12 @@ export async function publishToFacebook(message: string, link?: string, imageUrl
 
         lastError = data.error?.message || "Failed to post to Facebook";
         console.warn(`[Meta API] Facebook attempt ${attempt} failed: ${lastError}`);
+
+        // Špeciálny handling pre chybu impersonácie (token pravdepodobne nie je Page token v novších verziách API)
+        if (lastError.includes("impersonating a user's page")) {
+            console.error("[Meta API] Error suggests the token is a USER token instead of a PAGE token.");
+        }
+
         if (attempt < 2) await new Promise(r => setTimeout(r, 2000));
     }
 
@@ -66,7 +71,7 @@ export async function publishToInstagram(imageUrl: string, caption: string) {
     console.log(`[Meta API] Starting Instagram publish with image: ${imageUrl.substring(0, 50)}...`);
 
     // 1. Create Media Container
-    const containerUrl = `https://graph.facebook.com/v22.0/${IG_BUSINESS_ACCOUNT_ID}/media`;
+    const containerUrl = `https://graph.facebook.com/v19.0/${IG_BUSINESS_ACCOUNT_ID}/media`;
     const containerParams = new URLSearchParams({
         image_url: imageUrl,
         caption,
@@ -95,7 +100,7 @@ export async function publishToInstagram(imageUrl: string, caption: string) {
     await new Promise(r => setTimeout(r, 2000));
 
     // 2. Publish Media Container
-    const publishUrl = `https://graph.facebook.com/v22.0/${IG_BUSINESS_ACCOUNT_ID}/media_publish`;
+    const publishUrl = `https://graph.facebook.com/v19.0/${IG_BUSINESS_ACCOUNT_ID}/media_publish`;
     const publishParams = new URLSearchParams({
         creation_id: creationId,
         access_token: META_ACCESS_TOKEN,
