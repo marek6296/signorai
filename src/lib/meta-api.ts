@@ -89,10 +89,11 @@ export async function publishToInstagram(imageUrl: string, caption: string) {
         throw new Error("Meta API did not return a Media ID (Creation ID).");
     }
 
-    console.log(`[Meta API] Media container created: ${creationId}. Waiting for processing...`);
+    console.log(`[Meta API] Media container created: ${creationId}. Waiting for processing (10s)...`);
 
-    // Wait a bit for Meta to process the image from the URL (especially for new Supabase uploads)
-    await new Promise(r => setTimeout(r, 2000));
+    // Wait for Meta to process the image from the URL. 
+    // 2s was often too short, 10s is much safer for fresh storage URLs.
+    await new Promise(r => setTimeout(r, 10000));
 
     // 2. Publish Media Container
     const publishUrl = `https://graph.facebook.com/v22.0/${IG_BUSINESS_ACCOUNT_ID}/media_publish`;

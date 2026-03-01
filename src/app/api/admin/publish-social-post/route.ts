@@ -132,11 +132,13 @@ export async function POST(req: Request) {
         // 3. Publish based on platform
         let result;
         if (post.platform === 'Facebook') {
-            // Pre Facebook chceme čistý Link Post (aby si FB sám stiahol obrázok z webu)
-            // Posielame aj explicitný link, aby FB vygeneroval poriadny náhľad (preview card)
+            // For Facebook, use the clean Link Post (it will scrape the image from the URL)
             result = await publishToFacebook(post.content, articleUrl);
         } else if (post.platform === 'Instagram') {
-            if (!finalImageUrl) throw new Error("Instagram requires an image.");
+            // Instagram MUST have our generated 1:1 image to avoid aspect ratio errors
+            if (!finalImageUrl || (finalImageUrl === article?.main_image && post.platform === 'Instagram')) {
+                console.warn(`[Instagram] We should have a generated 1:1 image, found: ${finalImageUrl}`);
+            }
             result = await publishToInstagram(finalImageUrl, post.content);
         } else if (post.platform === 'X') {
             console.log("X (Twitter) publishing not implemented yet.");
