@@ -197,7 +197,7 @@ export function Navbar() {
                 </div>
 
                 {/* Desktop Nav */}
-                <nav className="hidden md:flex flex-wrap items-center justify-center gap-2 mt-2 mb-1">
+                <nav className="hidden md:flex items-center justify-between w-full mt-4 mb-1">
                     {allCategories.map((category) => {
                         const isActive = pathname === category.href || (category.href !== "/" && pathname.startsWith(category.href));
 
@@ -206,7 +206,7 @@ export function Navbar() {
                                 key={category.name}
                                 href={category.href}
                                 className={cn(
-                                    "group relative flex items-center justify-center px-4 py-2 text-[11px] font-black uppercase tracking-widest rounded-xl transition-colors duration-[600ms] ease-in-out z-10",
+                                    "group relative flex items-center justify-center px-1.5 py-2 text-[10px] font-black uppercase tracking-tight rounded-xl transition-colors duration-[600ms] ease-in-out z-10 whitespace-nowrap",
                                     isActive
                                         ? "text-primary-foreground"
                                         : "text-muted-foreground hover:text-foreground"
