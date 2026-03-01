@@ -55,7 +55,7 @@ export function InContentAd({ articles }: InContentAdProps) {
 
                         <Link
                             href={`/article/${article.slug}`}
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white font-black uppercase tracking-widest text-[9px] rounded-lg hover:bg-primary/80 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-primary/20"
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground font-black uppercase tracking-widest text-[9px] rounded-lg hover:bg-primary/90 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-primary/20"
                         >
                             Otvoriť článok
                             <ArrowRight size={12} />
