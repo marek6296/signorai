@@ -5,8 +5,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "./ThemeToggle";
 import { cn } from "@/lib/utils";
-import { Menu, X, Search, ArrowRight } from "lucide-react";
+import { Menu, X, Search, ArrowRight, Loader2, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import { type Article } from "@/lib/data";
+import Image from "next/image";
 
 const categories = [
     { name: "Najnovšie", href: "/" },
@@ -29,6 +32,9 @@ export function Navbar() {
 
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
+    const [suggestions, setSuggestions] = useState<Article[]>([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [isSearching, setIsSearching] = useState(false);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -36,8 +42,42 @@ export function Navbar() {
             router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
             setIsMenuOpen(false);
             setSearchQuery("");
+            setSuggestions([]);
+            setShowSuggestions(false);
         }
     };
+
+    // Predictive search logic
+    useEffect(() => {
+        const timer = setTimeout(async () => {
+            if (searchQuery.trim().length < 2) {
+                setSuggestions([]);
+                setShowSuggestions(false);
+                return;
+            }
+
+            setIsSearching(true);
+            try {
+                const { data, error } = await supabase
+                    .from("articles")
+                    .select("*")
+                    .eq("status", "published")
+                    .or(`title.ilike.%${searchQuery}%,excerpt.ilike.%${searchQuery}%`)
+                    .limit(5)
+                    .order("published_at", { ascending: false });
+
+                if (error) throw error;
+                setSuggestions(data || []);
+                setShowSuggestions(true);
+            } catch (err) {
+                console.error("Suggestions error:", err);
+            } finally {
+                setIsSearching(false);
+            }
+        }, 300);
+
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
 
     useEffect(() => {
         const checkAdmin = () => {
@@ -60,19 +100,76 @@ export function Navbar() {
             <div className="container mx-auto flex flex-col items-center justify-center py-2 md:py-3 relative px-4 sm:px-6 lg:px-8">
 
                 {/* DESKTOP SEARCH (Left Corner) */}
-                <div className="hidden md:flex absolute left-4 lg:left-10 top-1/2 md:top-8 -translate-y-1/2 md:translate-y-0 items-center z-30">
-                    <form onSubmit={handleSearch} className="flex items-center group bg-muted/20 hover:bg-muted/40 rounded-full px-3 transition-all border border-white/5 focus-within:border-primary/50">
-                        <button type="submit" className="p-1.5 text-muted-foreground group-focus-within:text-primary hover:text-primary transition-colors">
-                            <Search size={14} />
-                        </button>
-                        <input
-                            type="text"
-                            placeholder="Hľadať..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="bg-transparent py-2 px-1 text-[10px] font-black uppercase tracking-widest w-20 focus:w-28 lg:focus:w-36 transition-all duration-500 outline-none"
-                        />
-                    </form>
+                <div className="hidden md:flex absolute left-4 lg:left-10 top-1/2 md:top-8 -translate-y-1/2 md:translate-y-0 items-center z-50">
+                    <div className="relative">
+                        <form onSubmit={handleSearch} className="flex items-center group bg-muted/20 hover:bg-muted/40 rounded-full px-3 transition-all border border-white/5 focus-within:border-primary/50">
+                            <button type="submit" className="p-1.5 text-muted-foreground group-focus-within:text-primary hover:text-primary transition-colors">
+                                {isSearching ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+                            </button>
+                            <input
+                                type="text"
+                                placeholder="Hľadať..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onFocus={() => searchQuery.length >= 2 && setShowSuggestions(true)}
+                                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                                className="bg-transparent py-2 px-1 text-[10px] font-black uppercase tracking-widest w-20 focus:w-28 lg:focus:w-36 transition-all duration-500 outline-none"
+                            />
+                        </form>
+
+                        {/* Suggestions Dropdown */}
+                        {showSuggestions && suggestions.length > 0 && (
+                            <div className="absolute top-full left-0 mt-2 w-72 lg:w-80 bg-background/80 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300 z-50">
+                                <div className="p-2 flex flex-col gap-1">
+                                    <div className="px-3 py-1.5">
+                                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-primary/60">Navrhované články</span>
+                                    </div>
+                                    {suggestions.map((article) => (
+                                        <Link
+                                            key={article.id}
+                                            href={`/article/${article.slug}`}
+                                            className="group flex items-center gap-3 p-2 hover:bg-white/5 rounded-xl transition-all"
+                                            onClick={() => {
+                                                setSearchQuery("");
+                                                setSuggestions([]);
+                                                setShowSuggestions(false);
+                                            }}
+                                        >
+                                            <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-zinc-800 border border-white/5">
+                                                <Image
+                                                    src={article.main_image}
+                                                    alt={article.title}
+                                                    fill
+                                                    className="object-cover transition-transform group-hover:scale-110"
+                                                    unoptimized
+                                                />
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-[10px] font-black uppercase text-primary/80 tracking-widest truncate">{article.category}</span>
+                                                <h4 className="text-[11px] font-bold text-foreground leading-tight line-clamp-2 transition-colors group-hover:text-primary">{article.title}</h4>
+                                            </div>
+                                        </Link>
+                                    ))}
+                                    <button
+                                        onClick={handleSearch}
+                                        className="w-full mt-1 p-2 bg-primary/10 hover:bg-primary/20 text-primary text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2"
+                                    >
+                                        Zobraziť všetky výsledky
+                                        <ArrowRight size={12} />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {showSuggestions && searchQuery.length >= 2 && suggestions.length === 0 && !isSearching && (
+                            <div className="absolute top-full left-0 mt-2 w-64 bg-background/80 backdrop-blur-2xl border border-white/10 rounded-2xl p-4 shadow-2xl z-50">
+                                <div className="flex flex-col items-center gap-2 text-center">
+                                    <Sparkles className="w-5 h-5 text-muted-foreground/40" />
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Žiadna zhoda</p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* Brand Logo Section */}
