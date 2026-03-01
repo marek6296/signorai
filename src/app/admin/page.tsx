@@ -144,7 +144,9 @@ export default function AdminPage() {
         target_categories: ["Umelá Inteligencia", "Tech"]
     });
     const [countdownToNext, setCountdownToNext] = useState<string>("");
+    const [countdownAutopilot, setCountdownAutopilot] = useState<string>("");
     const [isBotRunning, setIsBotRunning] = useState(false);
+    const [isAutopilotManualRunning, setIsAutopilotManualRunning] = useState(false);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loginError, setLoginError] = useState("");
@@ -242,6 +244,42 @@ export default function AdminPage() {
         const timer = setInterval(updateCountdown, 1000);
         return () => clearInterval(timer);
     }, [socialBotSettings.enabled, socialBotSettings.posting_times, isBotRunning]);
+
+    // Countdown pre AI Autopilot (každú hodinu)
+    useEffect(() => {
+        if (!autopilotSettings.enabled) {
+            setCountdownAutopilot("");
+            return;
+        }
+
+        const updateAutopilotCountdown = () => {
+            const now = new Date();
+            // Najbližšia celá hodina
+            const nextHour = new Date(now);
+            nextHour.setHours(now.getHours() + 1, 0, 0, 0);
+
+            const diffSeconds = Math.floor((nextHour.getTime() - now.getTime()) / 1000);
+
+            if (diffSeconds === 0) {
+                fetchAutopilotSettings();
+            }
+
+            const h = Math.floor(diffSeconds / 3600);
+            const m = Math.floor((diffSeconds % 3600) / 60);
+            const s = diffSeconds % 60;
+
+            const parts = [];
+            if (h > 0) parts.push(`${h}h`);
+            parts.push(`${m}m`);
+            parts.push(`${s}s`);
+
+            setCountdownAutopilot(parts.join(' '));
+        };
+
+        updateAutopilotCountdown();
+        const timer = setInterval(updateAutopilotCountdown, 1000);
+        return () => clearInterval(timer);
+    }, [autopilotSettings.enabled]);
 
     // Polling bot status when on social tab
     useEffect(() => {
@@ -1262,6 +1300,7 @@ export default function AdminPage() {
     };
 
     const executeAutopilotRun = async () => {
+        setIsAutopilotManualRunning(true);
         setStatus("loading");
         setIsAutopilotLoadingModalOpen(true);
         setAutopilotLoadingStage("Štartujem Autopilota: Príprava zdrojov...");
@@ -1305,6 +1344,7 @@ export default function AdminPage() {
         } finally {
             clearInterval(interval);
             setIsAutopilotLoadingModalOpen(false);
+            setIsAutopilotManualRunning(false);
         }
     };
 
@@ -1323,7 +1363,7 @@ export default function AdminPage() {
             setMessage(newState ? "Autopilot bol zapnutý. Odteraz bude automaticky spracovávať novinky." : "Autopilot bol vypnutý.");
 
             if (newState) {
-                if (confirm("Autopilot je aktivovaný! Chcete ho teraz spustiť, aby hneď vyhľadal a publikoval najnovšie správy? (Potom bude pokračovať automaticky každých 24h)")) {
+                if (confirm("Autopilot je aktivovaný! Chcete ho teraz spustiť, aby hneď vyhľadal a publikoval najnovšie správy? (Potom bude pokračovať automaticky každú hodinu)")) {
                     await executeAutopilotRun();
                 }
             }
@@ -1985,32 +2025,71 @@ export default function AdminPage() {
                                                 <span className="bg-muted text-muted-foreground text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">Vypnutý</span>
                                             )}
                                         </div>
-                                        <p className="text-muted-foreground font-medium text-lg leading-relaxed mb-8">
+                                        <p className="text-muted-foreground font-medium text-sm md:text-lg leading-relaxed mb-6">
                                             <strong className="text-foreground">Každú hodinu</strong> automaticky vyhľadá najlepšie svetové trendy, spracuje ich a publikuje priamo na web.
                                         </p>
 
+                                        {/* Autopilot Live Status Feed - Premium Countdown */}
+                                        {autopilotSettings.enabled && (
+                                            <div className="bg-primary/10 border-2 border-primary/20 rounded-3xl md:rounded-[32px] p-5 md:p-8 mb-8 md:mb-10 flex flex-col items-center justify-center relative overflow-hidden group/status">
+                                                {/* Animated Background Pulse */}
+                                                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent" />
+
+                                                <div className="relative z-10 flex flex-col items-center gap-4">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-2.5 h-2.5 bg-primary rounded-full animate-ping" />
+                                                        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/80">Najbližší chod o</span>
+                                                    </div>
+
+                                                    <div className="text-4xl md:text-7xl font-black tabular-nums tracking-tighter text-foreground flex items-baseline gap-2">
+                                                        {isAutopilotManualRunning ? (
+                                                            <div className="flex flex-col items-center gap-2">
+                                                                <RefreshCw className="w-12 h-12 md:w-16 md:h-16 animate-spin text-primary mb-2" />
+                                                                <span className="text-sm md:text-xl font-black uppercase tracking-[0.2em] text-primary animate-pulse">Prebieha automatizácia...</span>
+                                                            </div>
+                                                        ) : countdownAutopilot ? (
+                                                            countdownAutopilot.split(' ').map((part, idx) => (
+                                                                <span key={idx} className="flex items-baseline gap-1">
+                                                                    {part.replace(/[a-z]/g, '')}
+                                                                    <span className="text-base md:text-2xl text-primary/40 font-black lowercase">{part.replace(/[0-9]/g, '')}</span>
+                                                                </span>
+                                                            ))
+                                                        ) : (
+                                                            <span className="text-xl md:text-2xl opacity-50 uppercase tracking-widest">Pripravujem...</span>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="mt-4 flex flex-col items-center gap-1">
+                                                        <div className="px-4 py-1.5 bg-background/50 backdrop-blur-md border border-white/5 rounded-full shadow-sm flex items-center gap-2">
+                                                            <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />
+                                                            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                                                {autopilotSettings.last_run ? `Naposledy bežalo: ${new Date(autopilotSettings.last_run).toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' })}` : 'Čakám na prvý chod'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
                                         <div className="flex flex-wrap gap-6 text-sm font-bold uppercase tracking-widest">
                                             <div className="flex flex-col">
-                                                <span className="text-muted-foreground text-[10px] mb-1">Posledný beh</span>
-                                                <span className="text-foreground">{autopilotSettings.last_run ? new Date(autopilotSettings.last_run).toLocaleString('sk-SK') : 'Nikdy'}</span>
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <div className="flex flex-col group/count relative">
-                                                    <span className="text-muted-foreground text-[10px] mb-1">Spracovaných článkov</span>
-                                                    <div className="flex items-center gap-3">
+                                                <span className="text-muted-foreground text-[10px] mb-1">Celkový status</span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-foreground">Spracovaných: {autopilotSettings.processed_count}</span>
+                                                    <div className="flex items-center gap-1">
                                                         <button
                                                             onClick={handleOpenAutopilotHistory}
-                                                            className="text-foreground hover:text-primary transition-colors flex items-center gap-2 group-hover/count:underline decoration-primary/30"
+                                                            className="p-1 hover:bg-primary/10 rounded transition-colors text-primary"
+                                                            title="História"
                                                         >
-                                                            {autopilotSettings.processed_count}
-                                                            <History className="w-3 h-3 opacity-30" />
+                                                            <History className="w-4 h-4" />
                                                         </button>
                                                         <button
                                                             onClick={handleResetAutopilotCount}
-                                                            className="p-1.5 hover:bg-red-500/10 hover:text-red-500 rounded-lg transition-all opacity-0 group-hover/count:opacity-100"
+                                                            className="p-1 hover:bg-red-500/10 rounded transition-colors text-muted-foreground hover:text-red-500"
                                                             title="Vynulovať počítadlo"
                                                         >
-                                                            <RotateCcw className="w-3 h-3" />
+                                                            <RotateCcw className="w-4 h-4" />
                                                         </button>
                                                     </div>
                                                 </div>
@@ -2018,10 +2097,10 @@ export default function AdminPage() {
                                         </div>
                                     </div>
 
-                                    <div className="flex flex-col gap-4 min-w-[240px]">
+                                    <div className="flex flex-col gap-4 min-w-[240px] lg:justify-center">
                                         <button
                                             onClick={handleToggleAutopilot}
-                                            disabled={status === "loading"}
+                                            disabled={status === "loading" && isAutopilotLoadingModalOpen}
                                             className={cn(
                                                 "w-full py-5 rounded-2xl font-black uppercase tracking-[0.2em] text-xs transition-all flex items-center justify-center gap-3 shadow-xl",
                                                 autopilotSettings.enabled
@@ -2029,10 +2108,15 @@ export default function AdminPage() {
                                                     : "bg-green-500 text-white hover:bg-green-600 shadow-green-500/20"
                                             )}
                                         >
-                                            {status === "loading" && isGeneratingModalOpen ? (
-                                                <RefreshCw className="w-4 h-4 animate-spin" />
-                                            ) : null}
                                             {autopilotSettings.enabled ? "Vypnúť Autopilota" : "Zapnúť Autopilota"}
+                                        </button>
+                                        <button
+                                            onClick={executeAutopilotRun}
+                                            disabled={isAutopilotManualRunning || !autopilotSettings.enabled}
+                                            className="w-full py-5 bg-primary text-primary-foreground hover:opacity-90 rounded-2xl font-black uppercase tracking-[0.2em] text-xs transition-all flex items-center justify-center gap-3 shadow-xl disabled:opacity-50"
+                                        >
+                                            <Zap className="w-4 h-4" />
+                                            Spustiť manuálne
                                         </button>
                                     </div>
                                 </div>
