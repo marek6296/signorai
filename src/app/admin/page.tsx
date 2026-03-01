@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabase";
 import { Article } from "@/lib/data";
 import Link from "next/link";
-import { Edit, ArrowDown, Trash2, Sparkles, Plus, Globe, Search, CheckCircle2, XCircle, RefreshCw, Zap, History, RotateCcw, BarChart3, Users, Share2, Copy, Facebook, Instagram, Calendar, Clock, ChevronDown, ChevronUp, Smartphone, Monitor, Check, CloudLightning, ChevronRight, Image as ImageIcon, Bot, MessageSquare } from "lucide-react";
+import { Edit, ArrowDown, Trash2, Sliders, Sparkles, Plus, Globe, Search, CheckCircle2, XCircle, RefreshCw, Zap, History, RotateCcw, BarChart3, Users, Share2, Copy, Facebook, Instagram, Calendar, Clock, ChevronDown, ChevronUp, Smartphone, Monitor, Check, CloudLightning, ChevronRight, Image as ImageIcon, Bot, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ArticleCard } from "@/components/ArticleCard";
 import Image from "next/image";
@@ -312,6 +312,7 @@ export default function AdminPage() {
     const [selectedPublishedCategory, setSelectedPublishedCategory] = useState("Všetky");
     const [discoveryDays, setDiscoveryDays] = useState("3");
     const [discoveryTargetCategories, setDiscoveryTargetCategories] = useState<string[]>([]);
+    const [showDiscoveryFilters, setShowDiscoveryFilters] = useState(false);
 
     // Discovery Loading Modal states
     const [isDiscoveringModalOpen, setIsDiscoveringModalOpen] = useState(false);
@@ -1811,6 +1812,18 @@ export default function AdminPage() {
                                     Vymazať všetko
                                 </button>
                                 <button
+                                    onClick={() => setShowDiscoveryFilters(!showDiscoveryFilters)}
+                                    className={cn(
+                                        "px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-3 border-2",
+                                        showDiscoveryFilters
+                                            ? "bg-foreground text-background border-foreground shadow-md"
+                                            : "bg-background border-border/50 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                                    )}
+                                >
+                                    <Sliders className="w-4 h-4" />
+                                    Filter
+                                </button>
+                                <button
                                     onClick={handleDiscoverNews}
                                     disabled={status === "loading" || loadingSuggestions || discoveryTargetCategories.length === 0}
                                     className={cn(
@@ -1825,96 +1838,102 @@ export default function AdminPage() {
                         </div>
 
                         {/* Discovery Settings Panel */}
-                        <div className="bg-card/50 border border-border/40 p-5 md:p-6 rounded-3xl shadow-sm backdrop-blur-sm flex flex-col lg:flex-row gap-6 md:gap-20 items-stretch md:items-start">
-                            {/* Max Age Column */}
-                            <div className="space-y-3">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <div className="w-1 h-1 rounded-full bg-primary/80 animate-pulse"></div>
-                                    <label className="text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground/80">Stárosť správ (Max Age)</label>
+                        {showDiscoveryFilters && (
+                            <div className="bg-card/50 border-2 border-primary/20 p-6 md:p-8 rounded-[32px] shadow-xl backdrop-blur-sm flex flex-col lg:flex-row gap-6 md:gap-20 items-stretch md:items-start animate-in fade-in slide-in-from-top-4 duration-300">
+                                {/* Max Age Column */}
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-3 mb-1">
+                                        <div className="bg-primary/20 p-1.5 rounded-lg text-primary">
+                                            <Calendar className="w-3 h-3" />
+                                        </div>
+                                        <label className="text-[10px] font-black uppercase tracking-[0.15em] text-foreground">Stárosť správ (Max Age)</label>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {[
+                                            { value: "1", label: "24h" },
+                                            { value: "3", label: "3 dni" },
+                                            { value: "7", label: "Týždeň" },
+                                            { value: "30", label: "Mesiac" }
+                                        ].map((opt) => (
+                                            <button
+                                                key={opt.value}
+                                                onClick={() => setDiscoveryDays(opt.value)}
+                                                className={cn(
+                                                    "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-2",
+                                                    discoveryDays === opt.value
+                                                        ? "bg-primary border-primary text-primary-foreground shadow-lg shadow-primary/20"
+                                                        : "bg-background/50 border-border/50 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                                                )}
+                                            >
+                                                {opt.label}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
-                                <div className="flex flex-wrap gap-1.5">
-                                    {[
-                                        { value: "1", label: "24h" },
-                                        { value: "3", label: "3 dni" },
-                                        { value: "7", label: "Týždeň" },
-                                        { value: "30", label: "Mesiac" }
-                                    ].map((opt) => (
-                                        <button
-                                            key={opt.value}
-                                            onClick={() => setDiscoveryDays(opt.value)}
-                                            className={cn(
-                                                "px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border",
-                                                discoveryDays === opt.value
-                                                    ? "bg-foreground text-background border-foreground shadow-sm"
-                                                    : "bg-background/50 border-border/50 text-muted-foreground hover:border-primary/40 hover:text-foreground"
-                                            )}
-                                        >
-                                            {opt.label}
-                                        </button>
-                                    ))}
+
+                                {/* Target Categories Column */}
+                                <div className="space-y-4 flex-grow">
+                                    <div className="flex items-center gap-3 mb-1">
+                                        <div className="bg-primary/20 p-1.5 rounded-lg text-primary">
+                                            <Globe className="w-3 h-3" />
+                                        </div>
+                                        <label className="text-[10px] font-black uppercase tracking-[0.15em] text-foreground">Cieliť na sekcie (Viacero možností)</label>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {(() => {
+                                            const allCats = ["Novinky SK/CZ", "AI", "Tech", "Biznis", "Krypto", "Svet", "Politika", "Gaming", "Veda", "Návody & Tipy"];
+                                            const isAllSelected = discoveryTargetCategories.length === allCats.length;
+
+                                            return (
+                                                <>
+                                                    <button
+                                                        onClick={() => {
+                                                            if (isAllSelected) {
+                                                                setDiscoveryTargetCategories([]);
+                                                            } else {
+                                                                setDiscoveryTargetCategories(allCats);
+                                                            }
+                                                        }}
+                                                        className={cn(
+                                                            "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-2 flex items-center gap-2",
+                                                            isAllSelected
+                                                                ? "bg-primary border-primary text-primary-foreground shadow-lg shadow-primary/20"
+                                                                : "bg-background/50 border-border/50 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                                                        )}
+                                                    >
+                                                        {isAllSelected && <CheckCircle2 className="w-3.5 h-3.5" />}
+                                                        VŠETKY
+                                                    </button>
+
+                                                    {allCats.map((cat) => {
+                                                        const isSelected = discoveryTargetCategories.includes(cat);
+                                                        return (
+                                                            <button
+                                                                key={cat}
+                                                                onClick={() => {
+                                                                    setDiscoveryTargetCategories(prev =>
+                                                                        prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
+                                                                    );
+                                                                }}
+                                                                className={cn(
+                                                                    "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-2 flex items-center gap-2",
+                                                                    isSelected
+                                                                        ? "bg-foreground border-foreground text-background shadow-md"
+                                                                        : "bg-background/50 border-border/50 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                                                                )}
+                                                            >
+                                                                {isSelected && <CheckCircle2 className="w-3.5 h-3.5" />}
+                                                                {cat}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </>
+                                            );
+                                        })()}
+                                    </div>
                                 </div>
                             </div>
-
-                            {/* Target Categories Column */}
-                            <div className="space-y-3">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <div className="w-1 h-1 rounded-full bg-primary/80 animate-pulse"></div>
-                                    <label className="text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground/80">Cieliť na sekcie (Viacero možností)</label>
-                                </div>
-                                <div className="flex flex-wrap gap-1.5">
-                                    {(() => {
-                                        const allCats = ["Novinky SK/CZ", "AI", "Tech", "Biznis", "Krypto", "Svet", "Politika", "Gaming", "Veda", "Návody & Tipy"];
-                                        const isAllSelected = discoveryTargetCategories.length === allCats.length;
-
-                                        return (
-                                            <>
-                                                <button
-                                                    onClick={() => {
-                                                        if (isAllSelected) {
-                                                            setDiscoveryTargetCategories([]);
-                                                        } else {
-                                                            setDiscoveryTargetCategories(allCats);
-                                                        }
-                                                    }}
-                                                    className={cn(
-                                                        "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border flex items-center gap-1.5",
-                                                        isAllSelected
-                                                            ? "bg-primary border-primary text-primary-foreground shadow-md"
-                                                            : "bg-background/50 border-border/50 text-muted-foreground hover:border-primary/40 hover:text-foreground"
-                                                    )}
-                                                >
-                                                    {isAllSelected && <CheckCircle2 className="w-3 h-3" />}
-                                                    VŠETKY
-                                                </button>
-
-                                                {allCats.map((cat) => {
-                                                    const isSelected = discoveryTargetCategories.includes(cat);
-                                                    return (
-                                                        <button
-                                                            key={cat}
-                                                            onClick={() => {
-                                                                setDiscoveryTargetCategories(prev =>
-                                                                    prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
-                                                                );
-                                                            }}
-                                                            className={cn(
-                                                                "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border flex items-center gap-1.5",
-                                                                isSelected
-                                                                    ? "bg-foreground text-background border-foreground shadow-sm"
-                                                                    : "bg-background/50 border-border/50 text-muted-foreground hover:border-primary/40 hover:text-foreground"
-                                                            )}
-                                                        >
-                                                            {isSelected && <CheckCircle2 className="w-3 h-3" />}
-                                                            {cat}
-                                                        </button>
-                                                    );
-                                                })}
-                                            </>
-                                        );
-                                    })()}
-                                </div>
-                            </div>
-                        </div>
+                        )}
 
                         {/* Discovery Items List */}
                         {suggestions.length === 0 ? (
@@ -1967,9 +1986,9 @@ export default function AdminPage() {
                             <p className="text-muted-foreground font-medium">Riadiace centrum pre všetkých AI agentov a automatické procesy.</p>
                         </div>
 
-                        <div className="grid grid-cols-1 gap-6 md:gap-10">
+                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 md:gap-10">
                             {/* 0. Manual AI Prompt Bot (Task Bot) */}
-                            <div className="bg-gradient-to-br from-blue-500/10 via-background to-background border-2 border-blue-500/20 p-5 md:p-10 rounded-[32px] md:rounded-[40px] shadow-2xl relative overflow-hidden group/taskbot">
+                            <div className="bg-gradient-to-br from-blue-500/10 via-background to-background border-2 border-blue-500/20 p-5 md:p-10 rounded-[32px] md:rounded-[40px] shadow-2xl relative overflow-hidden group/taskbot h-full flex flex-col">
                                 <div className="absolute top-0 right-0 p-8 opacity-10 group-hover/taskbot:opacity-20 transition-opacity">
                                     <Bot className="w-32 h-32 text-blue-500" />
                                 </div>
@@ -1982,7 +2001,7 @@ export default function AdminPage() {
                                         <h3 className="text-xl md:text-3xl font-black uppercase tracking-tight text-foreground">Manuálny AI Agent</h3>
                                     </div>
 
-                                    <p className="text-muted-foreground font-medium text-sm md:text-lg leading-relaxed mb-6 max-w-2xl">
+                                    <p className="text-muted-foreground font-medium text-sm md:text-lg leading-relaxed mb-6">
                                         Zadajte vlastnú tému alebo prompt a AI asistent vytvorí kompletný článok na mieru.
                                     </p>
 
@@ -2059,14 +2078,14 @@ export default function AdminPage() {
                                     </div>
                                 </div>
                             </div>
-                            {/* 1. Full Automation Bot (Post Publisher) - NOW AT THE TOP */}
-                            <div className="bg-gradient-to-br from-indigo-500/10 via-background to-background border-2 border-indigo-500/20 p-5 md:p-10 rounded-[32px] md:rounded-[40px] shadow-2xl relative overflow-hidden group/agent">
+                            {/* 1. Full Automation Bot (Post Publisher) */}
+                            <div className="bg-gradient-to-br from-indigo-500/10 via-background to-background border-2 border-indigo-500/20 p-5 md:p-10 rounded-[32px] md:rounded-[40px] shadow-2xl relative overflow-hidden group/agent h-full flex flex-col">
                                 <div className="absolute top-0 right-0 p-8 opacity-10 group-hover/agent:opacity-20 transition-opacity">
                                     <Share2 className="w-32 h-32 text-indigo-500" />
                                 </div>
 
-                                <div className="relative z-10 flex flex-col lg:flex-row gap-6 md:gap-10">
-                                    <div className="max-w-xl">
+                                <div className="relative z-10 flex flex-col gap-6 md:gap-10 flex-grow">
+                                    <div>
                                         <div className="flex items-center gap-3 mb-4 md:mb-6">
                                             <div className="bg-indigo-500 text-white p-2.5 md:p-3 rounded-2xl shadow-lg shadow-indigo-500/30">
                                                 <Share2 className="w-5 h-5 md:w-6 md:h-6" />
@@ -2222,7 +2241,7 @@ export default function AdminPage() {
                                         </div>
                                     </div>
 
-                                    <div className="flex flex-col gap-4 min-w-[280px] lg:mt-auto">
+                                    <div className="flex flex-col gap-4 min-w-[280px] mt-auto">
                                         <div className="bg-background/40 backdrop-blur-md border border-white/10 p-6 rounded-[32px] space-y-4 shadow-xl ring-1 ring-black/5">
                                             <div className="flex items-center justify-between gap-4">
                                                 <div className="flex flex-col">
@@ -2265,7 +2284,7 @@ export default function AdminPage() {
                             </div>
 
                             {/* 2. Manual Full Automation (Integrated Flow) */}
-                            <div className="bg-gradient-to-br from-purple-500/10 via-background to-background border-2 border-purple-500/20 p-5 md:p-10 rounded-[32px] md:rounded-[40px] shadow-2xl relative overflow-hidden group/manual">
+                            <div className="bg-gradient-to-br from-purple-500/10 via-background to-background border-2 border-purple-500/20 p-5 md:p-10 rounded-[32px] md:rounded-[40px] shadow-2xl relative overflow-hidden group/manual h-full flex flex-col">
                                 <div className="absolute top-0 right-0 p-8 opacity-10 group-hover/manual:opacity-20 transition-opacity">
                                     <CloudLightning className="w-32 h-32 text-purple-500" />
                                 </div>
@@ -2277,11 +2296,11 @@ export default function AdminPage() {
                                         </div>
                                         <h3 className="text-xl md:text-3xl font-black uppercase tracking-tight">Manuálna automatizácia</h3>
                                     </div>
-                                    <p className="text-muted-foreground font-medium text-sm md:text-lg leading-relaxed mb-6 md:mb-8 max-w-2xl">
+                                    <p className="text-muted-foreground font-medium text-sm md:text-lg leading-relaxed mb-6 md:mb-8">
                                         Vyberte kategóriu a systém automaticky <strong className="text-foreground">vyhľadá</strong> nový článok, <strong className="text-foreground">vygeneruje</strong> ho v slovenčine a <strong className="text-foreground">publikuje</strong> ho spolu s príspevkami na sociálne siete.
                                     </p>
 
-                                    <div className="flex flex-col lg:flex-row items-center gap-6 md:gap-8 bg-background/50 border border-border/50 p-5 md:p-6 rounded-3xl backdrop-blur-sm">
+                                    <div className="flex flex-col items-center gap-6 md:gap-8 bg-background/50 border border-border/50 p-5 md:p-6 rounded-3xl backdrop-blur-sm flex-grow">
                                         <div className="flex-grow w-full">
                                             <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 ml-2">Cieľová kategória</label>
                                             <div className="flex flex-wrap gap-1.5 md:gap-2">
@@ -2315,13 +2334,13 @@ export default function AdminPage() {
                             </div>
 
                             {/* 3. AI Autopilot (Article Generator) */}
-                            <div className="bg-gradient-to-br from-primary/10 via-background to-background border-2 border-primary/20 p-5 md:p-10 rounded-[32px] md:rounded-[40px] shadow-2xl relative overflow-hidden group/auto">
+                            <div className="bg-gradient-to-br from-primary/10 via-background to-background border-2 border-primary/20 p-5 md:p-10 rounded-[32px] md:rounded-[40px] shadow-2xl relative overflow-hidden group/auto h-full flex flex-col">
                                 <div className="absolute top-0 right-0 p-8 opacity-10 group-hover/auto:opacity-20 transition-opacity">
                                     <Sparkles className="w-32 h-32 text-primary" />
                                 </div>
 
-                                <div className="relative z-10 flex flex-col @[1000px]:flex-row gap-6 md:gap-10">
-                                    <div className="max-w-xl">
+                                <div className="relative z-10 flex flex-col gap-6 md:gap-10 flex-grow">
+                                    <div>
                                         <div className="flex items-center gap-3 mb-4 md:mb-6">
                                             <div className="bg-primary text-primary-foreground p-2.5 md:p-3 rounded-2xl shadow-lg shadow-primary/30">
                                                 <Zap className="w-5 h-5 md:w-6 md:h-6" />
@@ -2405,7 +2424,7 @@ export default function AdminPage() {
                                         </div>
                                     </div>
 
-                                    <div className="flex flex-col gap-4 min-w-[240px] lg:justify-center">
+                                    <div className="flex flex-col gap-4 min-w-[240px] mt-auto">
                                         <button
                                             onClick={handleToggleAutopilot}
                                             disabled={status === "loading" && isAutopilotLoadingModalOpen}
