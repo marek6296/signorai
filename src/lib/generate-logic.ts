@@ -66,10 +66,16 @@ export async function searchImage(query: string): Promise<string | null> {
             body: JSON.stringify({ q: query, gl: "sk", hl: "sk", num: 5 }),
         });
 
+        interface SerperImageResult {
+            imageUrl: string;
+            title: string;
+            source: string;
+        }
+
         const data = await response.json();
         if (data.images && data.images.length > 0) {
             // Pick the first image that looks like a real image URL
-            const firstImage = data.images.find((img: any) => img.imageUrl && img.imageUrl.startsWith('http'))?.imageUrl;
+            const firstImage = (data.images as SerperImageResult[]).find((img) => img.imageUrl && img.imageUrl.startsWith('http'))?.imageUrl;
             return firstImage || null;
         }
         return null;
@@ -314,7 +320,7 @@ export async function processArticleFromTopic(userPrompt: string, targetStatus: 
                 });
                 const data = await res.json();
                 if (data.organic) allOrganicResults.push(...data.organic);
-            } catch (e) {
+            } catch {
                 console.error("Search failed for query:", q);
             }
         }
