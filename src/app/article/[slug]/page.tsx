@@ -1,4 +1,4 @@
-import { getArticleBySlug, getRecentArticles, CATEGORY_MAP } from "@/lib/data";
+import { getArticleBySlug, getRecentArticles, getRelatedArticlesByCategory, CATEGORY_MAP } from "@/lib/data";
 import { Sidebar } from "@/components/Sidebar";
 import { AdminEditButton } from "@/components/AdminEditButton";
 import Image from "next/image";
@@ -7,6 +7,7 @@ import { format, parseISO } from "date-fns";
 import { sk } from "date-fns/locale";
 import { Sparkles, Calendar, Tag } from "lucide-react";
 import { AudioPlayer } from "@/components/AudioPlayer";
+import { ContentRenderer } from "@/components/ContentRenderer";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
@@ -75,6 +76,7 @@ export default async function ArticlePage({ params, searchParams }: Props) {
     }
 
     const recentArticles = await getRecentArticles(article.id);
+    const relatedArticles = await getRelatedArticlesByCategory(article.category, article.id, 3);
     const publishDate = format(parseISO(article.published_at), "d. MMMM yyyy, HH:mm", { locale: sk });
 
     const baseUrl = "https://postovinky.news";
@@ -180,9 +182,9 @@ export default async function ArticlePage({ params, searchParams }: Props) {
                         </div>
                     )}
 
-                    <div
-                        className="prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-primary hover:prose-a:text-primary/80"
-                        dangerouslySetInnerHTML={{ __html: article.content }}
+                    <ContentRenderer
+                        content={article.content}
+                        relatedArticles={relatedArticles}
                     />
 
                     <div className="mt-12 pt-8 border-t">

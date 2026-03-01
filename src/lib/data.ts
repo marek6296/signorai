@@ -87,6 +87,24 @@ export async function getArticleBySlug(slug: string, includeDrafts: boolean = fa
     return data as Article;
 }
 
+export async function getRelatedArticlesByCategory(category: string, excludeId: string, limit: number = 3): Promise<Article[]> {
+    noStore();
+    const { data, error } = await supabase
+        .from('articles')
+        .select('*')
+        .eq('status', 'published')
+        .eq('category', category)
+        .neq('id', excludeId)
+        .order('published_at', { ascending: false })
+        .limit(limit);
+
+    if (error) {
+        console.error(`Error fetching related articles for category ${category}:`, error);
+        return [];
+    }
+    return data as Article[];
+}
+
 export async function getArticlesByCategory(slug: string): Promise<Article[]> {
     noStore();
     const dbCategoryName = CATEGORY_MAP[slug.toLowerCase()] || (slug.charAt(0).toUpperCase() + slug.slice(1).toLowerCase());
