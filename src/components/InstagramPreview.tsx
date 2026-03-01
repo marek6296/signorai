@@ -29,10 +29,48 @@ export function InstagramPreview({
     const [isCopied, setIsCopied] = useState(false);
     const [scale, setScale] = React.useState(0.37037);
     const [variant, setVariant] = useState<'ai' | 'card'>('ai');
+    const [base64Image, setBase64Image] = useState<string | null>(null);
+    const [isImageReady, setIsImageReady] = useState(false);
 
     const displayDate = date
         ? format(parseISO(date), "d. MMMM yyyy", { locale: sk })
         : format(new Date(), "d. MMMM yyyy", { locale: sk });
+
+    // Preload and convert image to Base64 to avoid CORS issues during capture
+    React.useEffect(() => {
+        if (!articleImage) {
+            setBase64Image(null);
+            setIsImageReady(true);
+            return;
+        }
+
+        setIsImageReady(false);
+        const convertToBase64 = async () => {
+            try {
+                // Fetch with a timestamp to avoid caches that might not have CORS headers
+                const proxyUrl = `${articleImage}${articleImage.includes('?') ? '&' : '?'}t=${Date.now()}`;
+                const response = await fetch(proxyUrl, { mode: 'cors' });
+
+                if (!response.ok) throw new Error("Failed to fetch image for base64 conversion");
+
+                const blob = await response.blob();
+                return new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result as string);
+                    reader.onerror = () => reject("FileReader error");
+                    reader.readAsDataURL(blob);
+                });
+            } catch (err) {
+                console.error("Failed to convert image to base64:", err);
+                return articleImage; // Fallback to original URL if conversion fails
+            }
+        };
+
+        convertToBase64().then(res => {
+            setBase64Image(res);
+            setIsImageReady(true);
+        });
+    }, [articleImage]);
 
     React.useEffect(() => {
         const updateScale = () => {
@@ -151,6 +189,7 @@ export function InstagramPreview({
                     <div
                         ref={previewRef}
                         id={id}
+                        data-ready={isImageReady}
                         className="w-[1080px] h-[1080px] bg-black relative flex items-center justify-center overflow-hidden"
                     >
                         {variant === 'ai' ? (
@@ -189,7 +228,7 @@ export function InstagramPreview({
                             <div className="w-full h-full relative p-0 overflow-hidden bg-black">
                                 {articleImage ? (
                                     <img
-                                        src={`${articleImage}${articleImage.includes('?') ? '&' : '?'}capture-v=2`}
+                                        src={base64Image || articleImage}
                                         alt={title}
                                         className="w-full h-full object-cover"
                                         crossOrigin="anonymous"

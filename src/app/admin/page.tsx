@@ -618,11 +618,24 @@ export default function AdminPage() {
         setMessage("Pripravujem vizuál príspevku...");
 
         try {
-            // Give the browser 1 second to ensure the high-res background image is fully loaded
-            await new Promise(r => setTimeout(r, 1000));
+            // Polling for readiness (max 5 seconds)
+            let isReady = false;
+            for (let i = 0; i < 25; i++) {
+                const el = document.getElementById('planner-preview-capture') || document.getElementById('instagram-preview-capture');
+                if (el && el.getAttribute('data-ready') === 'true') {
+                    isReady = true;
+                    break;
+                }
+                setMessage(`Pripravujem dáta (${Math.round((i / 25) * 100)}%)...`);
+                await new Promise(r => setTimeout(r, 200));
+            }
+
+            if (!isReady) {
+                console.warn("[Admin] Preview not ready after 5s, capturing anyway...");
+            }
 
             // New logic: Capture the preview client-side for "Perfect" results
-            const previewEl = document.getElementById('instagram-preview-capture');
+            const previewEl = document.getElementById('planner-preview-capture') || document.getElementById('instagram-preview-capture');
             let imageBlob: Blob | null = null;
 
             if (previewEl) {
@@ -680,10 +693,24 @@ export default function AdminPage() {
 
         try {
             setMessage("Pripravujem vizuál príspevkov...");
-            // Stabilizácia pre načítanie obrázkov na pozadí
-            await new Promise(r => setTimeout(r, 1000));
 
-            const previewEl = document.getElementById('instagram-preview-capture');
+            // Polling for readiness (max 5 seconds)
+            let isReady = false;
+            for (let i = 0; i < 25; i++) {
+                const el = document.getElementById('planner-preview-capture') || document.getElementById('instagram-preview-capture');
+                if (el && el.getAttribute('data-ready') === 'true') {
+                    isReady = true;
+                    break;
+                }
+                setMessage(`Pripravujem dáta (${Math.round((i / 25) * 100)}%)...`);
+                await new Promise(r => setTimeout(r, 200));
+            }
+
+            if (!isReady) {
+                console.warn("[Admin] Bulk preview not ready after 5s, capturing anyway...");
+            }
+
+            const previewEl = document.getElementById('planner-preview-capture') || document.getElementById('instagram-preview-capture');
             let imageBlob: Blob | null = null;
 
             if (previewEl) {
@@ -3486,11 +3513,12 @@ export default function AdminPage() {
                 }
 
                 {
-                    status === "loading" && message && !isDiscoveringModalOpen && !isGeneratingModalOpen && !isAutopilotLoadingModalOpen && (
-                        <div className="fixed bottom-12 left-1/2 -translate-x-1/2 bg-foreground text-background px-10 py-6 rounded-[32px] shadow-2xl flex items-center gap-4 z-[999] border border-white/10 ring-8 ring-black/5 whitespace-nowrap">
+                    status === "loading" && message && !isDiscoveringModalOpen && !isGeneratingModalOpen && !isAutopilotLoadingModalOpen && createPortal(
+                        <div className="fixed bottom-12 left-1/2 -translate-x-1/2 bg-foreground text-background px-10 py-6 rounded-[32px] shadow-2xl flex items-center gap-4 z-[2147483000] border border-white/10 ring-8 ring-black/5 whitespace-nowrap animate-in fade-in slide-in-from-bottom-4 duration-300">
                             <RefreshCw className="w-6 h-6 animate-spin text-primary" />
                             <span className="text-sm font-black uppercase tracking-widest">{message}</span>
-                        </div>
+                        </div>,
+                        document.body
                     )
                 }
 
