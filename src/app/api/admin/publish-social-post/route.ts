@@ -93,7 +93,11 @@ export async function POST(req: Request) {
         // Fallback: Use server-side generator if no direct upload or it failed
         else if (post.platform === 'Instagram' && !customImageUrl) {
             try {
-                const generatorUrl = `https://postovinky.news/api/social-image/${id}.png?t=${Date.now()}`;
+                const headerHost = req.headers.get("x-forwarded-host") || req.headers.get("host") || "postovinky.news";
+                const protocol = headerHost.includes("localhost") ? "http" : "https";
+                const dynamicAppUrl = `${protocol}://${headerHost}`;
+                const generatorUrl = `${dynamicAppUrl}/api/social-image/${id}.png?t=${Date.now()}`;
+
                 console.log(`[Instagram Storage Fallback] Using generator: ${generatorUrl}`);
 
                 await new Promise(r => setTimeout(r, 1000));
@@ -117,6 +121,8 @@ export async function POST(req: Request) {
                             finalImageUrl = publicUrl;
                         }
                     }
+                } else {
+                    console.warn(`[Instagram Storage Fallback] Generator returned: ${imageRes.status}.`);
                 }
             } catch (storageError) {
                 console.error("[Instagram Storage Fallback Error]", storageError);
@@ -131,7 +137,11 @@ export async function POST(req: Request) {
             // Posielame aj explicitný link, aby FB vygeneroval poriadny náhľad (preview card)
             result = await publishToFacebook(post.content, articleUrl);
         } else if (post.platform === 'Instagram') {
-            if (!finalImageUrl) throw new Error("Instagram requires an image.");
+            // Instagram MUST have our generated 1:1 image to avoid aspect ratio errors
+            if (!finalImageUrl || (finalImageUrl === article?.main_image)) {
+                console.warn(`[Instagram] Warning: Aspect ratio might be rejected due to original image usage.`);
+                throw new Error("Instagram requires a 1:1 image. Generator fallback failed.");
+            }
             result = await publishToInstagram(finalImageUrl, post.content);
         } else if (post.platform === 'X') {
             console.log("X (Twitter) publishing not implemented yet.");
