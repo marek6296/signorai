@@ -33,8 +33,14 @@ export async function searchWeb(query: string) {
 
         const data = await response.json();
 
+        interface SerperResult {
+            title: string;
+            link: string;
+            snippet: string;
+        }
+
         // Extract relevant bits from organic results
-        const snippets = data.organic?.map((res: any) =>
+        const snippets = (data.organic as SerperResult[] | undefined)?.map((res) =>
             `Title: ${res.title}\nSource: ${res.link}\nSnippet: ${res.snippet}`
         ).join("\n\n") || "";
 
