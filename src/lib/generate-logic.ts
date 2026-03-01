@@ -13,6 +13,38 @@ function getOpenAIClient() {
     return openaiClient;
 }
 
+export async function searchWeb(query: string) {
+    const apiKey = process.env.SERPER_API_KEY;
+    if (!apiKey) {
+        console.warn(">>> [Search] SERPER_API_KEY is not set, skipping web search.");
+        return "";
+    }
+
+    try {
+        console.log(`>>> [Search] Searching Google for: "${query}"`);
+        const response = await fetch("https://google.serper.dev/search", {
+            method: "POST",
+            headers: {
+                "X-API-KEY": apiKey,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ q: query, gl: "sk", hl: "sk" }),
+        });
+
+        const data = await response.json();
+
+        // Extract relevant bits from organic results
+        const snippets = data.organic?.map((res: any) =>
+            `Title: ${res.title}\nSource: ${res.link}\nSnippet: ${res.snippet}`
+        ).join("\n\n") || "";
+
+        return snippets;
+    } catch (error) {
+        console.error(">>> [Search] Error during web search:", error);
+        return "";
+    }
+}
+
 const VALID_CATEGORIES = [
     "Novinky SK/CZ",
     "AI",
@@ -184,9 +216,104 @@ Nikdy nevracaj žiadnu inú kategóriu. AI dávaj len ak je to jadro správy. Pr
         revalidatePath("/", "layout");
 
         return data;
-
     } catch (error) {
         console.error("Process article error:", error);
+        throw error;
+    }
+}
+
+export async function processArticleFromTopic(userPrompt: string, targetStatus: 'draft' | 'published' = 'draft') {
+    try {
+        // --- WEB SEARCH PHASE ---
+        console.log(`>>> [Logic] Starting web search for prompt: ${userPrompt}`);
+        const searchResults = await searchWeb(userPrompt);
+
+        let contextPrompt = "";
+        if (searchResults) {
+            contextPrompt = `
+TU SÚ AKTUÁLNE INFORMÁCIE Z INTERNETU (Použi ich ako faktický základ):
+${searchResults}
+
+ZADANIE OD UŽÍVATEĽA:
+${userPrompt}
+
+Inštrukcia: Skombinuj informácie z vyhľadávania s promptom užívateľa a vytvor špičkový článok. Ak sú informácie z vyhľadávania relevantné, daj im faktickú prioritu.
+`;
+        } else {
+            contextPrompt = `ZADANIE OD UŽÍVATEĽA: ${userPrompt}`;
+        }
+
+        console.log(`>>> [Logic] Generating article from custom prompt: ${userPrompt}`);
+
+        const promptSystem = `Si šéfredaktor a špičkový copywriter pre prestížny magazín Postovinky na Slovensku. Tvojou úlohou je na základe užívateľovho zadania (témy alebo promptu) napísať prémiový, pútavý a odborne presný článok v STOPERCENTNEJ, ČISTEJ a PRIRODZENER SLOVENČINE.
+
+ZÁVÄZNÉ PRAVIDLÁ PRE KVALITU TEXTU:
+1. STRIKTNÁ SLOVENČINA: Text musí byť písaný výhradne v slovenčine. Žiadne české slová ani bohemizmy.
+2. ŠTRUKTÚRA: Článok musí byť obsiahly, rozčlenený na podnadpisy (<h2>, <h3>) a odseky.
+3. FORMÁT HTML: Používaj výhradne HTML značky <p>, <strong>, <h2>, <h3>, <ul>, <li>.
+4. CLICKBAIT STRATÉGIA: Nadpis musí byť extrémne pútavý, moderný a virálny.
+5. ZHRNUTIE: ai_summary musí byť podrobné (10-15 viet) pre audio verziu.
+
+KATEGORIZÁCIA:
+Vyber jednu z: Novinky SK/CZ, AI, Tech, Biznis, Krypto, Svet, Politika, Veda, Gaming, Návody & Tipy.
+
+Tvoj výstup musí byť VŽDY EXAKTNE VO FORMÁTE JSON:
+{
+    "title": "Virálny nadpis",
+    "slug": "url-friendly-slug",
+    "excerpt": "Stručný perex",
+    "content": "HTML obsah článku",
+    "ai_summary": "Podrobné zhrnutie",
+    "category": "Kategória"
+}`;
+
+        const completion = await getOpenAIClient().chat.completions.create({
+            model: "gpt-4o",
+            messages: [
+                { role: "system", content: promptSystem + (searchResults ? "\n\nDÔLEŽITÉ: V článku použi informácie z priložených výsledkov vyhľadávania pre maximálnu aktuálnosť a faktickú správnosť." : "") },
+                { role: "user", content: contextPrompt }
+            ],
+            response_format: { type: "json_object" }
+        });
+
+        const gptResponse = completion.choices[0].message.content;
+        if (!gptResponse) throw new Error("Empty response from OpenAI");
+
+        const articleData = JSON.parse(gptResponse);
+        console.log("GPT generated article from prompt:", articleData.title);
+
+        // Placeholder images based on category
+        const categoryImages: Record<string, string> = {
+            "AI": "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=1200",
+            "Tech": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=1200",
+            "Biznis": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=1200",
+            "Krypto": "https://images.unsplash.com/photo-1518546305927-5a555bb7020d?auto=format&fit=crop&q=80&w=1200",
+            "Veda": "https://images.unsplash.com/photo-1507413245164-6160d8298b31?auto=format&fit=crop&q=80&w=1200",
+            "Gaming": "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1200"
+        };
+
+        const mainImage = categoryImages[articleData.category] || "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=1200";
+
+        const dbData = {
+            title: articleData.title,
+            slug: articleData.slug + "-" + Math.random().toString(36).substring(2, 7), // Ensure uniqueness
+            excerpt: articleData.excerpt,
+            content: articleData.content,
+            category: articleData.category || "Iné",
+            ai_summary: articleData.ai_summary,
+            main_image: mainImage,
+            source_url: searchResults ? "manual-prompt-with-search" : "manual-prompt",
+            status: targetStatus
+        };
+
+        const { data, error } = await supabase.from('articles').insert([dbData]).select().single();
+        if (error) throw error;
+
+        revalidatePath("/", "layout");
+        return data;
+
+    } catch (error) {
+        console.error("Process custom prompt error:", error);
         throw error;
     }
 }

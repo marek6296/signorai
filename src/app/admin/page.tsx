@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabase";
 import { Article } from "@/lib/data";
 import Link from "next/link";
-import { Edit, ArrowDown, Trash2, Sparkles, Plus, Globe, Search, CheckCircle2, XCircle, RefreshCw, Zap, History, RotateCcw, BarChart3, Users, Share2, Copy, Facebook, Instagram, Calendar, Clock, ChevronDown, ChevronUp, Smartphone, Monitor, Check, CloudLightning, ChevronRight, Image as ImageIcon } from "lucide-react";
+import { Edit, ArrowDown, Trash2, Sparkles, Plus, Globe, Search, CheckCircle2, XCircle, RefreshCw, Zap, History, RotateCcw, BarChart3, Users, Share2, Copy, Facebook, Instagram, Calendar, Clock, ChevronDown, ChevronUp, Smartphone, Monitor, Check, CloudLightning, ChevronRight, Image as ImageIcon, Bot, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ArticleCard } from "@/components/ArticleCard";
 import Image from "next/image";
@@ -156,6 +156,12 @@ export default function AdminPage() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loginError, setLoginError] = useState("");
+
+    // Modern Custom Bot (Manual Prompt)
+    const [customBotPrompt, setCustomBotPrompt] = useState("");
+    const [customBotPostSocial, setCustomBotPostSocial] = useState(true);
+    const [customBotPublishStatus, setCustomBotPublishStatus] = useState<'published' | 'draft'>('published');
+    const [isCustomBotRunning, setIsCustomBotRunning] = useState(false);
 
     // Tab control – obnovíme z localStorage pri refreshi (prvý zápis preskočíme, aby sme neprepísali obnovenú kartu)
     const [activeTab, setActiveTab] = useState<"create" | "manage" | "discovery" | "analytics" | "social" | "autopilot" | "full_automation">("manage");
@@ -551,6 +557,95 @@ export default function AdminPage() {
             setMessage(error instanceof Error ? error.message : "Chyba počas plnej automatizácie.");
         } finally {
             setIsFullAutomationLoading(false);
+            setTimeout(() => {
+                setIsGeneratingModalOpen(false);
+                setStatus("idle");
+                setMessage("");
+            }, 3000);
+        }
+    };
+
+    const handleManualCustomBotRun = async () => {
+        if (!customBotPrompt.trim()) {
+            alert("Prosím, zadaj zadanie pre AI bota.");
+            return;
+        }
+
+        setIsCustomBotRunning(true);
+        setStatus("loading");
+        setGeneratingStage("Agent prijíma vaše pokyny...");
+        setIsGeneratingModalOpen(true);
+
+        try {
+            // STEP 1: Generate Article
+            setGeneratingStage("AI asistent spracováva tému a píše článok...");
+            const res = await fetch("/api/admin/manual-custom-bot", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    prompt: customBotPrompt,
+                    postSocial: customBotPostSocial,
+                    publishStatus: customBotPublishStatus,
+                    secret: "make-com-webhook-secret"
+                })
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || "Chyba pri generovaní");
+
+            const articleId = data.article.id;
+            const articleTitle = data.article.title;
+
+            // STEP 2: Optional Social Media Capture & Publish
+            if (customBotPostSocial && customBotPublishStatus === 'published') {
+                setGeneratingStage("Pripravujem vizuály a príspevky pre siete...");
+
+                // Initial social drafting already happened in the API call
+                // Now we replicate the high-quality capture from Full Automation if possible
+                setAutomationArticleData({ id: articleId, title: articleTitle });
+
+                // Wait for renderer
+                let previewEl: HTMLElement | null = null;
+                for (let i = 0; i < 20; i++) {
+                    previewEl = document.getElementById('automation-preview-capture');
+                    if (previewEl) break;
+                    await new Promise(r => setTimeout(r, 200));
+                }
+
+                if (previewEl) {
+                    await new Promise(r => setTimeout(r, 800));
+                    const imageBlob = await toBlob(previewEl, { cacheBust: true, width: 1080, height: 1080, pixelRatio: 1 });
+
+                    if (data.social?.posts && data.social.posts.length > 0) {
+                        for (const post of (data.social.posts as { id: string, platform: string, status: string }[])) {
+                            if (post.platform === 'X') continue;
+                            setGeneratingStage(`Odosielam príspevok na ${post.platform}...`);
+
+                            const formData = new FormData();
+                            formData.append("id", post.id);
+                            formData.append("secret", "make-com-webhook-secret");
+                            if (imageBlob && post.platform === 'Instagram') {
+                                formData.append("image", imageBlob, "social-post.png");
+                            }
+
+                            await fetch("/api/admin/publish-social-post", { method: "POST", body: formData });
+                        }
+                    }
+                }
+            }
+
+            setStatus("success");
+            setMessage(`Úspech! Článok "${articleTitle}" bol vytvorený.`);
+            setCustomBotPrompt("");
+            fetchArticles();
+            fetchPlannedPosts();
+
+        } catch (error: unknown) {
+            console.error("Custom Bot Run failed:", error);
+            setStatus("error");
+            setMessage(error instanceof Error ? error.message : "Chyba počas behu AI agenta");
+        } finally {
+            setIsCustomBotRunning(false);
             setTimeout(() => {
                 setIsGeneratingModalOpen(false);
                 setStatus("idle");
@@ -1873,6 +1968,97 @@ export default function AdminPage() {
                         </div>
 
                         <div className="grid grid-cols-1 gap-6 md:gap-10">
+                            {/* 0. Manual AI Prompt Bot (Task Bot) */}
+                            <div className="bg-gradient-to-br from-blue-500/10 via-background to-background border-2 border-blue-500/20 p-5 md:p-10 rounded-[32px] md:rounded-[40px] shadow-2xl relative overflow-hidden group/taskbot">
+                                <div className="absolute top-0 right-0 p-8 opacity-10 group-hover/taskbot:opacity-20 transition-opacity">
+                                    <Bot className="w-32 h-32 text-blue-500" />
+                                </div>
+
+                                <div className="relative z-10">
+                                    <div className="flex items-center gap-3 mb-4 md:mb-6">
+                                        <div className="bg-blue-500 text-white p-2.5 md:p-3 rounded-2xl shadow-lg shadow-blue-500/30">
+                                            <Bot className="w-5 h-5 md:w-6 md:h-6" />
+                                        </div>
+                                        <h3 className="text-xl md:text-3xl font-black uppercase tracking-tight text-foreground">Manuálny AI Agent</h3>
+                                    </div>
+
+                                    <p className="text-muted-foreground font-medium text-sm md:text-lg leading-relaxed mb-6 max-w-2xl">
+                                        Zadajte vlastnú tému alebo prompt a AI asistent vytvorí kompletný článok na mieru.
+                                    </p>
+
+                                    <div className="space-y-6 bg-background/50 border border-border/50 p-6 md:p-8 rounded-[32px] backdrop-blur-sm shadow-inner mt-4">
+                                        <div className="space-y-4">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <MessageSquare className="w-4 h-4 text-blue-500" />
+                                                <label className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground block">Čo má AI urobiť? (Zadanie)</label>
+                                            </div>
+                                            <textarea
+                                                value={customBotPrompt}
+                                                onChange={(e) => setCustomBotPrompt(e.target.value)}
+                                                placeholder="Napr.: Napíš detailnú analýzu o tom, ako Claude 3.7 mení programovanie..."
+                                                className="w-full bg-background border-2 border-border/50 rounded-2xl p-4 md:p-6 text-sm font-medium focus:border-blue-500 focus:outline-none transition-all min-h-[120px] shadow-sm resize-none"
+                                            />
+                                        </div>
+
+                                        <div className="flex flex-wrap items-center gap-6 md:gap-10">
+                                            {/* Switch Post to social */}
+                                            <div className="flex items-center gap-4">
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-foreground">Siete</span>
+                                                    <span className="text-[9px] text-muted-foreground font-medium italic">Postovať na siete?</span>
+                                                </div>
+                                                <button
+                                                    onClick={() => setCustomBotPostSocial(!customBotPostSocial)}
+                                                    className={cn(
+                                                        "w-12 h-6 rounded-full transition-all relative flex-shrink-0",
+                                                        customBotPostSocial ? "bg-blue-500 shadow-md shadow-blue-500/20" : "bg-neutral-600"
+                                                    )}
+                                                >
+                                                    <div className={cn(
+                                                        "absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm",
+                                                        customBotPostSocial ? "left-7" : "left-1"
+                                                    )} />
+                                                </button>
+                                            </div>
+
+                                            {/* Publish directly or draft */}
+                                            <div className="flex items-center gap-4">
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-foreground">Status</span>
+                                                    <span className="text-[9px] text-muted-foreground font-medium italic">Ihneď publikovať?</span>
+                                                </div>
+                                                <button
+                                                    onClick={() => setCustomBotPublishStatus(customBotPublishStatus === 'published' ? 'draft' : 'published')}
+                                                    className={cn(
+                                                        "w-12 h-6 rounded-full transition-all relative flex-shrink-0",
+                                                        customBotPublishStatus === 'published' ? "bg-green-500 shadow-md shadow-green-500/20" : "bg-neutral-600"
+                                                    )}
+                                                >
+                                                    <div className={cn(
+                                                        "absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm",
+                                                        customBotPublishStatus === 'published' ? "left-7" : "left-1"
+                                                    )} />
+                                                </button>
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground min-w-[60px]">
+                                                    {customBotPublishStatus === 'published' ? 'PUBLISH' : 'DRAFT'}
+                                                </span>
+                                            </div>
+
+                                            <div className="ml-auto w-full md:w-auto">
+                                                <button
+                                                    onClick={handleManualCustomBotRun}
+                                                    disabled={isCustomBotRunning || !customBotPrompt.trim()}
+                                                    className="w-full md:w-auto bg-blue-600 text-white px-10 py-5 rounded-[20px] font-black text-xs uppercase tracking-widest hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center gap-3 shadow-xl shadow-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed group"
+                                                >
+                                                    <Zap className={cn("w-5 h-5", isCustomBotRunning && "animate-spin")} />
+                                                    {isCustomBotRunning ? "Agent pracuje..." : "Spustiť agenta"}
+                                                    {!isCustomBotRunning && <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                             {/* 1. Full Automation Bot (Post Publisher) - NOW AT THE TOP */}
                             <div className="bg-gradient-to-br from-indigo-500/10 via-background to-background border-2 border-indigo-500/20 p-5 md:p-10 rounded-[32px] md:rounded-[40px] shadow-2xl relative overflow-hidden group/agent">
                                 <div className="absolute top-0 right-0 p-8 opacity-10 group-hover/agent:opacity-20 transition-opacity">
