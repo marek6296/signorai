@@ -72,6 +72,8 @@ type SocialPost = {
         slug: string;
         category: string;
         main_image?: string;
+        ai_summary?: string;
+        published_at?: string;
     };
 };
 
