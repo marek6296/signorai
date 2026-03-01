@@ -70,7 +70,7 @@ export function Navbar() {
                             placeholder="Hľadať..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="bg-transparent py-2 px-1 text-[10px] font-black uppercase tracking-widest w-20 lg:w-32 focus:w-40 xl:focus:w-56 transition-all duration-500 outline-none"
+                            className="bg-transparent py-2 px-1 text-[10px] font-black uppercase tracking-widest w-20 focus:w-28 lg:focus:w-36 transition-all duration-500 outline-none"
                         />
                     </form>
                 </div>
