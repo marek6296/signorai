@@ -1511,12 +1511,12 @@ export default function AdminPage() {
                 <div className="w-full mb-10 md:mb-12">
                     <div className="flex flex-nowrap items-center justify-start lg:justify-center gap-1.5 p-1.5 bg-muted/30 rounded-2xl md:rounded-full border border-border/40 backdrop-blur-md shadow-inner overflow-x-auto no-scrollbar">
                         {[
-                            { id: "discovery", label: "Discovery", icon: Search, badge: suggestions.length },
-                            { id: "full_automation", label: "Úplná automatizácia", icon: Zap },
-                            { id: "create", label: "Generator", icon: Sparkles },
-                            { id: "manage", label: "Správa", icon: Edit },
-                            { id: "analytics", label: "Navštevnosť", icon: BarChart3 },
-                            { id: "social", label: "Sociálne siete", icon: Share2 }
+                            { id: "discovery", label: "Trendy & Nápady", icon: Search, badge: suggestions.length, color: "text-blue-500", bg: "bg-blue-500", hover: "hover:bg-blue-500/10", glow: "shadow-blue-500/20" },
+                            { id: "full_automation", label: "AI Autopilot", icon: Zap, color: "text-yellow-500", bg: "bg-yellow-500", hover: "hover:bg-yellow-500/10", glow: "shadow-yellow-500/20" },
+                            { id: "create", label: "Rýchla Tvorba", icon: Sparkles, color: "text-purple-500", bg: "bg-purple-500", hover: "hover:bg-purple-500/10", glow: "shadow-purple-500/20" },
+                            { id: "manage", label: "Zoznam Článkov", icon: Edit, color: "text-green-500", bg: "bg-green-500", hover: "hover:bg-green-500/10", glow: "shadow-green-500/20" },
+                            { id: "analytics", label: "Analytika Webu", icon: BarChart3, color: "text-orange-500", bg: "bg-orange-500", hover: "hover:bg-orange-500/10", glow: "shadow-orange-500/20" },
+                            { id: "social", label: "Promo & Siete", icon: Share2, color: "text-pink-500", bg: "bg-pink-500", hover: "hover:bg-pink-500/10", glow: "shadow-pink-500/20" }
                         ].map((tab) => {
                             const isActive = activeTab === tab.id;
                             return (
@@ -1524,24 +1524,24 @@ export default function AdminPage() {
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id as typeof activeTab)}
                                     className={cn(
-                                        "relative flex items-center justify-center gap-2 px-3 py-2 md:px-4.5 md:py-2.5 rounded-xl md:rounded-full font-black text-[10px] md:text-[11px] uppercase tracking-wider transition-all duration-200 overflow-hidden shrink-0 group",
+                                        "relative flex items-center justify-center gap-2 px-3 py-2 md:px-4.5 md:py-2.5 rounded-xl md:rounded-full font-black text-[10px] md:text-[11px] uppercase tracking-wider transition-all duration-300 overflow-hidden shrink-0 group",
                                         isActive
-                                            ? "bg-foreground text-background shadow-lg z-10 scale-[1.02]"
-                                            : "text-muted-foreground hover:text-foreground hover:bg-muted/50 bg-background/50"
+                                            ? `${tab.bg} text-white shadow-lg z-10 scale-[1.02] ${tab.glow}`
+                                            : `text-muted-foreground hover:text-foreground ${tab.hover} bg-background/50`
                                     )}
                                 >
-                                    <tab.icon className={cn("w-4 h-4 shrink-0", isActive && "text-background")} />
+                                    <tab.icon className={cn("w-4 h-4 shrink-0 transition-colors", isActive ? "text-white" : tab.color)} />
                                     <span className="whitespace-nowrap">{tab.label}</span>
                                     {tab.badge !== undefined && tab.badge > 0 && (
                                         <span className={cn(
-                                            "text-[9px] px-1.5 py-0.5 rounded-full font-black shrink-0",
-                                            isActive ? "bg-background text-foreground" : "bg-primary text-primary-foreground"
+                                            "text-[9px] px-1.5 py-0.5 rounded-full font-black shrink-0 shadow-sm",
+                                            isActive ? "bg-white text-foreground" : `${tab.bg} text-white`
                                         )}>
                                             {tab.badge}
                                         </span>
                                     )}
                                     {!isActive && (
-                                        <span className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        <div className={cn("absolute inset-y-0 left-0 w-1 opacity-0 group-hover:opacity-100 transition-opacity", tab.bg)} />
                                     )}
                                 </button>
                             );
