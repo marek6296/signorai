@@ -39,16 +39,13 @@ export async function GET(
         let syneBold: ArrayBuffer | undefined;
         try {
             const fontRes = await fetch(
-                new URL('https://fonts.gstatic.com/s/syne/v22/8UA9YrtN6Z7S6Z5Y2Q.woff', 'https://fonts.googleapis.com'),
-                { cache: 'no-store' }
+                new URL('https://fonts.gstatic.com/s/syne/v24/8vIS7w4qzmVxsWxjBZRjr0FKM_24vj6k.ttf'),
+                { cache: 'force-cache' }
             );
 
             if (fontRes.ok) {
-                const contentType = fontRes.headers.get('content-type');
-                if (contentType && !contentType.includes('text/html')) {
-                    const buffer = await fontRes.arrayBuffer();
-                    syneBold = buffer;
-                }
+                const buffer = await fontRes.arrayBuffer();
+                syneBold = buffer;
             }
         } catch (e) {
             console.error("[Social Image] Font load failed:", e);
@@ -64,27 +61,29 @@ export async function GET(
                         flexDirection: 'column',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        backgroundColor: '#111',
+                        backgroundColor: '#000',
                         padding: 80,
                     }}
                 >
-                    {/* Article Image as Background without blur removed */}
-                    {/* Gradient Overlay removed */}
 
                     {/* Top Branding */}
                     <div
                         style={{
                             position: 'absolute',
                             top: 120,
+                            left: 0,
+                            right: 0,
                             display: 'flex',
-                            alignItems: 'center',
+                            justifyContent: 'center',
+                            alignItems: 'baseline',
                         }}
                     >
                         <div
                             style={{
                                 fontFamily: syneBold ? 'Syne' : 'sans-serif',
                                 fontWeight: 800,
-                                fontSize: 64,
+                                fontSize: 56,
+                                letterSpacing: '-0.05em',
                                 textTransform: 'uppercase',
                                 color: '#fff',
                                 margin: 0,
@@ -94,12 +93,13 @@ export async function GET(
                         </div>
                         <div
                             style={{
-                                color: '#12F6C6',
+                                color: 'rgba(18, 246, 198, 0.8)',
                                 fontWeight: 900,
-                                fontSize: 18,
+                                fontSize: 16,
                                 textTransform: 'uppercase',
+                                letterSpacing: '0.3em',
                                 marginLeft: 12,
-                                marginBottom: 24,
+                                transform: 'translateY(-4px)',
                             }}
                         >
                             News
@@ -119,24 +119,26 @@ export async function GET(
                         {/* Top Line */}
                         <div
                             style={{
-                                width: 160,
-                                height: 8,
-                                backgroundColor: '#12F6C6',
+                                width: 96,
+                                height: 6,
+                                backgroundColor: 'rgba(255, 255, 255, 0.9)',
                                 borderRadius: 100,
-                                marginBottom: 60,
+                                marginBottom: 40,
                             }}
                         />
 
                         <div
                             style={{
-                                fontSize: title.length > 50 ? 64 : 80,
-                                fontWeight: 800,
+                                fontSize: title.length > 50 ? 64 : 70,
+                                fontWeight: 900,
+                                lineHeight: 1.15,
                                 color: '#fff',
                                 textTransform: 'uppercase',
                                 margin: 0,
                                 paddingLeft: 20,
                                 paddingRight: 20,
-                                fontFamily: syneBold ? 'Syne' : 'sans-serif',
+                                letterSpacing: '-0.01em',
+                                fontFamily: 'sans-serif',
                                 textAlign: 'center',
                             }}
                         >
@@ -146,11 +148,11 @@ export async function GET(
                         {/* Bottom Line */}
                         <div
                             style={{
-                                width: 160,
-                                height: 8,
-                                backgroundColor: '#12F6C6',
+                                width: 96,
+                                height: 6,
+                                backgroundColor: 'rgba(255, 255, 255, 0.9)',
                                 borderRadius: 100,
-                                marginTop: 60,
+                                marginTop: 40,
                             }}
                         />
                     </div>
@@ -160,20 +162,29 @@ export async function GET(
                         style={{
                             position: 'absolute',
                             bottom: 100,
-                            backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                            border: '2px solid rgba(255,255,255,0.15)',
-                            color: 'rgba(255,255,255,0.8)',
-                            paddingTop: 18,
-                            paddingBottom: 18,
-                            paddingLeft: 54,
-                            paddingRight: 54,
-                            borderRadius: 100,
-                            fontWeight: 700,
-                            fontSize: 22,
-                            textTransform: 'uppercase',
+                            left: 0,
+                            right: 0,
+                            display: 'flex',
+                            justifyContent: 'center',
                         }}
                     >
-                        WWW.POSTOVINKY.NEWS
+                        <div
+                            style={{
+                                backgroundColor: '#fff',
+                                color: '#000',
+                                paddingTop: 20,
+                                paddingBottom: 20,
+                                paddingLeft: 48,
+                                paddingRight: 48,
+                                borderRadius: 100,
+                                fontWeight: 900,
+                                fontSize: 26,
+                                letterSpacing: '0.15em',
+                                textTransform: 'uppercase',
+                            }}
+                        >
+                            WWW.POSTOVINKY.NEWS
+                        </div>
                     </div>
                 </div>
             ),
