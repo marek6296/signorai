@@ -101,7 +101,7 @@ export function Navbar() {
             <div className="container mx-auto flex flex-col items-center justify-center py-2 md:py-3 relative px-4 sm:px-6 lg:px-8">
 
                 {/* DESKTOP SEARCH (Left Corner) */}
-                <div className="hidden md:flex absolute left-4 lg:left-10 top-1/2 md:top-8 -translate-y-1/2 md:translate-y-0 items-center z-50">
+                <div className="hidden md:flex absolute left-4 lg:left-10 top-1/2 md:top-4 -translate-y-1/2 md:translate-y-0 items-center z-50">
                     <div className="relative">
                         <form onSubmit={handleSearch} className="flex items-center group bg-muted/20 hover:bg-muted/40 rounded-full px-3 transition-all border border-white/5 focus-within:border-primary/50">
                             <button type="submit" className="p-1.5 text-muted-foreground group-focus-within:text-primary hover:text-primary transition-colors">
@@ -242,7 +242,7 @@ export function Navbar() {
                 </nav>
 
                 {/* Top Right: Theme Toggle (Centred vertically on mobile, top corner on desktop) */}
-                <div className="absolute right-3 sm:right-4 lg:right-10 top-1/2 md:top-8 -translate-y-1/2 md:translate-y-0 flex items-center">
+                <div className="absolute right-3 sm:right-4 lg:right-10 top-1/2 md:top-4 -translate-y-1/2 md:translate-y-0 flex items-center">
                     <ThemeToggle />
                 </div>
             </div>
