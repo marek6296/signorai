@@ -166,16 +166,16 @@ export default async function ArticlePage({ params, searchParams }: Props) {
                     </figure>
 
                     {article.ai_summary && (
-                        <div className="mb-12 p-8 bg-zinc-950 border border-white/5 rounded-3xl relative overflow-hidden shadow-2xl">
-                            <div className="absolute top-0 right-0 p-8 opacity-[0.02] rotate-12">
+                        <div className="mb-12 p-8 bg-secondary/20 border border-border/50 backdrop-blur-sm rounded-3xl relative overflow-hidden shadow-2xl">
+                            <div className="absolute top-0 right-0 p-8 text-primary/5 rotate-12 pointer-events-none">
                                 <Sparkles className="w-48 h-48" />
                             </div>
                             <div className="relative z-10 flex flex-col gap-4">
                                 <div className="flex items-center gap-2">
                                     <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
-                                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/80">AI SUMMARY</span>
+                                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">AI SUMMARY</span>
                                 </div>
-                                <p className="text-lg md:text-xl font-medium italic leading-relaxed text-zinc-200">
+                                <p className="text-lg md:text-xl font-medium italic leading-relaxed text-foreground/90">
                                     &quot;{article.ai_summary}&quot;
                                 </p>
                             </div>
