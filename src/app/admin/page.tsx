@@ -71,7 +71,7 @@ type SocialPost = {
         title: string;
         slug: string;
         category: string;
-        image_url?: string;
+        main_image?: string;
     };
 };
 
@@ -2941,7 +2941,7 @@ export default function AdminPage() {
                                                             const firstPost = posts[0];
                                                             const articleTitle = firstPost.articles?.title || "Neznámy článok";
                                                             const articleCategory = firstPost.articles?.category || "Novinka";
-                                                            const articleImage = firstPost.articles?.image_url;
+                                                            const articleImage = firstPost.articles?.main_image;
 
                                                             return (
                                                                 <div key={articleId} className="group relative bg-[#121212] border border-white/[0.03] rounded-[32px] md:rounded-[40px] overflow-hidden transition-all duration-500 hover:bg-[#151515] hover:border-primary/20 flex flex-col md:flex-row shadow-2xl">
