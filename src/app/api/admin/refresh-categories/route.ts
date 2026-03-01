@@ -46,7 +46,7 @@ Tvojou jedinou úlohou je vrátiť EXAKTNE JEDEN kľúč kategórie v JSON form�
 
 KATEGÓRIE NA VÝBER:
 - Novinky SK/CZ
-- Umelá Inteligencia
+- AI
 - Tech
 - Biznis
 - Krypto
@@ -60,7 +60,7 @@ KATEGÓRIE NA VÝBER:
 Pravidlá určovania:
 - Ak ide o Slovensko alebo Česko (firmy, politici, lokálne témy), automaticky zvoľ "Novinky SK/CZ" (je to priorita!)
 - Ak ide o Bitcoin/krypto, zvoľ "Krypto".
-- Ak ide o AI/LLM, zvoľ "Umelá Inteligencia".
+- Ak ide o AI/LLM, zvoľ "AI".
 - Ak ide o hry a konzoly, zvoľ "Gaming".
 - AK TÉMA NESEDÍ NA ŽIADNU Z VYŠŠIE UVEDENÝCH, ZVOĽ "Iné".
 
@@ -84,7 +84,7 @@ Nepíš žiadne iné slová okolo.`;
             if (!content) throw new Error("Empty AI response");
 
             const parsed = JSON.parse(content);
-            const validCategories = ["Novinky SK/CZ", "Umelá Inteligencia", "Tech", "Biznis", "Krypto", "Svet", "Politika", "Veda", "Gaming", "Návody & Tipy", "Iné"];
+            const validCategories = ["Novinky SK/CZ", "AI", "Tech", "Biznis", "Krypto", "Svet", "Politika", "Veda", "Gaming", "Návody & Tipy", "Iné"];
             let category = parsed.category || "Iné";
 
             if (!validCategories.includes(category)) {

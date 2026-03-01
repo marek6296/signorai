@@ -16,7 +16,7 @@ export interface Article {
 }
 
 export const CATEGORY_MAP: Record<string, string> = {
-    "ai": "Umelá Inteligencia",
+    "ai": "AI",
     "tech": "Tech",
     "biznis": "Biznis",
     "krypto": "Krypto",

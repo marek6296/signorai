@@ -15,7 +15,7 @@ function getOpenAIClient() {
 
 const VALID_CATEGORIES = [
     "Novinky SK/CZ",
-    "Umelá Inteligencia",
+    "AI",
     "Tech",
     "Biznis",
     "Krypto",
@@ -75,7 +75,7 @@ ZÁVÄZNÉ PRAVIDLÁ PRE KVALITU TEXTU:
 
 PRAVIDLÁ PRE KATEGORIZÁCIU (Buď veľmi prísny a presný!):
 - Novinky SK/CZ: Lokálne správy, udalosti v SR a ČR, slovenskí/českí politici a domáce firmy.
-- Umelá Inteligencia: Vývoj AI, nové modely (GPT, Claude), čipy, hlboké technológie a budúcnosť AI.
+- AI: Vývoj AI, nové modely (GPT, Claude), čipy, hlboké technológie a budúcnosť AI.
 - Tech: Spotrebná elektronika (mobily, laptopy), sociálne siete, internetové služby a gadgety.
 - Biznis: Ekonomika, akcie, fúzie firiem, startupy a správy zo sveta financií.
 - Krypto: Bitcoin, blockchain, burzy a regulácia kryptomien.
@@ -95,7 +95,7 @@ Tvoj výstup musí byť VŽDY EXAKTNE VO FORMÁTE JSON:
     "excerpt": "Perex: 1 až 2 veľmi pútavé odseky.",
     "content": "Samotný dlhý článok v HTML s <p>, <strong>, <h2>, <h3> a pôvodnými <img>.",
     "ai_summary": "Pútavé, podrobné a komplexné zhrnutie článku (približne 10 až 15 viet, rozdelených do 2 až 3 prehľadných odsekov), ktoré slúži ako plnohodnotná audio verzia kľúčových informácií z článku pre poslucháča. Zhrnutie musí pokryť všetky dôležité body článku, nie len úvod.",
-    "category": "JEDNA Z TÝCHTO: Novinky SK/CZ, Umelá Inteligencia, Tech, Biznis, Krypto, Svet, Politika, Veda, Gaming, Návody & Tipy, Newsletter, Iné"
+    "category": "JEDNA Z TÝCHTO: Novinky SK/CZ, AI, Tech, Biznis, Krypto, Svet, Politika, Veda, Gaming, Návody & Tipy, Newsletter, Iné"
 }
 Nikdy nevracaj žiadnu inú kategóriu. AI dávaj len ak je to jadro správy. Pred odoslaním si v duchu skontroluj, či sa v nadpise zhoduje podstatné meno s prídavným menom v správnom rode a páde.`;
 

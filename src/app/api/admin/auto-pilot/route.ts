@@ -80,7 +80,7 @@ async function handleAutopilot(request: NextRequest, mode: 'automated' | 'manual
             const insertedItems = inserted as AutopilotItem[];
             const categoriesMap = new Map();
             freshNews.forEach(newsItem => {
-                const cat = newsItem.category || "Umelá Inteligencia";
+                const cat = newsItem.category || "AI";
                 if (!categoriesMap.has(cat)) {
                     const match = insertedItems.find(i => i.url === newsItem.url);
                     if (match) categoriesMap.set(cat, match);
@@ -107,7 +107,7 @@ async function handleAutopilot(request: NextRequest, mode: 'automated' | 'manual
 
             const categoriesMap = new Map();
             suggestions.forEach(item => {
-                const cat = item.category || "Umelá Inteligencia";
+                const cat = item.category || "AI";
                 if (!categoriesMap.has(cat)) {
                     categoriesMap.set(cat, item);
                 }

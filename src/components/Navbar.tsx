@@ -14,7 +14,7 @@ import Image from "next/image";
 const categories = [
     { name: "Najnovšie", href: "/" },
     { name: "Novinky SK/CZ", href: "/kategoria/novinky" },
-    { name: "Umelá Inteligencia", href: "/kategoria/ai" },
+    { name: "AI", href: "/kategoria/ai" },
     { name: "Tech", href: "/kategoria/tech" },
     { name: "Biznis", href: "/kategoria/biznis" },
     { name: "Krypto", href: "/kategoria/krypto" },

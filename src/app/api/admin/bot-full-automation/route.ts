@@ -95,7 +95,7 @@ export async function GET(req: NextRequest) {
         // 3. Category Selection (Round Robin)
         const categories = settings.target_categories && settings.target_categories.length > 0
             ? settings.target_categories
-            : ["Umelá Inteligencia"];
+            : ["AI"];
 
         let categoryIndex = (settings.last_category_index !== undefined)
             ? (settings.last_category_index + 1) % categories.length

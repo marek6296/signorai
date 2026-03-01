@@ -146,7 +146,7 @@ export default function AdminPage() {
         interval_hours: 12,
         posting_times: ["09:00", "18:00"],
         auto_publish: false,
-        target_categories: ["Umelá Inteligencia", "Tech"]
+        target_categories: ["AI", "Tech"]
     });
     const [countdownToNext, setCountdownToNext] = useState<string>("");
     const [countdownAutopilot, setCountdownAutopilot] = useState<string>("");
@@ -332,7 +332,7 @@ export default function AdminPage() {
     const [automationArticleData, setAutomationArticleData] = useState<{ id: string, title: string } | null>(null);
 
     // Full Automation States
-    const [selectedFullAutomationCategory, setSelectedFullAutomationCategory] = useState("Umelá Inteligencia");
+    const [selectedFullAutomationCategory, setSelectedFullAutomationCategory] = useState("AI");
     const [isFullAutomationLoading, setIsFullAutomationLoading] = useState(false);
 
     const fetchArticles = async () => {
@@ -1689,7 +1689,7 @@ export default function AdminPage() {
                                 </div>
                                 <div className="flex flex-wrap gap-1.5">
                                     {(() => {
-                                        const allCats = ["Novinky SK/CZ", "Umelá Inteligencia", "Tech", "Biznis", "Krypto", "Svet", "Politika", "Gaming", "Veda", "Návody & Tipy"];
+                                        const allCats = ["Novinky SK/CZ", "AI", "Tech", "Biznis", "Krypto", "Svet", "Politika", "Gaming", "Veda", "Návody & Tipy"];
                                         const isAllSelected = discoveryTargetCategories.length === allCats.length;
 
                                         return (
@@ -1872,7 +1872,7 @@ export default function AdminPage() {
                                                     <label className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground block">Cieľové kategórie bota</label>
                                                 </div>
                                                 <div className="flex flex-wrap gap-2">
-                                                    {["Novinky SK/CZ", "Umelá Inteligencia", "Tech", "Biznis", "Krypto", "Svet", "Politika", "Gaming"].map((cat) => {
+                                                    {["Novinky SK/CZ", "AI", "Tech", "Biznis", "Krypto", "Svet", "Politika", "Gaming"].map((cat) => {
                                                         const isSelected = socialBotSettings.target_categories?.includes(cat);
                                                         return (
                                                             <button
@@ -2020,7 +2020,7 @@ export default function AdminPage() {
                                         <div className="flex-grow w-full">
                                             <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 ml-2">Cieľová kategória</label>
                                             <div className="flex flex-wrap gap-1.5 md:gap-2">
-                                                {["Novinky SK/CZ", "Umelá Inteligencia", "Tech", "Biznis", "Krypto", "Svet", "Politika", "Gaming"].map((cat) => (
+                                                {["Novinky SK/CZ", "AI", "Tech", "Biznis", "Krypto", "Svet", "Politika", "Gaming"].map((cat) => (
                                                     <button
                                                         key={cat}
                                                         onClick={() => setSelectedFullAutomationCategory(cat)}
@@ -2991,7 +2991,7 @@ export default function AdminPage() {
                                         {/* Header Row 2: Category Filters */}
                                         <div className="mb-10 p-2 bg-muted/30 rounded-[28px] border border-border/50">
                                             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 md:pb-0 px-2">
-                                                {['all', 'Umelá Inteligencia', 'Tech', 'Biznis', 'Krypto', 'Svet', 'Politika', 'Veda', 'Gaming', 'Návody & Tipy'].map((cat) => (
+                                                {['all', 'AI', 'Tech', 'Biznis', 'Krypto', 'Svet', 'Politika', 'Veda', 'Gaming', 'Návody & Tipy'].map((cat) => (
                                                     <button
                                                         key={cat}
                                                         onClick={() => setPlannedCategoryFilter(cat)}

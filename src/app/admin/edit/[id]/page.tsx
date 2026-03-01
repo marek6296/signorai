@@ -172,7 +172,7 @@ export default function EditArticlePage({ params }: Props) {
                                     required
                                 >
                                     <option value="Novinky SK/CZ">Novinky SK/CZ</option>
-                                    <option value="Umelá Inteligencia">Umelá Inteligencia</option>
+                                    <option value="AI">AI</option>
                                     <option value="Tech">Tech</option>
                                     <option value="Biznis">Biznis</option>
                                     <option value="Krypto">Krypto</option>

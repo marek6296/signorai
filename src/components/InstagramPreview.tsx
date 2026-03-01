@@ -19,7 +19,7 @@ interface InstagramPreviewProps {
 export function InstagramPreview({
     title,
     articleImage,
-    category = "Umelá Inteligencia",
+    category = "AI",
     summary,
     date,
     id = "instagram-preview-capture"

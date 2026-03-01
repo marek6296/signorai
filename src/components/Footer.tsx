@@ -70,7 +70,7 @@ export function Footer() {
                             <h3 className="font-bold uppercase tracking-widest text-[11px] text-foreground/50">Kategórie</h3>
                             <ul className="space-y-4 text-[15px] font-medium text-muted-foreground">
                                 <li><Link href="/" className="hover:text-primary transition-colors">Najnovšie</Link></li>
-                                <li><Link href="/kategoria/ai" className="hover:text-primary transition-colors">Umelá Inteligencia</Link></li>
+                                <li><Link href="/kategoria/ai" className="hover:text-primary transition-colors">AI</Link></li>
                                 <li><Link href="/kategoria/tech" className="hover:text-primary transition-colors">Tech</Link></li>
                                 <li><Link href="/kategoria/biznis" className="hover:text-primary transition-colors">Biznis</Link></li>
                                 <li><Link href="/kategoria/krypto" className="hover:text-primary transition-colors">Krypto</Link></li>

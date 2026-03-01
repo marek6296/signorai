@@ -37,7 +37,7 @@ export const FEED_GROUPS: Record<string, { name: string, url: string }[]> = {
         { name: "Živé.sk", url: "https://zive.aktuality.sk/rss/" },
         { name: "Živé.cz", url: "https://www.zive.cz/rss/sc-47/" }
     ],
-    "Umelá Inteligencia": [
+    "AI": [
         { name: "The Verge AI", url: "https://www.theverge.com/ai-artificial-intelligence/rss/index.xml" },
         { name: "TechCrunch AI", url: "https://techcrunch.com/category/artificial-intelligence/feed/" },
         { name: "Wired AI", url: "https://www.wired.com/feed/category/ai/latest/rss" },
@@ -272,7 +272,7 @@ export async function discoverNewNews(maxDays: number, targetCategories: string[
 KATEGORIZÁCIA (Buď veľmi prísny a presný!):
 - Novinky SK/CZ: Akýkoľvek článok týkajúci sa Slovenska alebo Česka (domáce správy, SK/CZ politici, udalosti v regiónoch, lokálne firmy). TOTO MÁ ABSOLÚTNU PRIORITU.
 - Gaming: Všetko o videohrách, konzolách a hernom hardvéri.
-- Umelá Inteligencia: LEN články o VÝVOJI AI (nové modely, výskum, AI čipy). Ak je AI len malou súčasťou iného produktu, daj Tech.
+- AI: LEN články o VÝVOJI AI (nové modely, výskum, AI čipy). Ak je AI len malou súčasťou iného produktu, daj Tech.
 - Krypto: Bitcoin, blockchain, regulácie kryptomien.
 - Tech: Spotrebná elektronika, softvér, internetové služby a gadgety.
 - Biznis: Akcie, ekonomika, fúzie firiem, startupy.
