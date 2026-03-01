@@ -197,7 +197,7 @@ export function Navbar() {
                 </div>
 
                 {/* Desktop Nav */}
-                <nav className="hidden md:flex items-center justify-between w-full mt-4 mb-1">
+                <nav className="hidden md:flex items-center justify-center gap-x-1 w-full mt-4 mb-1">
                     {allCategories.map((category) => {
                         const isActive = pathname === category.href || (category.href !== "/" && pathname.startsWith(category.href));
 
