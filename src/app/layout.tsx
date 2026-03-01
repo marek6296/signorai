@@ -70,12 +70,26 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="sk" suppressHydrationWarning>
+    <html lang="sk" suppressHydrationWarning className="dark">
       <head>
         <link rel="preconnect" href="https://postovinky.news" />
         <link rel="dns-prefetch" href="https://postovinky.news" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                let theme = localStorage.getItem('theme');
+                let supportDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (!theme && supportDarkMode) theme = 'dark';
+                if (!theme) theme = 'dark';
+                document.documentElement.className = theme;
+                document.documentElement.style.backgroundColor = '#0a0a0a';
+              } catch (e) {}
+            `,
+          }}
+        />
       </head>
-      <body className={`${inter.variable} ${syne.variable} font-sans min-h-screen flex flex-col`}>
+      <body className={`${inter.variable} ${syne.variable} font-sans min-h-screen flex flex-col bg-background text-foreground transition-colors duration-300`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"

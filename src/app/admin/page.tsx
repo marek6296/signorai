@@ -127,6 +127,7 @@ export default function AdminPage() {
     });
     const [loadingAnalytics, setLoadingAnalytics] = useState(false);
     const [isNewsletterOpen, setIsNewsletterOpen] = useState(false);
+    const [isHydrated, setIsHydrated] = useState(false);
 
     // Social Tab State
     const [socialSelectedArticles, setSocialSelectedArticles] = useState<string[]>([]);
@@ -157,6 +158,7 @@ export default function AdminPage() {
     const [activeTab, setActiveTab] = useState<"create" | "manage" | "discovery" | "analytics" | "social" | "autopilot" | "full_automation">("manage");
     const skipNextSaveRef = useRef(true);
     useEffect(() => {
+        setIsHydrated(true);
         if (typeof window === "undefined") return;
         const saved = localStorage.getItem("admin-active-tab");
         if (saved && ["create", "manage", "discovery", "analytics", "social", "autopilot", "full_automation"].includes(saved)) {
@@ -1427,9 +1429,13 @@ export default function AdminPage() {
             .eq('key', 'auto_pilot');
     };
 
+    if (!isHydrated) {
+        return <div className="min-h-screen bg-[#0a0a0a]" />;
+    }
+
     if (!isLoggedIn) {
         return (
-            <div className="container mx-auto px-4 py-20 max-w-md flex-grow">
+            <div className="container mx-auto px-4 py-20 max-w-md flex-grow flex items-center justify-center min-h-[70vh]">
                 <div className="bg-card border rounded-2xl p-8 shadow-sm">
                     <div className="text-center mb-8">
                         <h1 className="text-3xl font-black mb-2 uppercase tracking-widest">Postovinky</h1>
