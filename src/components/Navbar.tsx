@@ -59,25 +59,25 @@ export function Navbar() {
         <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className="container mx-auto flex flex-col items-center justify-center py-2 md:py-3 relative px-4 sm:px-6 lg:px-8">
 
-                {/* DESKTOP SEARCH (Left) */}
-                <div className="hidden md:flex absolute left-4 lg:left-8 top-1/2 -translate-y-1/2 items-center z-30">
+                {/* DESKTOP SEARCH (Left Corner) */}
+                <div className="hidden md:flex absolute left-4 lg:left-10 top-1/2 md:top-8 -translate-y-1/2 md:translate-y-0 items-center z-30">
                     <form onSubmit={handleSearch} className="flex items-center group bg-muted/20 hover:bg-muted/40 rounded-full px-3 transition-all border border-white/5 focus-within:border-primary/50">
                         <button type="submit" className="p-1.5 text-muted-foreground group-focus-within:text-primary hover:text-primary transition-colors">
-                            <Search size={16} />
+                            <Search size={14} />
                         </button>
                         <input
                             type="text"
                             placeholder="Hľadať..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="bg-transparent py-2 px-1 text-[10px] font-black uppercase tracking-widest w-24 md:focus:w-32 lg:focus:w-40 xl:focus:w-56 transition-all duration-500 outline-none"
+                            className="bg-transparent py-2 px-1 text-[10px] font-black uppercase tracking-widest w-20 lg:w-32 focus:w-40 xl:focus:w-56 transition-all duration-500 outline-none"
                         />
                     </form>
                 </div>
 
                 {/* Brand Logo Section */}
                 <Link href="/" className="flex items-baseline gap-2 group px-8 md:px-0" onClick={() => setIsMenuOpen(false)}>
-                    <span className="font-syne font-extrabold text-2xl md:text-4xl lg:text-6xl tracking-tighter uppercase 
+                    <span className="font-syne font-extrabold text-2xl md:text-6xl tracking-tighter uppercase 
                         bg-gradient-to-r from-foreground via-foreground/50 to-foreground 
                         bg-clip-text text-transparent animate-text-shimmer leading-none">
                         POSTOVINKY
@@ -143,8 +143,8 @@ export function Navbar() {
                     })}
                 </nav>
 
-                {/* Top Right: Theme Toggle (Centred vertically on mobile, top on desktop) */}
-                <div className="absolute right-3 sm:right-4 lg:right-10 top-1/2 -translate-y-1/2 flex items-center">
+                {/* Top Right: Theme Toggle (Centred vertically on mobile, top corner on desktop) */}
+                <div className="absolute right-3 sm:right-4 lg:right-10 top-1/2 md:top-8 -translate-y-1/2 md:translate-y-0 flex items-center">
                     <ThemeToggle />
                 </div>
             </div>
