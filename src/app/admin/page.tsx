@@ -2828,58 +2828,63 @@ export default function AdminPage() {
                             </div>
 
                             {/* Social Media Planner Section */}
-                            <div className="bg-card border rounded-[40px] p-8 md:p-12 shadow-sm ring-1 ring-border/50">
-                                {/* Header Row 1: Title & Refresh */}
-                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
-                                    <h3 className="text-2xl md:text-3xl font-black uppercase tracking-tight flex items-center gap-4">
-                                        <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-                                            <Calendar className="w-6 h-6" />
+                            <div className="bg-[#0a0a0a] border border-white/[0.03] rounded-[40px] p-8 md:p-12 shadow-2xl relative overflow-hidden">
+                                {/* Header Row: Title & Action Buttons */}
+                                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 mb-12">
+                                    <h3 className="text-3xl lg:text-4xl font-black uppercase tracking-tighter flex items-center gap-6">
+                                        <div className="w-16 h-16 rounded-[24px] bg-primary/10 flex items-center justify-center text-primary shadow-[0_0_30px_-10px_rgba(var(--primary),0.3)] ring-1 ring-primary/20">
+                                            <Calendar className="w-8 h-8" />
                                         </div>
-                                        <span className="leading-tight">AI Planner & <br className="md:hidden" /> História postov</span>
+                                        <div className="flex flex-col">
+                                            <span className="leading-none text-white">AI Planner &</span>
+                                            <span className="leading-none text-zinc-500 mt-1">História postov</span>
+                                        </div>
                                     </h3>
 
-                                    <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
+                                    <div className="flex flex-wrap items-center gap-3">
                                         <button
                                             onClick={handleSocialAutopilot}
                                             disabled={isSocialAutopilotGenerating}
-                                            className="h-11 flex items-center gap-2 px-5 bg-white text-black rounded-xl transition-all border border-white hover:bg-zinc-200 active:scale-95 shadow-lg shadow-white/5 disabled:opacity-50"
+                                            className="h-12 flex items-center gap-3 px-6 bg-white text-black rounded-2xl transition-all hover:bg-zinc-200 active:scale-95 shadow-xl shadow-white/5 disabled:opacity-50 group"
                                         >
-                                            <Sparkles className={cn("w-3.5 h-3.5", isSocialAutopilotGenerating && "animate-pulse")} />
-                                            <span className="text-[9px] font-black uppercase tracking-widest whitespace-nowrap">
+                                            <Sparkles className={cn("w-4 h-4 text-primary", isSocialAutopilotGenerating && "animate-pulse")} />
+                                            <span className="text-[11px] font-black uppercase tracking-widest whitespace-nowrap">
                                                 {isSocialAutopilotGenerating ? "Analyzujem..." : "AI Automatizátor"}
                                             </span>
                                         </button>
 
+                                        <div className="h-12 w-[1px] bg-white/[0.05] mx-1 hidden md:block" />
+
                                         <button
                                             onClick={() => setIsPlannerOpen(!isPlannerOpen)}
                                             className={cn(
-                                                "h-11 flex items-center gap-2 px-5 rounded-xl transition-all border border-border/50 active:scale-95 shadow-sm",
+                                                "h-12 flex items-center gap-3 px-6 rounded-2xl transition-all border active:scale-95 shadow-lg",
                                                 isPlannerOpen
-                                                    ? "bg-zinc-800 text-white hover:bg-zinc-700"
-                                                    : "bg-zinc-100 text-black hover:bg-zinc-200"
+                                                    ? "bg-white/[0.05] border-white/[0.1] text-white hover:bg-white/[0.1]"
+                                                    : "bg-zinc-800 border-zinc-700 text-white hover:bg-zinc-700"
                                             )}
                                         >
-                                            {isPlannerOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                                            <span className="text-[9px] font-black uppercase tracking-widest whitespace-nowrap">
+                                            {isPlannerOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                            <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
                                                 {isPlannerOpen ? 'Zabaliť' : 'Rozbaliť'}
                                             </span>
                                         </button>
 
                                         <button
-                                            onClick={handleDeleteAllSocialPosts}
-                                            className="h-11 flex items-center gap-2 px-4 bg-red-500/10 text-red-500 rounded-xl transition-all border border-red-500/20 hover:bg-red-500 hover:text-white active:scale-95 shadow-sm"
-                                            title="Vymazať všetko"
+                                            onClick={fetchPlannedPosts}
+                                            className="h-12 w-12 flex items-center justify-center bg-white/[0.03] hover:bg-white/[0.08] text-zinc-400 hover:text-white rounded-2xl transition-all border border-white/[0.05] group active:scale-95 shadow-lg"
+                                            title="Obnoviť posty"
                                         >
-                                            <Trash2 className="w-3.5 h-3.5" />
-                                            <span className="text-[9px] font-black uppercase tracking-widest whitespace-nowrap">Všetko vymazať</span>
+                                            <RefreshCw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-700" />
                                         </button>
 
                                         <button
-                                            onClick={fetchPlannedPosts}
-                                            className="h-11 flex items-center gap-2 px-5 bg-zinc-800/50 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded-xl transition-all group border border-border/20 active:scale-95 shadow-sm"
+                                            onClick={handleDeleteAllSocialPosts}
+                                            className="h-12 flex items-center gap-3 px-5 bg-red-500/5 text-red-500 rounded-2xl transition-all border border-red-500/10 hover:bg-red-500/10 hover:border-red-500/30 active:scale-95 shadow-lg"
+                                            title="Vymazať všetko"
                                         >
-                                            <RefreshCw className="w-3.5 h-3.5 group-hover:rotate-180 transition-transform duration-500" />
-                                            <span className="text-[9px] font-black uppercase tracking-widest whitespace-nowrap">Obnoviť</span>
+                                            <Trash2 className="w-4 h-4" />
+                                            <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Vymazať</span>
                                         </button>
                                     </div>
                                 </div>
