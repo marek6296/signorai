@@ -63,20 +63,31 @@ export async function searchImage(query: string): Promise<string | null> {
                 "X-API-KEY": apiKey,
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify({ q: query, gl: "sk", hl: "sk", num: 5 }),
+            body: JSON.stringify({ q: query, gl: "us", hl: "en", num: 15 }),
         });
 
         interface SerperImageResult {
             imageUrl: string;
             title: string;
             source: string;
+            imageWidth?: number;
+            imageHeight?: number;
         }
 
         const data = await response.json();
         if (data.images && data.images.length > 0) {
-            // Pick the first image that looks like a real image URL
-            const firstImage = (data.images as SerperImageResult[]).find((img) => img.imageUrl && img.imageUrl.startsWith('http'))?.imageUrl;
-            return firstImage || null;
+            // Sort images by width (descending) to prefer high-res images and filter out small or suspicious ones
+            const sortedImages = (data.images as SerperImageResult[])
+                .filter(img => img.imageUrl && img.imageUrl.startsWith('http') && !img.imageUrl.includes('fbsbx') && !img.imageUrl.includes('licdn') && !img.imageUrl.includes('lookaside'))
+                .sort((a, b) => {
+                    const widthA = a.imageWidth || 0;
+                    const widthB = b.imageWidth || 0;
+                    return widthB - widthA;
+                });
+
+            // Pick a large enough image (width >= 800) or just fallback to the largest available.
+            const bestImage = sortedImages.find(img => (img.imageWidth || 0) >= 800) || sortedImages[0];
+            return bestImage?.imageUrl || null;
         }
         return null;
     } catch (error) {
@@ -382,7 +393,8 @@ Výstup VŽDY EXAKTNE VO FORMÁTE JSON:
     "excerpt": "Perex: 1 až 2 veľmi pútavé odseky.",
     "content": "Samotný dlhý článok v HTML s <p>, <strong>, <h2>...",
     "ai_summary": "Pútavé a komplexné zhrnutie (10 až 15 viet) pre audio verziu. Kľúčový je dynamický prednes a 100% bezchybný slovosled.",
-    "category": "JEDNA Z TÝCHTO: Novinky SK/CZ, AI, Tech, Biznis, Krypto, Svet, Politika, Veda, Gaming, Návody & Tipy, Newsletter, Iné"
+    "category": "JEDNA Z TÝCHTO: Novinky SK/CZ, AI, Tech, Biznis, Krypto, Svet, Politika, Veda, Gaming, Návody & Tipy, Newsletter, Iné",
+    "image_search_query": "Krátky a presný anglický výraz (max 3-4 slová) na vyhľadanie ilustračnej fotky v najvyššej možnej kvalite."
 }`;
 
         // 5. PHASE: Generate the final article
@@ -417,8 +429,9 @@ Výstup VŽDY EXAKTNE VO FORMÁTE JSON:
         }
 
         // 6. PHASE: Find a relevant image
-        console.log(`>>> [Logic] Searching for a relevant image for "${articleData.title}"...`);
-        let mainImage = await searchImage(articleData.title);
+        const searchQuery = articleData.image_search_query || articleData.title;
+        console.log(`>>> [Logic] Searching for a relevant image using query: "${searchQuery}"...`);
+        let mainImage = await searchImage(searchQuery);
         if (!mainImage) {
             console.log(">>> [Logic] Relevant image not found, using generic placeholder.");
             mainImage = getPlaceholderImage(finalCategory);
