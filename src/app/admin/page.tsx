@@ -1559,7 +1559,7 @@ export default function AdminPage() {
                                             <button
                                                 key={tab.id}
                                                 onClick={() => {
-                                                    setActiveTab(tab.id as any);
+                                                    setActiveTab(tab.id as "create" | "manage" | "discovery" | "analytics" | "social" | "autopilot" | "full_automation");
                                                     setIsMobileMenuOpen(false);
                                                 }}
                                                 className={cn(

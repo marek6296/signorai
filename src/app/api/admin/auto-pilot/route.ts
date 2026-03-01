@@ -50,6 +50,11 @@ async function handleAutopilot(request: NextRequest, mode: 'automated' | 'manual
         let itemsToProcess: AutopilotItem[] = [];
 
         // UNIFIED DISCOVERY PHASE for both Automated and Manual runs
+        if (mode === 'automated' && !autopilotEnabled) {
+            console.log(">>> [Autopilot] Automated run skipped (disabled in settings)");
+            return NextResponse.json({ message: "Autopilot is disabled" });
+        }
+
         console.log(`>>> [Autopilot] Triggering dynamic discovery for mode: ${mode}`);
         const freshNews = await discoverNewNews(1);
         console.log(`>>> [Autopilot] Discovered ${freshNews.length} items from feeds`);
