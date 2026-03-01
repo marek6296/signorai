@@ -108,9 +108,23 @@ export default function AdminPage() {
             created_at: string,
             user_agent: string,
             referrer: string | null
-        }[]
-    }>({ totalVisits: 0, uniqueVisitors: 0, todayVisits: 0, todayUnique: 0, topPages: [], countries: [], devices: [], browsers: [], dailyStats: [], recentVisits: [] });
+        }[],
+        newsletterSubscribers: { email: string, updated_at: string }[]
+    }>({
+        totalVisits: 0,
+        uniqueVisitors: 0,
+        todayVisits: 0,
+        todayUnique: 0,
+        topPages: [],
+        countries: [],
+        devices: [],
+        browsers: [],
+        dailyStats: [],
+        recentVisits: [],
+        newsletterSubscribers: []
+    });
     const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+    const [isNewsletterOpen, setIsNewsletterOpen] = useState(false);
 
     // Social Tab State
     const [socialSelectedArticles, setSocialSelectedArticles] = useState<string[]>([]);
@@ -855,6 +869,13 @@ export default function AdminPage() {
                 .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
                 .slice(0, 30);
 
+            const { data: subscriberData, error: subscriberError } = await supabase
+                .from('newsletter_subscribers')
+                .select('email, updated_at')
+                .order('updated_at', { ascending: false });
+
+            if (subscriberError) throw subscriberError;
+
             setAnalytics({
                 totalVisits,
                 uniqueVisitors,
@@ -865,7 +886,8 @@ export default function AdminPage() {
                 devices,
                 browsers,
                 dailyStats,
-                recentVisits
+                recentVisits,
+                newsletterSubscribers: subscriberData || []
             });
         } catch (err) {
             console.error("Analytics fetch error:", err);
@@ -2427,6 +2449,57 @@ export default function AdminPage() {
                                 <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Unikátnych identít</div>
                                 <p className="text-[10px] mt-4 leading-relaxed opacity-60 font-medium italic">Presné meranie bez cookies tretích strán.</p>
                             </div>
+                        </div>
+
+                        {/* Newsletter Subscribers Section */}
+                        <div className="bg-card border rounded-[40px] p-10 shadow-sm overflow-hidden transition-all duration-500">
+                            <button
+                                onClick={() => setIsNewsletterOpen(!isNewsletterOpen)}
+                                className="w-full flex items-center justify-between group"
+                            >
+                                <div className="flex items-center gap-5">
+                                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                                        <Users className="w-6 h-6" />
+                                    </div>
+                                    <div className="text-left">
+                                        <h3 className="text-xl font-black uppercase tracking-tight">Odberatelia Newsletteru</h3>
+                                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Celkom {analytics.newsletterSubscribers.length} prihlásených e-mailov</p>
+                                    </div>
+                                </div>
+                                <div className="w-10 h-10 rounded-full bg-muted/30 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                                    {isNewsletterOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                                </div>
+                            </button>
+
+                            {isNewsletterOpen && (
+                                <div className="mt-10 animate-in fade-in slide-in-from-top-4 duration-300">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {analytics.newsletterSubscribers.map((sub, idx) => (
+                                            <div key={idx} className="bg-muted/10 border border-border/40 p-5 rounded-3xl flex flex-col gap-2 hover:bg-muted/20 transition-all group">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-primary/60">Email</span>
+                                                    <button
+                                                        onClick={() => copyToClipboard(sub.email)}
+                                                        className="p-1.5 hover:bg-primary/10 rounded-lg text-muted-foreground hover:text-primary transition-all opacity-0 group-hover:opacity-100"
+                                                    >
+                                                        <Copy className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </div>
+                                                <div className="text-sm font-bold truncate">{sub.email}</div>
+                                                <div className="mt-2 pt-2 border-t border-border/20 flex items-center justify-between">
+                                                    <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Prihlásený</span>
+                                                    <span className="text-[10px] font-bold">{new Date(sub.updated_at).toLocaleDateString('sk-SK')}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {analytics.newsletterSubscribers.length === 0 && (
+                                        <div className="text-center py-10 text-muted-foreground font-bold uppercase tracking-widest opacity-50 italic">
+                                            Zatiaľ žiadni odberatelia
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         <div className="bg-card border rounded-[40px] p-10 shadow-sm">

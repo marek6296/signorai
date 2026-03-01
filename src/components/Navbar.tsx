@@ -114,8 +114,8 @@ export function Navbar() {
                     })}
                 </nav>
 
-                {/* Top Right: Theme Toggle (Repositioned to top to avoid menu overlap) */}
-                <div className="absolute right-4 lg:right-10 top-4 md:top-6 flex items-center">
+                {/* Top Right: Theme Toggle (Centred vertically on mobile, top on desktop) */}
+                <div className="absolute right-3 sm:right-4 lg:right-10 top-1/2 md:top-8 -translate-y-1/2 md:translate-y-0 flex items-center">
                     <ThemeToggle />
                 </div>
             </div>
