@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { revalidatePath } from "next/cache";
 
 let openaiClient: OpenAI | null = null;
-function getOpenAIClient() {
+export function getOpenAIClient() {
     if (openaiClient) return openaiClient;
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) throw new Error("OPENAI_API_KEY is not set");

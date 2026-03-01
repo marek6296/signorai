@@ -7,7 +7,6 @@ import { Article } from "@/lib/data";
 import Link from "next/link";
 import { Edit, ArrowDown, Trash2, Sliders, Sparkles, Plus, Globe, Search, CheckCircle2, XCircle, RefreshCw, Zap, History, RotateCcw, BarChart3, Users, Share2, Copy, Facebook, Instagram, Calendar, Clock, ChevronDown, ChevronUp, Smartphone, Monitor, Check, CloudLightning, ChevronRight, Image as ImageIcon, Bot, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ArticleCard } from "@/components/ArticleCard";
 import Image from "next/image";
 import { InstagramPreview } from "@/components/InstagramPreview";
 import { toBlob } from 'html-to-image';
@@ -332,7 +331,15 @@ export default function AdminPage() {
 
     const [isBulkCategoryMode, setIsBulkCategoryMode] = useState(false);
     const [bulkSelectedArticles, setBulkSelectedArticles] = useState<string[]>([]);
-    const [refreshingType, setRefreshingType] = useState<"none" | "bulk" | "recent" | "all">("none");
+    const [isBulkImageMode, setIsBulkImageMode] = useState(false);
+    const [bulkImageSelectedArticles, setBulkImageSelectedArticles] = useState<string[]>([]);
+
+    // Suggest Image Selector Modal
+    const [isImageSelectorModalOpen, setIsImageSelectorModalOpen] = useState(false);
+    const [imageSelectorData, setImageSelectorData] = useState<{ articleId: string, title: string, images: string[] } | null>(null);
+    const [isSavingImage, setIsSavingImage] = useState(false);
+
+    const [refreshingType, setRefreshingType] = useState<"none" | "bulk" | "recent" | "all" | "bulkImage">("none");
     const [plannedPosts, setPlannedPosts] = useState<SocialPost[]>([]);
     const [isSocialAutopilotGenerating, setIsSocialAutopilotGenerating] = useState(false);
     const [plannedCategoryFilter, setPlannedCategoryFilter] = useState<string>("all");
@@ -1091,6 +1098,7 @@ export default function AdminPage() {
                 setIsDiscoveringModalOpen(false);
                 setIsGeneratingModalOpen(false);
                 setIsAutopilotLoadingModalOpen(false);
+                setIsImageSelectorModalOpen(false); // Close image selector modal
             }
         };
         window.addEventListener("keydown", handleKeyDown);
@@ -1236,12 +1244,6 @@ export default function AdminPage() {
         }
     };
 
-    const toggleBulkSelection = (id: string) => {
-        setBulkSelectedArticles(prev =>
-            prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]
-        );
-    };
-
     const handleRefreshCategories = async () => {
         if (bulkSelectedArticles.length === 0) return;
         setRefreshingType("bulk");
@@ -1352,6 +1354,91 @@ export default function AdminPage() {
         } finally {
             setRefreshingType("none");
             setStatus("idle");
+        }
+    };
+
+    const handleRefreshImages = async () => {
+        if (bulkImageSelectedArticles.length === 0) return;
+
+        setRefreshingType("bulkImage");
+        setStatus("loading");
+        const mode = bulkImageSelectedArticles.length === 1 ? 'suggest' : 'auto';
+
+        if (mode === 'auto') {
+            setMessage(`Hľadám a aktualizujem profi obrázky pre ${bulkImageSelectedArticles.length} článkov...`);
+        } else {
+            setMessage(`Hľadám profi návrhy obrázkov pre vybraný článok...`);
+        }
+
+        try {
+            const res = await fetch("/api/admin/refresh-images", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    articleIds: bulkImageSelectedArticles,
+                    mode,
+                    secret: "make-com-webhook-secret"
+                })
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || "Nepodarilo sa stiahnuť nové obrázky.");
+
+            if (mode === 'suggest' && data.images) {
+                // Open suggestion modal
+                setImageSelectorData({ articleId: data.articleId, title: data.title, images: data.images });
+                setStatus("idle");
+                setMessage("");
+                setIsImageSelectorModalOpen(true);
+            } else {
+                // Auto mode success
+                setStatus("success");
+                setMessage(data.message || "Obrázky úspešne aktualizované.");
+                await fetchArticles();
+                setTimeout(() => setStatus("idle"), 5000);
+            }
+        } catch (error: unknown) {
+            console.error("Refresh images failed:", error);
+            setStatus("error");
+            setMessage((error as Error).message || "Chyba pri načítavaní obrázkov.");
+            setTimeout(() => setStatus("idle"), 5000);
+        } finally {
+            if (mode !== 'suggest') {
+                setRefreshingType("none");
+                setBulkImageSelectedArticles([]);
+                setIsBulkImageMode(false);
+            }
+        }
+    };
+
+    const handleSaveSelectedImage = async (imageUrl: string) => {
+        if (!imageSelectorData) return;
+        setIsSavingImage(true);
+        setStatus("loading");
+        setMessage("Priraďujem nový obrázok...");
+        try {
+            const { error } = await supabase
+                .from('articles')
+                .update({ main_image: imageUrl })
+                .eq('id', imageSelectorData.articleId);
+
+            if (error) throw error;
+
+            setStatus("success");
+            setMessage("Obrázok bol úspešne zmenený.");
+            await fetchArticles();
+            setIsImageSelectorModalOpen(false);
+            setImageSelectorData(null);
+            setIsBulkImageMode(false);
+            setBulkImageSelectedArticles([]);
+        } catch (err: unknown) {
+            console.error("Save image error:", err);
+            setStatus("error");
+            setMessage((err as Error).message || "Chyba pri ukladaní obrázka.");
+        } finally {
+            setIsSavingImage(false);
+            setRefreshingType("none");
+            setTimeout(() => { if (status !== "error") setStatus("idle"); }, 3000);
         }
     };
 
@@ -2529,6 +2616,7 @@ export default function AdminPage() {
                                         <button
                                             onClick={() => {
                                                 setIsBulkCategoryMode(!isBulkCategoryMode);
+                                                setIsBulkImageMode(false);
                                                 setBulkSelectedArticles([]);
                                             }}
                                             className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl ${isBulkCategoryMode
@@ -2536,6 +2624,18 @@ export default function AdminPage() {
                                                 : "bg-primary text-primary-foreground border-2 border-primary/20 hover:scale-[1.02]"}`}
                                         >
                                             {isBulkCategoryMode ? "Zrušiť hromadnú úpravu" : "Hromadná oprava kategórií"}
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setIsBulkImageMode(!isBulkImageMode);
+                                                setIsBulkCategoryMode(false);
+                                                setBulkImageSelectedArticles([]);
+                                            }}
+                                            className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl ${isBulkImageMode
+                                                ? "bg-white text-black hover:bg-zinc-200 border-2 border-white"
+                                                : "bg-orange-500/20 text-orange-400 border-2 border-orange-500/20 hover:scale-[1.02] hover:bg-orange-500/30"}`}
+                                        >
+                                            {isBulkImageMode ? "Zrušiť op. obrázkov" : "Hromadná oprava obrázkov"}
                                         </button>
                                     </div>
                                 </div>
@@ -2555,7 +2655,29 @@ export default function AdminPage() {
                                             disabled={bulkSelectedArticles.length === 0 || refreshingType !== "none"}
                                             className="w-full md:w-auto px-8 py-4 bg-white text-black rounded-2xl text-[10px] font-black uppercase tracking-[0.15em] hover:scale-[1.05] active:scale-[0.95] transition-all shadow-2xl disabled:bg-zinc-800 disabled:text-zinc-600 disabled:opacity-100 disabled:cursor-not-allowed flex items-center gap-3 justify-center border border-white/10"
                                         >
-                                            {refreshingType === "bulk" ? "AI ANALYZUJE..." : "SPUSTIŤ AI OPRAVU"}
+                                            {refreshingType === "bulk" ? "AI ANALYZUJE..." : "SPUSTIŤ AI OPRAVU KATEGÓRIÍ"}
+                                        </button>
+                                    </div>
+                                )}
+
+                                {isBulkImageMode && (
+                                    <div className="w-full bg-zinc-900/90 border border-white/10 rounded-[2rem] p-6 flex flex-col md:flex-row items-center justify-between gap-6 mb-10 shadow-2xl ring-1 ring-white/5 animate-in slide-in-from-top-4 duration-300">
+                                        <div className="flex items-center gap-4 text-white">
+                                            <div className="bg-orange-500/20 p-3 rounded-2xl">
+                                                <ImageIcon className={`w-5 h-5 text-orange-400 ${refreshingType === "bulkImage" ? "animate-spin" : ""}`} />
+                                            </div>
+                                            <span className="font-black text-sm uppercase tracking-widest leading-tight">
+                                                Vybraných článkov pre zmenu obrázka: <span className="text-2xl ml-2 text-orange-400">{bulkImageSelectedArticles.length}</span>
+                                                {bulkImageSelectedArticles.length === 1 && <div className="text-[9px] text-zinc-400 mt-1 block">Zobrazí sa výber z viacerých obrázkov</div>}
+                                                {bulkImageSelectedArticles.length > 1 && <div className="text-[9px] text-zinc-400 mt-1 block">Obrázky sa stiahnu a pridelia automaticky</div>}
+                                            </span>
+                                        </div>
+                                        <button
+                                            onClick={handleRefreshImages}
+                                            disabled={bulkImageSelectedArticles.length === 0 || refreshingType !== "none"}
+                                            className="w-full md:w-auto px-8 py-4 bg-white text-black rounded-2xl text-[10px] font-black uppercase tracking-[0.15em] hover:scale-[1.05] active:scale-[0.95] transition-all shadow-2xl disabled:bg-zinc-800 disabled:text-zinc-600 disabled:opacity-100 disabled:cursor-not-allowed flex items-center gap-3 justify-center border border-white/10"
+                                        >
+                                            {refreshingType === "bulkImage" ? "PRACUJEM..." : (bulkImageSelectedArticles.length === 1 ? "NAVRHNÚŤ NOVÝ OBRÁZOK (VÝBER)" : "AUTO OBRÁZKY")}
                                         </button>
                                     </div>
                                 )}
@@ -2586,30 +2708,77 @@ export default function AdminPage() {
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                                     {articles.filter(a => a.status === 'published' && (selectedPublishedCategory === "Všetky" || (a.category || "Nezaradené") === selectedPublishedCategory)).map((article) => (
-                                        <div key={article.id} className="relative group/admin">
-                                            <div className={isBulkCategoryMode ? "pointer-events-none" : ""}>
-                                                <ArticleCard article={article} />
-                                            </div>
-
+                                        <div
+                                            key={article.id}
+                                            onClick={(e) => {
+                                                if (isBulkCategoryMode) {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    setBulkSelectedArticles(prev =>
+                                                        prev.includes(article.id)
+                                                            ? prev.filter(id => id !== article.id)
+                                                            : [...prev, article.id]
+                                                    );
+                                                } else if (isBulkImageMode) {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    setBulkImageSelectedArticles(prev =>
+                                                        prev.includes(article.id)
+                                                            ? prev.filter(id => id !== article.id)
+                                                            : [...prev, article.id]
+                                                    );
+                                                }
+                                            }}
+                                            className={`relative group bg-zinc-900/50 rounded-xl overflow-hidden shadow-md flex items-center h-[90px] hover:bg-zinc-800/80 transition-all border ${isBulkCategoryMode && bulkSelectedArticles.includes(article.id)
+                                                ? "border-primary/50 ring-2 ring-primary/20 bg-primary/5"
+                                                : isBulkImageMode && bulkImageSelectedArticles.includes(article.id)
+                                                    ? "border-orange-500/50 ring-2 ring-orange-500/20 bg-orange-500/5"
+                                                    : "border-border/50 hover:border-border"
+                                                } ${isBulkCategoryMode || isBulkImageMode ? "cursor-pointer" : ""}`}
+                                        >
+                                            {/* CHECKBOX OVERLAY PRE HROMADNÚ ÚPRAVU */}
                                             {isBulkCategoryMode && (
-                                                <div
-                                                    onClick={() => toggleBulkSelection(article.id)}
-                                                    className={`absolute inset-0 z-40 rounded-[2rem] cursor-pointer transition-all ${bulkSelectedArticles.includes(article.id)
-                                                        ? "bg-primary/20 ring-4 ring-inset ring-primary"
-                                                        : "bg-black/50 hover:bg-black/30"
-                                                        }`}
-                                                >
-                                                    {bulkSelectedArticles.includes(article.id) && (
-                                                        <div className="absolute top-6 right-6 bg-primary text-white p-2 rounded-full shadow-2xl shadow-black">
-                                                            <CheckCircle2 className="w-8 h-8" />
-                                                        </div>
-                                                    )}
+                                                <div className="absolute inset-y-0 left-0 w-12 flex items-center justify-center bg-black/60 z-10 border-r border-white/10">
+                                                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${bulkSelectedArticles.includes(article.id) ? "bg-primary border-primary" : "border-zinc-500"}`}>
+                                                        {bulkSelectedArticles.includes(article.id) && <Check className="w-3.5 h-3.5 text-black font-bold" />}
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {isBulkImageMode && (
+                                                <div className="absolute inset-y-0 left-0 w-12 flex items-center justify-center bg-black/60 z-10 border-r border-white/10">
+                                                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${bulkImageSelectedArticles.includes(article.id) ? "bg-orange-500 border-orange-500" : "border-zinc-500"}`}>
+                                                        {bulkImageSelectedArticles.includes(article.id) && <Check className="w-3.5 h-3.5 text-black font-bold" />}
+                                                    </div>
                                                 </div>
                                             )}
 
+                                            <div className={(isBulkCategoryMode || isBulkImageMode) ? "pointer-events-none w-full flex" : "w-full flex"}>
+                                                <div className="relative w-[90px] h-[90px] flex-shrink-0">
+                                                    {article.main_image ? (
+                                                        <Image
+                                                            src={article.main_image}
+                                                            alt="Zverejnený náhľad"
+                                                            fill
+                                                            priority={false}
+                                                            className="object-cover"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-800/50 gap-1 text-zinc-500">
+                                                            <ImageIcon size={14} />
+                                                            <span className="text-[9px] uppercase tracking-wider font-bold">Chýba</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div className={`flex flex-col flex-1 h-[90px] justify-center p-3 relative ${isBulkCategoryMode || isBulkImageMode ? 'pl-6' : ''}`}>
+                                                    <span className="text-[9px] font-black uppercase tracking-widest text-primary mb-1 block">{article.category}</span>
+                                                    <h4 className="text-sm font-black leading-tight line-clamp-2">{article.title}</h4>
+                                                </div>
+                                            </div>
+
                                             {/* Admin Overlay Actions */}
-                                            {!isBulkCategoryMode && (
-                                                <div className="absolute top-6 right-6 z-30 flex flex-col gap-2 opacity-0 group-hover/admin:opacity-100 transition-opacity duration-300">
+                                            {(!isBulkCategoryMode && !isBulkImageMode) && (
+                                                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all z-20 translate-x-4 group-hover:translate-x-0">
                                                     <Link
                                                         href={`/admin/edit/${article.id}`}
                                                         className="p-3 bg-white/20 hover:bg-white/40 backdrop-blur-md rounded-full text-white transition-all border border-white/20 shadow-2xl flex items-center gap-2 group/btn"
@@ -3804,6 +3973,75 @@ export default function AdminPage() {
                         );
                     })()
                 }
+
+                {/* ===== IMAGE SELECTOR MODAL ===== */}
+                {isImageSelectorModalOpen && imageSelectorData && createPortal(
+                    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4 sm:p-8 animate-in fade-in duration-300">
+                        <div className="bg-zinc-950 border border-zinc-800 rounded-3xl w-full max-w-5xl shadow-2xl flex flex-col max-h-screen overflow-hidden">
+
+                            {/* Header */}
+                            <div className="p-6 border-b border-zinc-900 flex justify-between items-center bg-zinc-900/50">
+                                <div>
+                                    <h3 className="text-xl font-black text-white uppercase tracking-wider flex items-center gap-3">
+                                        <div className="p-2 bg-orange-500/20 rounded-xl">
+                                            <ImageIcon className="w-5 h-5 text-orange-400" />
+                                        </div>
+                                        Výber nového obrázku
+                                    </h3>
+                                    <p className="text-zinc-400 text-sm mt-1 max-w-2xl truncate">{imageSelectorData.title}</p>
+                                </div>
+                                <button
+                                    onClick={() => { setIsImageSelectorModalOpen(false); setRefreshingType("none"); }}
+                                    className="w-10 h-10 bg-zinc-800 rounded-full flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-700 transition"
+                                >
+                                    <XCircle size={24} />
+                                </button>
+                            </div>
+
+                            {/* Content */}
+                            <div className="p-6 overflow-y-auto custom-scrollbar flex-1 min-h-[400px]">
+                                {!imageSelectorData.images || imageSelectorData.images.length === 0 ? (
+                                    <div className="text-center flex flex-col items-center justify-center min-h-[300px] text-zinc-500">
+                                        <ImageIcon className="w-12 h-12 mb-4 opacity-20" />
+                                        Nenašli sa žiadne vhodné obrázky.
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                                        {imageSelectorData.images.map((img, idx) => (
+                                            <div
+                                                key={idx}
+                                                onClick={() => !isSavingImage && handleSaveSelectedImage(img)}
+                                                className="relative aspect-square rounded-2xl overflow-hidden cursor-pointer group border border-zinc-800 hover:border-orange-500 transition-all duration-300 bg-zinc-900"
+                                            >
+                                                {/* Use img since next/image might fail on external domains not in config */}
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img
+                                                    src={img}
+                                                    alt={`Návrh ${idx + 1}`}
+                                                    className="w-full h-full object-cover sm:group-hover:scale-105 opacity-90 group-hover:opacity-100 transition-all duration-500"
+                                                />
+                                                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <div className="text-white text-[10px] font-black uppercase tracking-widest text-center flex items-center gap-2 justify-center">
+                                                        Klikni pre výber <CheckCircle2 size={12} className="text-orange-400" />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Loading Overlay for Save */}
+                            {isSavingImage && (
+                                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
+                                    <RefreshCw className="w-8 h-8 text-orange-400 animate-spin mb-4" />
+                                    <span className="text-white font-bold uppercase tracking-widest text-sm">Priraďujem a ukladám obrázok...</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>,
+                    document.body
+                )}
 
                 {
                     status === "loading" && message && createPortal(
