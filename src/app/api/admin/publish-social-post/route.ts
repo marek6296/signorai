@@ -59,7 +59,6 @@ export async function POST(req: Request) {
         const host = req.headers.get("host") || "postovinky.news";
         const protocol = host.includes("localhost") ? "http" : "https";
         const appUrl = `${protocol}://${host}`;
-        const articleUrl = `${appUrl}/article/${article?.slug}`;
 
         let finalImageUrl = customImageUrl || article?.main_image;
 
