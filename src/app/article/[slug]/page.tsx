@@ -159,12 +159,18 @@ export default async function ArticlePage({ params, searchParams }: Props) {
                         text={`${article.title}. ${article.ai_summary ? `Zhrnutie článku: ${stripHtml(article.ai_summary)}` : stripHtml(article.excerpt)}`}
                     />
 
-                    <figure className="relative aspect-video w-full rounded-2xl overflow-hidden mb-12 border bg-muted">
+                    <figure className="relative w-full rounded-2xl overflow-hidden mb-12 border bg-zinc-950 flex items-center justify-center h-[300px] sm:h-[400px] md:h-[500px] lg:h-[600px]">
+                        {/* Rozmazané pozadie na vyplnenie okrajov (pre fotky na výšku) */}
+                        <div
+                            className="absolute inset-0 bg-cover bg-center blur-2xl opacity-50 scale-110"
+                            style={{ backgroundImage: `url(${article.main_image})` }}
+                        />
+
                         <Image
                             src={article.main_image}
                             alt={article.title}
                             fill
-                            className="object-cover"
+                            className="object-contain z-10"
                             sizes="(max-width: 1024px) 100vw, 66vw"
                             priority
                             unoptimized
