@@ -60,22 +60,24 @@ export function Navbar() {
             <div className="container mx-auto flex flex-col items-center justify-center py-2 md:py-3 relative px-4 sm:px-6 lg:px-8">
 
                 {/* DESKTOP SEARCH (Left) */}
-                <div className="hidden md:flex absolute left-3 sm:left-4 lg:left-10 top-1/2 -translate-y-1/2 items-center">
-                    <form onSubmit={handleSearch} className="relative group">
+                <div className="hidden md:flex absolute left-4 lg:left-8 top-1/2 -translate-y-1/2 items-center z-30">
+                    <form onSubmit={handleSearch} className="flex items-center group bg-muted/20 hover:bg-muted/40 rounded-full px-3 transition-all border border-white/5 focus-within:border-primary/50">
+                        <button type="submit" className="p-1.5 text-muted-foreground group-focus-within:text-primary hover:text-primary transition-colors">
+                            <Search size={16} />
+                        </button>
                         <input
                             type="text"
                             placeholder="Hľadať..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="bg-muted/30 border border-white/5 rounded-full py-2 pl-10 pr-4 text-[11px] font-black uppercase tracking-widest w-32 focus:w-44 focus:bg-background focus:border-primary/50 transition-all duration-500 outline-none"
+                            className="bg-transparent py-2 px-1 text-[10px] font-black uppercase tracking-widest w-24 md:focus:w-32 lg:focus:w-40 xl:focus:w-56 transition-all duration-500 outline-none"
                         />
-                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground group-focus-within:text-primary transition-colors" />
                     </form>
                 </div>
 
                 {/* Brand Logo Section */}
                 <Link href="/" className="flex items-baseline gap-2 group px-8 md:px-0" onClick={() => setIsMenuOpen(false)}>
-                    <span className="font-syne font-extrabold text-2xl md:text-6xl tracking-tighter uppercase 
+                    <span className="font-syne font-extrabold text-2xl md:text-4xl lg:text-6xl tracking-tighter uppercase 
                         bg-gradient-to-r from-foreground via-foreground/50 to-foreground 
                         bg-clip-text text-transparent animate-text-shimmer leading-none">
                         POSTOVINKY
