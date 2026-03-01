@@ -56,7 +56,10 @@ export async function POST(req: Request) {
         }
 
         const article = post.articles;
-        const articleUrl = `https://postovinky.news/article/${article?.slug}`;
+        const host = req.headers.get("host") || "postovinky.news";
+        const protocol = host.includes("localhost") ? "http" : "https";
+        const appUrl = `${protocol}://${host}`;
+        const articleUrl = `${appUrl}/article/${article?.slug}`;
 
         let finalImageUrl = customImageUrl || article?.main_image;
 
@@ -93,7 +96,7 @@ export async function POST(req: Request) {
         // Fallback: Use server-side generator if no direct upload or it failed
         else if (post.platform === 'Instagram' && !customImageUrl) {
             try {
-                const generatorUrl = `https://postovinky.news/api/social-image/${id}.png?t=${Date.now()}`;
+                const generatorUrl = `${appUrl}/api/social-image/${id}.png?t=${Date.now()}`;
                 console.log(`[Instagram Storage Fallback] Using generator: ${generatorUrl}`);
 
                 await new Promise(r => setTimeout(r, 1000));
@@ -117,6 +120,8 @@ export async function POST(req: Request) {
                             finalImageUrl = publicUrl;
                         }
                     }
+                } else {
+                    console.warn(`[Instagram Storage Fallback] Generator returned ${imageRes.status}. Using original image.`);
                 }
             } catch (storageError) {
                 console.error("[Instagram Storage Fallback Error]", storageError);
