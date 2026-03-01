@@ -141,29 +141,27 @@ ODPOVEDAJ LEN VO FORMÁTE JSON:
                 const alreadyPosted = allExistingPosts?.some((p: SocialPost) => p.article_id === article.id && p.platform === platform);
                 if (alreadyPosted) continue;
 
-                const host = req.headers.get("host") || "postovinky.news";
-                const protocol = host.includes("localhost") ? "http" : "https";
-                const appUrl = `${protocol}://${host}`;
-                const url = `${appUrl}/article/${article.slug}`;
+                const url = `https://postovinky.news/article/${article.slug}`;
 
-                const promptSystem = `Si šéfredaktor a špičkový social media manažér pre prestížny portál Postovinky. Tvojou úlohou je napísať profesionálny, úderný a stručný príspevok.
+                const promptSystem = `Si špičkový social media manažér pre seriózny technologický a AI portál Postovinky. Tvojou úlohou je napísať profesionálny, úderný a stručný príspevok.
 
 PRAVIDLÁ:
-1. Jazyk: Profesionálna, moderná slovenčina. Dávaj si obrovský pozor na gramatiku a logický slovosled.
+1. Jazyk: Profesionálna, moderná slovenčina (žiadne klišé ako "pozor", "máme tu", "uži si").
 2. Štýl: News-style (spravodajský). Buď vecný, informuj o faktoch z článku.
-3. Emodži: PRÍSNY ZÁKAZ. Nepoužívaj žiadne emodži.
+3. Emodži: PRÍSNY ZÁKAZ. Nepoužívaj žiadne emodži, smajlíky ani grafické symboly.
 4. Štruktúra: 
    - Krátky "hook" (jedna veta max).
    - Jedna až dve vety o tom, čo sa v článku píše (faktograficky).
    - ${platform === 'Instagram' ? "Namiesto linku napíš na konci text 'Link v bio'." : "Čistý link na konci na samostatnom riadku."}
-5. Zákaz: Nepoužívaj Markdown. ${platform === 'Instagram' ? "V príspevku nesmie byť žiadna URL adresa." : `Iba čistá URL: ${url}`}
+5. Zákaz: Nepoužívaj Markdown ([text](url)). ${platform === 'Instagram' ? "V príspevku nesmie byť žiadna URL adresa." : `Iba čistá URL: ${url}`}
 
 ŠPECIFIKÁCIE PRE PLATFORMY:
 - Facebook: Max 3 vety + otázka na vyvolanie diskusie.
 - Instagram: Krátky, estetický text, max 3-4 vety. Hashtagy daj na samostatný blok nižšie (max 5 kusov). HASHTAGY MUSIA BYŤ BEZ DIAKRITIKY. Namiesto odkazu použi vetu "Link v bio".
-- X (Twitter): Extrémne stručný news-flash.
+- X (Twitter): Extrémne stručný news-flash. HASHTAGY MUSIA BYŤ BEZ DIAKRITIKY.
 
-HASHTAGY: Musia byť trefné a ZÁSADNE BEZ DIAKRITIKY.`;
+HASHTAGY: Musia byť trefné a ZÁSADNE BEZ DIAKRITIKY (napr. #technologia namiesto #technológia).
+Príspevok nesmie znieť ako reklama, ale ako správa.`;
 
                 const promptUser = `Vytvor príspevok na ${platform} pre tento článok:
 Názov: ${article.title}
@@ -204,9 +202,9 @@ Perex: ${article.excerpt}`;
                 try {
                     // Call our specialized publishing API to ensure we follow the EXACT same logic
                     // as the manual "Publish" button (storage buffering, FB link logic, etc.)
-                    const host = req.headers.get("host") || "postovinky.news";
-                    const protocol = host.includes("localhost") ? "http" : "https";
-                    const publishEndpoint = `${protocol}://${host}/api/admin/publish-social-post`;
+                    const currentHost = req.headers.get("host") || "postovinky.news";
+                    const protocol = currentHost.includes("localhost") ? "http" : "https";
+                    const publishEndpoint = `${protocol}://${currentHost}/api/admin/publish-social-post`;
 
                     console.log(`>>> [Social Autopilot] Auto-publishing ${post.platform} (ID: ${savedPost.id}) via ${publishEndpoint}...`);
 

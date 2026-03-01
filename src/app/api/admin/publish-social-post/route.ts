@@ -56,9 +56,7 @@ export async function POST(req: Request) {
         }
 
         const article = post.articles;
-        const host = req.headers.get("host") || "postovinky.news";
-        const protocol = host.includes("localhost") ? "http" : "https";
-        const appUrl = `${protocol}://${host}`;
+        const articleUrl = `https://postovinky.news/article/${article?.slug}`;
 
         let finalImageUrl = customImageUrl || article?.main_image;
 
@@ -95,7 +93,7 @@ export async function POST(req: Request) {
         // Fallback: Use server-side generator if no direct upload or it failed
         else if (post.platform === 'Instagram' && !customImageUrl) {
             try {
-                const generatorUrl = `${appUrl}/api/social-image/${id}.png?t=${Date.now()}`;
+                const generatorUrl = `https://postovinky.news/api/social-image/${id}.png?t=${Date.now()}`;
                 console.log(`[Instagram Storage Fallback] Using generator: ${generatorUrl}`);
 
                 await new Promise(r => setTimeout(r, 1000));
@@ -119,8 +117,6 @@ export async function POST(req: Request) {
                             finalImageUrl = publicUrl;
                         }
                     }
-                } else {
-                    console.warn(`[Instagram Storage Fallback] Generator returned ${imageRes.status}. Using original image.`);
                 }
             } catch (storageError) {
                 console.error("[Instagram Storage Fallback Error]", storageError);
@@ -131,11 +127,11 @@ export async function POST(req: Request) {
         // 3. Publish based on platform
         let result;
         if (post.platform === 'Facebook') {
-            // BACK TO ORIGINAL: Use hardcoded URL for Facebook preview logic
-            const fbArticleUrl = `https://postovinky.news/article/${article?.slug}`;
-            result = await publishToFacebook(post.content, fbArticleUrl);
+            // Pre Facebook chceme čistý Link Post (aby si FB sám stiahol obrázok z webu)
+            // Posielame aj explicitný link, aby FB vygeneroval poriadny náhľad (preview card)
+            result = await publishToFacebook(post.content, articleUrl);
         } else if (post.platform === 'Instagram') {
-            // Instagram MUST have our generated 1:1 image to avoid aspect ratio errors
+            if (!finalImageUrl) throw new Error("Instagram requires an image.");
             result = await publishToInstagram(finalImageUrl, post.content);
         } else if (post.platform === 'X') {
             console.log("X (Twitter) publishing not implemented yet.");
