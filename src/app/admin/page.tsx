@@ -130,6 +130,7 @@ export default function AdminPage() {
     const [loadingAnalytics, setLoadingAnalytics] = useState(false);
     const [isNewsletterOpen, setIsNewsletterOpen] = useState(false);
     const [isHydrated, setIsHydrated] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     // Social Tab State
     const [socialSelectedArticles, setSocialSelectedArticles] = useState<string[]>([]);
@@ -1507,9 +1508,87 @@ export default function AdminPage() {
                     </button>
                 </div>
 
-                {/* Premium Admin Tabs – zalamovanie, bez bočného scrollu */}
-                <div className="w-full mb-10 md:mb-12">
-                    <div className="flex flex-nowrap items-center justify-start lg:justify-center gap-1.5 p-1.5 bg-muted/30 rounded-2xl md:rounded-full border border-border/40 backdrop-blur-md shadow-inner overflow-x-auto no-scrollbar">
+                {/* Premium Admin Tabs – Responzívne riešenie */}
+                <div className="w-full mb-10 md:mb-12 relative z-[60]">
+                    {/* MOBILE DROPDOWN */}
+                    <div className="md:hidden w-full">
+                        <button
+                            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                            className="w-full flex items-center justify-between p-4 bg-card border rounded-2xl shadow-sm ring-1 ring-border/50 active:scale-[0.98] transition-all"
+                        >
+                            {(() => {
+                                const currentTab = [
+                                    { id: "discovery", label: "Trendy & Nápady", icon: Search, badge: suggestions.length, color: "text-blue-500", bg: "bg-blue-500", glow: "shadow-blue-500/20" },
+                                    { id: "full_automation", label: "AI Autopilot", icon: Zap, color: "text-yellow-500", bg: "bg-yellow-500", glow: "shadow-yellow-500/20" },
+                                    { id: "create", label: "Rýchla Tvorba", icon: Sparkles, color: "text-purple-500", bg: "bg-purple-500", glow: "shadow-purple-500/20" },
+                                    { id: "manage", label: "Zoznam Článkov", icon: Edit, color: "text-green-500", bg: "bg-green-500", glow: "shadow-green-500/20" },
+                                    { id: "analytics", label: "Analytika Webu", icon: BarChart3, color: "text-orange-500", bg: "bg-orange-500", glow: "shadow-orange-500/20" },
+                                    { id: "social", label: "Promo & Siete", icon: Share2, color: "text-pink-500", bg: "bg-pink-500", glow: "shadow-pink-500/20" }
+                                ].find(t => t.id === activeTab);
+
+                                if (!currentTab) return null;
+
+                                return (
+                                    <div className="flex items-center gap-3">
+                                        <div className={cn("p-2 rounded-xl text-white shadow-sm", currentTab.bg)}>
+                                            <currentTab.icon className="w-5 h-5" />
+                                        </div>
+                                        <div className="flex flex-col items-start leading-none">
+                                            <span className="text-[10px] uppercase font-black tracking-widest text-muted-foreground opacity-60">Aktuálna sekcia</span>
+                                            <span className="text-sm font-black uppercase tracking-tight">{currentTab.label}</span>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+                            <ChevronDown className={cn("w-6 h-6 text-muted-foreground transition-transform duration-300", isMobileMenuOpen && "rotate-180")} />
+                        </button>
+
+                        {isMobileMenuOpen && (
+                            <div className="absolute top-full left-0 right-0 mt-2 bg-card/95 backdrop-blur-xl border border-border/50 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-[70] ring-1 ring-black/10">
+                                <div className="p-2 grid grid-cols-1 gap-1">
+                                    {[
+                                        { id: "discovery", label: "Trendy & Nápady", icon: Search, badge: suggestions.length, color: "text-blue-500", bg: "bg-blue-500", hover: "hover:bg-blue-500/10" },
+                                        { id: "full_automation", label: "AI Autopilot", icon: Zap, color: "text-yellow-500", bg: "bg-yellow-500", hover: "hover:bg-yellow-500/10" },
+                                        { id: "create", label: "Rýchla Tvorba", icon: Sparkles, color: "text-purple-500", bg: "bg-purple-500", hover: "hover:bg-purple-500/10" },
+                                        { id: "manage", label: "Zoznam Článkov", icon: Edit, color: "text-green-500", bg: "bg-green-500", hover: "hover:bg-green-500/10" },
+                                        { id: "analytics", label: "Analytika Webu", icon: BarChart3, color: "text-orange-500", bg: "bg-orange-500", hover: "hover:bg-orange-500/10" },
+                                        { id: "social", label: "Promo & Siete", icon: Share2, color: "text-pink-500", bg: "bg-pink-500", hover: "hover:bg-pink-500/10" }
+                                    ].map((tab) => {
+                                        const isActive = activeTab === tab.id;
+                                        return (
+                                            <button
+                                                key={tab.id}
+                                                onClick={() => {
+                                                    setActiveTab(tab.id as any);
+                                                    setIsMobileMenuOpen(false);
+                                                }}
+                                                className={cn(
+                                                    "flex items-center gap-4 w-full p-4 rounded-xl transition-all font-black text-xs uppercase tracking-widest",
+                                                    isActive
+                                                        ? `${tab.bg} text-white shadow-md`
+                                                        : `text-muted-foreground hover:bg-muted/50`
+                                                )}
+                                            >
+                                                <tab.icon className={cn("w-5 h-5", isActive ? "text-white" : tab.color)} />
+                                                <span>{tab.label}</span>
+                                                {tab.badge !== undefined && tab.badge > 0 && (
+                                                    <span className={cn(
+                                                        "ml-auto px-2 py-0.5 rounded-full text-[10px]",
+                                                        isActive ? "bg-white text-foreground" : `${tab.bg} text-white`
+                                                    )}>
+                                                        {tab.badge}
+                                                    </span>
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* DESKTOP TABS */}
+                    <div className="hidden md:flex flex-nowrap items-center justify-start lg:justify-center gap-1.5 p-1.5 bg-muted/30 rounded-2xl md:rounded-full border border-border/40 backdrop-blur-md shadow-inner overflow-x-auto no-scrollbar">
                         {[
                             { id: "discovery", label: "Trendy & Nápady", icon: Search, badge: suggestions.length, color: "text-blue-500", bg: "bg-blue-500", hover: "hover:bg-blue-500/10", glow: "shadow-blue-500/20" },
                             { id: "full_automation", label: "AI Autopilot", icon: Zap, color: "text-yellow-500", bg: "bg-yellow-500", hover: "hover:bg-yellow-500/10", glow: "shadow-yellow-500/20" },
