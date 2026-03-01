@@ -132,13 +132,11 @@ export async function POST(req: Request) {
         // 3. Publish based on platform
         let result;
         if (post.platform === 'Facebook') {
-            // For Facebook, use the clean Link Post (it will scrape the image from the URL)
-            result = await publishToFacebook(post.content, articleUrl);
+            // BACK TO ORIGINAL: Use hardcoded URL for Facebook preview logic
+            const fbArticleUrl = `https://postovinky.news/article/${article?.slug}`;
+            result = await publishToFacebook(post.content, fbArticleUrl);
         } else if (post.platform === 'Instagram') {
             // Instagram MUST have our generated 1:1 image to avoid aspect ratio errors
-            if (!finalImageUrl || (finalImageUrl === article?.main_image && post.platform === 'Instagram')) {
-                console.warn(`[Instagram] We should have a generated 1:1 image, found: ${finalImageUrl}`);
-            }
             result = await publishToInstagram(finalImageUrl, post.content);
         } else if (post.platform === 'X') {
             console.log("X (Twitter) publishing not implemented yet.");
