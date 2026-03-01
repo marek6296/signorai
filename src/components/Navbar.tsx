@@ -57,57 +57,47 @@ export function Navbar() {
 
     return (
         <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
-                {/* Top Row: Search | Logo | Toggle */}
-                <div className="grid grid-cols-3 items-center py-2 md:pt-6 md:pb-2">
+            <div className="container mx-auto flex flex-col items-center justify-center py-2 md:py-3 relative px-4 sm:px-6 lg:px-8">
 
-                    {/* Left: Search (Desktop) */}
-                    <div className="hidden md:flex items-center">
-                        <form onSubmit={handleSearch} className="relative group">
-                            <input
-                                type="text"
-                                placeholder="Hľadať..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="bg-muted/30 border border-white/5 rounded-full py-2 pl-10 pr-4 text-[10px] font-black uppercase tracking-widest w-32 focus:w-48 xl:focus:w-64 focus:bg-background focus:border-primary/50 transition-all duration-500 outline-none"
-                            />
-                            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                        </form>
-                    </div>
-
-                    {/* Mobile Menu Toggle (Left on mobile) */}
-                    <div className="md:hidden flex items-center">
-                        <button
-                            onClick={() => setIsMenuOpen(!isMenuOpen)}
-                            className="p-2 text-foreground hover:bg-muted rounded-md transition-colors"
-                            aria-label="Toggle Menu"
-                        >
-                            {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
-                        </button>
-                    </div>
-
-                    {/* Center: Brand Logo */}
-                    <div className="flex justify-center">
-                        <Link href="/" className="flex items-baseline gap-2 group" onClick={() => setIsMenuOpen(false)}>
-                            <span className="font-syne font-extrabold text-2xl md:text-5xl lg:text-6xl tracking-tighter uppercase 
-                                bg-gradient-to-r from-foreground via-foreground/50 to-foreground 
-                                bg-clip-text text-transparent animate-text-shimmer leading-none">
-                                POSTOVINKY
-                            </span>
-                            <span className="text-primary font-black text-[8px] md:text-xs uppercase tracking-[0.3em] opacity-70 group-hover:opacity-100 transition-opacity translate-y-[-1px] md:translate-y-[-2.5px] ml-1">
-                                News
-                            </span>
-                        </Link>
-                    </div>
-
-                    {/* Right: Theme Toggle */}
-                    <div className="flex justify-end">
-                        <ThemeToggle />
-                    </div>
+                {/* DESKTOP SEARCH (Left) */}
+                <div className="hidden md:flex absolute left-3 sm:left-4 lg:left-10 top-1/2 -translate-y-1/2 items-center">
+                    <form onSubmit={handleSearch} className="relative group">
+                        <input
+                            type="text"
+                            placeholder="Hľadať..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="bg-muted/30 border border-white/5 rounded-full py-2 pl-10 pr-4 text-[11px] font-black uppercase tracking-widest w-32 focus:w-44 focus:bg-background focus:border-primary/50 transition-all duration-500 outline-none"
+                        />
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                    </form>
                 </div>
 
-                {/* Bottom Row: Desktop Nav */}
-                <nav className="hidden md:flex flex-wrap items-center justify-center gap-1 mt-2 mb-2">
+                {/* Brand Logo Section */}
+                <Link href="/" className="flex items-baseline gap-2 group px-8 md:px-0" onClick={() => setIsMenuOpen(false)}>
+                    <span className="font-syne font-extrabold text-2xl md:text-6xl tracking-tighter uppercase 
+                        bg-gradient-to-r from-foreground via-foreground/50 to-foreground 
+                        bg-clip-text text-transparent animate-text-shimmer leading-none">
+                        POSTOVINKY
+                    </span>
+                    <span className="text-primary font-black text-[8px] md:text-xs uppercase tracking-[0.3em] opacity-70 group-hover:opacity-100 transition-opacity translate-y-[-1px] md:translate-y-[-2.5px] ml-1">
+                        News
+                    </span>
+                </Link>
+
+                {/* Mobile Menu Toggle (Left) */}
+                <div className="md:hidden absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 flex items-center">
+                    <button
+                        onClick={() => setIsMenuOpen(!isMenuOpen)}
+                        className="p-2 text-foreground hover:bg-muted rounded-md transition-colors"
+                        aria-label="Toggle Menu"
+                    >
+                        {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
+                    </button>
+                </div>
+
+                {/* Desktop Nav */}
+                <nav className="hidden md:flex flex-wrap items-center justify-center gap-2 mt-2 mb-1">
                     {allCategories.map((category) => {
                         const isActive = pathname === category.href || (category.href !== "/" && pathname.startsWith(category.href));
 
@@ -116,7 +106,7 @@ export function Navbar() {
                                 key={category.name}
                                 href={category.href}
                                 className={cn(
-                                    "group relative flex items-center justify-center px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-colors duration-[600ms] ease-in-out z-10",
+                                    "group relative flex items-center justify-center px-4 py-2 text-[11px] font-black uppercase tracking-widest rounded-xl transition-colors duration-[600ms] ease-in-out z-10",
                                     isActive
                                         ? "text-primary-foreground"
                                         : "text-muted-foreground hover:text-foreground"
@@ -150,6 +140,11 @@ export function Navbar() {
                         );
                     })}
                 </nav>
+
+                {/* Top Right: Theme Toggle (Centred vertically on mobile, top on desktop) */}
+                <div className="absolute right-3 sm:right-4 lg:right-10 top-1/2 -translate-y-1/2 flex items-center">
+                    <ThemeToggle />
+                </div>
             </div>
 
             {/* Mobile Dropdown Nav */}
