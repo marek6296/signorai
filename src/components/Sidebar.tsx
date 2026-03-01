@@ -4,6 +4,7 @@ import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { sk } from "date-fns/locale";
 import { type Article } from "@/lib/data";
+import Image from "next/image";
 
 interface SidebarProps {
     articles: Article[];
@@ -13,47 +14,77 @@ interface SidebarProps {
 export function Sidebar({ articles, title = "Najnovšie správy" }: SidebarProps) {
     return (
         <aside className="w-full flex flex-col gap-6">
-            <div className="flex items-center gap-2 pb-2 border-b-2 border-primary/20">
-                <h3 className="font-bold text-lg uppercase tracking-wider">{title}</h3>
-            </div>
-            <div className="flex flex-col gap-6">
-                {articles.map((article, i) => (
-                    <article key={article.id} className="group relative flex gap-4 items-start">
-                        <span className="text-4xl font-black text-muted-foreground/20 leading-none tabular-nums shrink-0">
-                            {i + 1}
-                        </span>
-                        <div className="flex flex-col">
-                            <span className="text-xs font-semibold text-primary mb-2.5">
-                                {article.category}
-                            </span>
-                            <Link href={`/article/${article.slug}`} className="block">
-                                <h4 className="font-bold text-sm leading-snug group-hover:text-primary transition-colors mb-1 line-clamp-3">
-                                    {article.title}
-                                </h4>
-                            </Link>
-                            <time className="text-xs text-muted-foreground mt-1">
-                                {format(parseISO(article.published_at), "d. MMMM yyyy", { locale: sk })}
-                            </time>
-                        </div>
-                    </article>
-                ))}
+            <div className="flex flex-col items-center gap-2 pb-4 border-b-2 border-primary/20 text-center opacity-70">
+                <h3 className="font-black text-xl uppercase tracking-[0.2em]">{title}</h3>
             </div>
 
-            {/* Sample Newsletter Block */}
-            <div className="mt-8 bg-muted/50 p-6 rounded-xl border relative overflow-hidden">
-                <div className="absolute -right-4 -top-4 w-24 h-24 bg-primary/10 rounded-full blur-2xl"></div>
-                <h4 className="font-bold text-lg mb-2 relative z-10">AI Weekly Newsletter</h4>
-                <p className="text-sm text-muted-foreground mb-4 relative z-10">
-                    Získajte najdôležitejšie AI novinky každú nedeľu do emailu.
+            <div className="flex flex-col gap-6">
+                {articles.map((article) => {
+                    const publishDate = format(parseISO(article.published_at), "d. MMMM yyyy", { locale: sk });
+
+                    return (
+                        <div
+                            key={article.id}
+                            className="group relative h-[180px] overflow-hidden rounded-2xl bg-zinc-900 shadow-xl transition-all duration-500 hover:shadow-primary/20 border border-white/5"
+                        >
+                            <Link
+                                href={`/article/${article.slug}`}
+                                className="absolute inset-0 z-20"
+                                aria-label={article.title}
+                            />
+
+                            {/* Background Image with Grayscale Effect */}
+                            <div className="absolute inset-0 z-0">
+                                <Image
+                                    src={article.main_image}
+                                    alt={article.title}
+                                    fill
+                                    className="object-cover grayscale group-hover:grayscale-0 transition-all duration-700 ease-out group-hover:scale-105"
+                                    sizes="(max-width: 1024px) 100vw, 25vw"
+                                    unoptimized
+                                />
+                                {/* Overlay for Readability */}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-80" />
+                            </div>
+
+                            {/* Category Badge */}
+                            <div className="absolute top-3 left-4 z-10 pointer-events-none">
+                                <span className="inline-flex items-center rounded-full bg-black/60 backdrop-blur-md border border-white/20 px-3 py-1 text-[8px] font-black uppercase tracking-[0.2em] text-white">
+                                    {article.category}
+                                </span>
+                            </div>
+
+                            {/* Content */}
+                            <div className="absolute bottom-0 left-0 w-full p-4 z-10 pointer-events-none">
+                                <div className="flex flex-col gap-1">
+                                    <time className="text-[8px] font-bold text-white/50 uppercase tracking-widest">
+                                        {publishDate}
+                                    </time>
+                                    <h4 className="font-black text-xs md:text-sm text-white leading-tight line-clamp-2 transition-colors group-hover:text-primary">
+                                        {article.title}
+                                    </h4>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* Newsletter Block */}
+            <div className="mt-4 bg-card/40 backdrop-blur-xl p-6 rounded-2xl border border-border/50 relative overflow-hidden group shadow-lg">
+                <div className="absolute -right-4 -top-4 w-24 h-24 bg-primary/10 rounded-full blur-2xl group-hover:bg-primary/20 transition-colors"></div>
+                <h4 className="font-black text-[10px] uppercase tracking-[0.2em] text-primary mb-2">Newsletter</h4>
+                <p className="text-sm font-bold text-foreground mb-4">
+                    Týždenné AI novinky priamo do vášho emailu.
                 </p>
                 <form className="flex flex-col gap-2 relative z-10" onSubmit={(e) => e.preventDefault()}>
                     <input
                         type="email"
                         placeholder="Váš email"
-                        className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="bg-background/50 border border-border/50 rounded-xl px-4 py-2.5 text-xs focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                         required
                     />
-                    <button className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 w-full">
+                    <button className="bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest py-3 rounded-xl hover:opacity-90 transition-all shadow-lg shadow-primary/20">
                         Odoberať
                     </button>
                 </form>
