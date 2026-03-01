@@ -20,10 +20,16 @@ interface Props {
 const BASE_URL = "https://postovinky.news";
 const META_DESC_MAX = 160;
 
+function stripHtml(html: string | null | undefined): string {
+    if (!html) return '';
+    return html.replace(/<[^>]*>?/gm, '');
+}
+
 function truncateMetaDesc(text: string, max: number = META_DESC_MAX): string {
-    if (!text || text.length <= max) return text;
-    const cut = text.slice(0, max - 3).lastIndexOf(" ");
-    return (cut > 0 ? text.slice(0, cut) : text.slice(0, max - 3)) + "...";
+    const cleanText = stripHtml(text);
+    if (!cleanText || cleanText.length <= max) return cleanText;
+    const cut = cleanText.slice(0, max - 3).lastIndexOf(" ");
+    return (cut > 0 ? cleanText.slice(0, cut) : cleanText.slice(0, max - 3)) + "...";
 }
 
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
@@ -143,14 +149,14 @@ export default async function ArticlePage({ params, searchParams }: Props) {
                             {article.title}
                         </h1>
                         <p className="text-xl md:text-2xl text-muted-foreground font-medium leading-relaxed mb-8">
-                            {article.excerpt}
+                            {stripHtml(article.excerpt)}
                         </p>
                     </header>
 
                     {/* Audio Player (Reading only summary for efficiency) */}
                     <AudioPlayer
                         title={article.title}
-                        text={`${article.title}. ${article.ai_summary ? `Zhrnutie článku: ${article.ai_summary}` : article.excerpt}`}
+                        text={`${article.title}. ${article.ai_summary ? `Zhrnutie článku: ${stripHtml(article.ai_summary)}` : stripHtml(article.excerpt)}`}
                     />
 
                     <figure className="relative aspect-video w-full rounded-2xl overflow-hidden mb-12 border bg-muted">
@@ -176,7 +182,7 @@ export default async function ArticlePage({ params, searchParams }: Props) {
                                     <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">AI SUMMARY</span>
                                 </div>
                                 <p className="text-lg md:text-xl font-medium italic leading-relaxed text-foreground/90">
-                                    &quot;{article.ai_summary}&quot;
+                                    &quot;{stripHtml(article.ai_summary)}&quot;
                                 </p>
                             </div>
                         </div>

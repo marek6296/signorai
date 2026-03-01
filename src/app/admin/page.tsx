@@ -1424,6 +1424,16 @@ export default function AdminPage() {
 
             if (error) throw error;
 
+            // Revalidate cache to reflect new image immediately
+            const article = articles.find(a => a.id === imageSelectorData.articleId);
+            if (article?.slug) {
+                await fetch(`/api/revalidate?secret=${process.env.NEXT_PUBLIC_ADMIN_SECRET || "make-com-webhook-secret"}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ slug: article.slug })
+                });
+            }
+
             setStatus("success");
             setMessage("Obrázok bol úspešne zmenený.");
             await fetchArticles();

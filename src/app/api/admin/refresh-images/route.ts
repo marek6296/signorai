@@ -112,6 +112,14 @@ export async function POST(request: NextRequest) {
 
                     if (!updateError) {
                         successCount++;
+                        // Also get the slug and revalidate if available
+                        const { data: slugData } = await supabase.from('articles').select('slug').eq('id', article.id).single();
+                        if (slugData?.slug) {
+                            const { revalidatePath } = await import("next/cache");
+                            revalidatePath(`/article/${slugData.slug}`, "page");
+                            revalidatePath("/", "layout"); // refresh home/category layouts if needed
+                            revalidatePath("/kategoria/[kategoria]", "page");
+                        }
                     } else {
                         console.error(`Error updating DB for ${article.id}:`, updateError);
                     }
