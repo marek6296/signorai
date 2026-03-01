@@ -80,7 +80,7 @@ function SearchResults() {
                     </div>
                     <h3 className="text-2xl font-black uppercase mb-2">Žiadne výsledky</h3>
                     <p className="text-muted-foreground max-w-md italic">
-                        Pre dopyt "{query}" sme nenašli žiadne články. Skúste iné kľúčové slovo.
+                        Pre dopyt &quot;{query}&quot; sme nenašli žiadne články. Skúste iné kľúčové slovo.
                     </p>
                 </div>
             ) : null}
