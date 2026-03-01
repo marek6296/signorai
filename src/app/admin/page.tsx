@@ -3380,9 +3380,11 @@ export default function AdminPage() {
                                                     </button>
                                                     <button
                                                         onClick={handlePublishMultiplePosts}
-                                                        className="text-[9px] font-black uppercase tracking-widest px-5 py-2 bg-white text-primary rounded-lg transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
+                                                        disabled={status === "loading"}
+                                                        className="text-[9px] font-black uppercase tracking-widest px-5 py-2 bg-white text-primary rounded-lg transition-all hover:scale-105 active:scale-95 flex items-center gap-2 disabled:opacity-50 disabled:scale-100"
                                                     >
-                                                        Publikovať
+                                                        {status === "loading" ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
+                                                        {status === "loading" ? "Odosielam..." : "Publikovať"}
                                                     </button>
                                                 </div>
                                             </div>
@@ -3437,11 +3439,18 @@ export default function AdminPage() {
                                                                 {post.status !== 'posted' && (post.platform === 'Facebook' || post.platform === 'Instagram') && (
                                                                     <button
                                                                         onClick={() => handlePublishSocialPost(post.id)}
-                                                                        className="h-8 px-3 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-lg transition-all flex items-center gap-2 group border border-primary/20"
+                                                                        disabled={status === "loading"}
+                                                                        className="h-8 px-3 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-lg transition-all flex items-center gap-2 group border border-primary/20 disabled:opacity-50"
                                                                         title="Publikovať teraz cez API"
                                                                     >
-                                                                        <Zap size={14} className="group-hover:fill-current transition-all" />
-                                                                        <span className="text-[10px] font-black uppercase tracking-tighter hidden xs:inline">Publikovať</span>
+                                                                        {status === "loading" ? (
+                                                                            <RefreshCw size={14} className="animate-spin" />
+                                                                        ) : (
+                                                                            <Zap size={14} className="group-hover:fill-current transition-all" />
+                                                                        )}
+                                                                        <span className="text-[10px] font-black uppercase tracking-tighter hidden xs:inline">
+                                                                            {status === "loading" ? "Odosielam..." : "Publikovať"}
+                                                                        </span>
                                                                     </button>
                                                                 )}
                                                                 <button
@@ -3513,8 +3522,8 @@ export default function AdminPage() {
                 }
 
                 {
-                    status === "loading" && message && !isDiscoveringModalOpen && !isGeneratingModalOpen && !isAutopilotLoadingModalOpen && createPortal(
-                        <div className="fixed bottom-12 left-1/2 -translate-x-1/2 bg-foreground text-background px-10 py-6 rounded-[32px] shadow-2xl flex items-center gap-4 z-[2147483000] border border-white/10 ring-8 ring-black/5 whitespace-nowrap animate-in fade-in slide-in-from-bottom-4 duration-300">
+                    status === "loading" && message && createPortal(
+                        <div className="fixed bottom-12 left-1/2 -translate-x-1/2 bg-foreground text-background px-10 py-6 rounded-[32px] shadow-2xl flex items-center gap-4 z-[2147483647] border border-white/10 ring-8 ring-black/5 whitespace-nowrap animate-in fade-in slide-in-from-bottom-4 duration-300">
                             <RefreshCw className="w-6 h-6 animate-spin text-primary" />
                             <span className="text-sm font-black uppercase tracking-widest">{message}</span>
                         </div>,
