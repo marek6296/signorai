@@ -616,6 +616,9 @@ export default function AdminPage() {
         setMessage("Pripravujem vizuál príspevku...");
 
         try {
+            // Give the browser 1 second to ensure the high-res background image is fully loaded
+            await new Promise(r => setTimeout(r, 1000));
+
             // New logic: Capture the preview client-side for "Perfect" results
             const previewEl = document.getElementById('instagram-preview-capture');
             let imageBlob: Blob | null = null;
@@ -675,6 +678,9 @@ export default function AdminPage() {
 
         try {
             setMessage("Pripravujem vizuál príspevkov...");
+            // Stabilizácia pre načítanie obrázkov na pozadí
+            await new Promise(r => setTimeout(r, 1000));
+
             const previewEl = document.getElementById('instagram-preview-capture');
             let imageBlob: Blob | null = null;
 
@@ -2872,7 +2878,13 @@ export default function AdminPage() {
                                                             })}
                                                             {/* Image Generator Preview - Integrated into card */}
                                                             <div className="mt-10 pt-8 border-t border-white/[0.03]">
-                                                                <InstagramPreview title={article.title} />
+                                                                <InstagramPreview
+                                                                    title={article.title}
+                                                                    articleImage={article.main_image}
+                                                                    category={article.category}
+                                                                    summary={article.ai_summary}
+                                                                    date={article.published_at}
+                                                                />
                                                             </div>
                                                         </div>
                                                     </div>
@@ -3449,7 +3461,13 @@ export default function AdminPage() {
                                             {/* Preview Column */}
                                             <div className="p-6 md:p-10 bg-black/40 border-t lg:border-t-0 border-white/5 flex flex-col items-center justify-center lg:sticky lg:top-0 h-fit lg:h-[calc(90vh-80px)] min-h-[400px]">
                                                 <div className="w-full max-w-[420px] scale-90 md:scale-100 flex flex-col items-center">
-                                                    <InstagramPreview title={articleTitle} />
+                                                    <InstagramPreview
+                                                        title={articleTitle}
+                                                        articleImage={posts[0].articles?.main_image}
+                                                        category={posts[0].articles?.category}
+                                                        summary={posts[0].articles?.ai_summary}
+                                                        date={posts[0].articles?.published_at}
+                                                    />
                                                     <div className="mt-8 flex flex-col items-center animate-pulse">
                                                         <span className="text-[9px] font-black uppercase tracking-[0.4em] text-zinc-600">Live Preview</span>
                                                         <div className="w-8 h-[1px] bg-primary/30 mt-2"></div>
@@ -3487,7 +3505,14 @@ export default function AdminPage() {
                             pointerEvents: 'none',
                             background: 'black'
                         }}>
-                            <InstagramPreview title={automationArticleData.title} id="automation-preview-capture" />
+                            <InstagramPreview
+                                title={automationArticleData.title}
+                                articleImage={articles.find(a => a.id === automationArticleData.id)?.main_image}
+                                category={articles.find(a => a.id === automationArticleData.id)?.category}
+                                summary={articles.find(a => a.id === automationArticleData.id)?.ai_summary}
+                                date={articles.find(a => a.id === automationArticleData.id)?.published_at}
+                                id="automation-preview-capture"
+                            />
                         </div>
                     )
                 }
