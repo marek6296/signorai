@@ -230,26 +230,43 @@ Nikdy nevracaj žiadnu inú kategóriu. AI dávaj len ak je to jadro správy. Pr
 
 export async function processArticleFromTopic(userPrompt: string, targetStatus: 'draft' | 'published' = 'draft') {
     try {
-        // --- WEB SEARCH PHASE ---
-        console.log(`>>> [Logic] Starting web search for prompt: ${userPrompt}`);
-        const searchResults = await searchWeb(userPrompt);
+        console.log(`>>> [Logic] Analyzing topic and generating search query for: ${userPrompt}`);
 
-        let contextPrompt = "";
+        // 1. PHASE: Generate an optimized search query using AI
+        const queryCompletion = await getOpenAIClient().chat.completions.create({
+            model: "gpt-4o",
+            messages: [
+                {
+                    role: "system",
+                    content: "Si expert na vyhľadávanie informácií. Na základe užívateľovho zadania vytvor JEDEN najlepší vyhľadávací dopyt pre Google v slovenčine alebo angličtine (podľa toho, čo prinesie lepšie výsledky), aby si získal najčerstvejšie fakty pre napísanie článku. Vráť LEN čistý text dopytu, nič iné."
+                },
+                { role: "user", content: userPrompt }
+            ]
+        });
+
+        const optimizedQuery = queryCompletion.choices[0].message.content?.trim() || userPrompt;
+        console.log(`>>> [Logic] Optimized Search Query: ${optimizedQuery}`);
+
+        // 2. PHASE: Perform real-time web search
+        console.log(`>>> [Logic] Executing real-time web search via Serper...`);
+        const searchResults = await searchWeb(optimizedQuery);
+
+        // 3. PHASE: Prepare context and system prompt
+        let contextDataSnippet = "";
         if (searchResults) {
-            contextPrompt = `
-TU SÚ AKTUÁLNE INFORMÁCIE Z INTERNETU (Použi ich ako faktický základ):
+            contextDataSnippet = `
+TU SÚ AKTUÁLNE FAKTY Z INTERNETU (Použi ich ako primárny zdroj):
 ${searchResults}
-
-ZADANIE OD UŽÍVATEĽA:
-${userPrompt}
-
-Inštrukcia: Skombinuj informácie z vyhľadávania s promptom užívateľa a vytvor špičkový článok. Ak sú informácie z vyhľadávania relevantné, daj im faktickú prioritu.
 `;
-        } else {
-            contextPrompt = `ZADANIE OD UŽÍVATEĽA: ${userPrompt}`;
         }
 
-        console.log(`>>> [Logic] Generating article from custom prompt: ${userPrompt}`);
+        const finalUserPrompt = `
+Pôvodné zadanie: ${userPrompt}
+
+${contextDataSnippet}
+
+Inštrukcia: Na základe zadania a prípadných faktov z vyhľadávania napíš komplexný, originálny a pútavý článok v dokonalej slovenčine.
+`;
 
         const promptSystem = `Si šéfredaktor a špičkový copywriter pre prestížny magazín Postovinky na Slovensku. Tvojou úlohou je na základe užívateľovho zadania (témy alebo promptu) napísať prémiový, pútavý a odborne presný článok v STOPERCENTNEJ, ČISTEJ a PRIRODZENER SLOVENČINE.
 
@@ -258,7 +275,8 @@ ZÁVÄZNÉ PRAVIDLÁ PRE KVALITU TEXTU:
 2. ŠTRUKTÚRA: Článok musí byť obsiahly, rozčlenený na podnadpisy (<h2>, <h3>) a odseky.
 3. FORMÁT HTML: Používaj výhradne HTML značky <p>, <strong>, <h2>, <h3>, <ul>, <li>.
 4. CLICKBAIT STRATÉGIA: Nadpis musí byť extrémne pútavý, moderný a virálny.
-5. ZHRNUTIE: ai_summary musí byť podrobné (10-15 viet) pre audio verziu.
+5. FAKTY: Ak sú priložené výsledky vyhľadávania, použi ich na zabezpečenie maximálnej presnosti a aktuálnosti.
+6. ZHRNUTIE: ai_summary musí byť podrobné (10-15 viet) pre audio verziu.
 
 KATEGORIZÁCIA:
 Vyber jednu z: Novinky SK/CZ, AI, Tech, Biznis, Krypto, Svet, Politika, Veda, Gaming, Návody & Tipy.
@@ -273,11 +291,13 @@ Tvoj výstup musí byť VŽDY EXAKTNE VO FORMÁTE JSON:
     "category": "Kategória"
 }`;
 
+        // 4. PHASE: Generate the final article
+        console.log(`>>> [Logic] Synthesizing final article with GPT-4o...`);
         const completion = await getOpenAIClient().chat.completions.create({
             model: "gpt-4o",
             messages: [
-                { role: "system", content: promptSystem + (searchResults ? "\n\nDÔLEŽITÉ: V článku použi informácie z priložených výsledkov vyhľadávania pre maximálnu aktuálnosť a faktickú správnosť." : "") },
-                { role: "user", content: contextPrompt }
+                { role: "system", content: promptSystem },
+                { role: "user", content: finalUserPrompt }
             ],
             response_format: { type: "json_object" }
         });
@@ -286,29 +306,20 @@ Tvoj výstup musí byť VŽDY EXAKTNE VO FORMÁTE JSON:
         if (!gptResponse) throw new Error("Empty response from OpenAI");
 
         const articleData = JSON.parse(gptResponse);
-        console.log("GPT generated article from prompt:", articleData.title);
+        console.log(">>> [Logic] GPT generated article from prompt:", articleData.title);
 
         // Placeholder images based on category
-        const categoryImages: Record<string, string> = {
-            "AI": "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=1200",
-            "Tech": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=1200",
-            "Biznis": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=1200",
-            "Krypto": "https://images.unsplash.com/photo-1518546305927-5a555bb7020d?auto=format&fit=crop&q=80&w=1200",
-            "Veda": "https://images.unsplash.com/photo-1507413245164-6160d8298b31?auto=format&fit=crop&q=80&w=1200",
-            "Gaming": "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1200"
-        };
-
-        const mainImage = categoryImages[articleData.category] || "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=1200";
+        const mainImage = getPlaceholderImage(articleData.category);
 
         const dbData = {
             title: articleData.title,
-            slug: articleData.slug + "-" + Math.random().toString(36).substring(2, 7), // Ensure uniqueness
+            slug: articleData.slug + "-" + Math.random().toString(36).substring(2, 7),
             excerpt: articleData.excerpt,
             content: articleData.content,
             category: articleData.category || "Iné",
             ai_summary: articleData.ai_summary,
             main_image: mainImage,
-            source_url: searchResults ? "manual-prompt-with-search" : "manual-prompt",
+            source_url: searchResults ? "manual-agent-with-search" : "manual-agent",
             status: targetStatus
         };
 
@@ -322,4 +333,20 @@ Tvoj výstup musí byť VŽDY EXAKTNE VO FORMÁTE JSON:
         console.error("Process custom prompt error:", error);
         throw error;
     }
+}
+
+function getPlaceholderImage(category: string): string {
+    const images: Record<string, string> = {
+        "Novinky SK/CZ": "https://images.unsplash.com/photo-1588694424679-7f7092d04239?auto=format&fit=crop&q=80&w=1200",
+        "AI": "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=1200",
+        "Tech": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=1200",
+        "Biznis": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=1200",
+        "Krypto": "https://images.unsplash.com/photo-1518546305927-5a555bb7020d?auto=format&fit=crop&q=80&w=1200",
+        "Svet": "https://images.unsplash.com/photo-1521295121783-8a321d551ad2?auto=format&fit=crop&q=80&w=1200",
+        "Politika": "https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?auto=format&fit=crop&q=80&w=1200",
+        "Veda": "https://images.unsplash.com/photo-1507413245164-6160d8298b31?auto=format&fit=crop&q=80&w=1200",
+        "Gaming": "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1200",
+        "Návody & Tipy": "https://images.unsplash.com/photo-1456324504439-367cee3b3c32?auto=format&fit=crop&q=80&w=1200"
+    };
+    return images[category] || "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=1200";
 }
