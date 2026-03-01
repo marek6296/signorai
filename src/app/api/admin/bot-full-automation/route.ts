@@ -13,9 +13,10 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const secret = url.searchParams.get("secret");
     const force = url.searchParams.get("force") === "true";
+    const ignoreTime = url.searchParams.get("ignoreTime") === "true";
     const isVercelCron = req.headers.get("x-vercel-cron") === "1";
 
-    console.log(`>>> [Bot] Request received. Cron Header: ${isVercelCron}, Force: ${force}`);
+    console.log(`>>> [Bot] Request received. Cron Header: ${isVercelCron}, Force: ${force}, IgnoreTime: ${ignoreTime}`);
 
     // Auth check: allow if secret matches OR if it's a legitimate Vercel Cron request
     if (secret !== process.env.ADMIN_SECRET && secret !== LEGACY_SECRET && !isVercelCron) {
@@ -40,8 +41,8 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ message: "Bot is disabled" });
         }
 
-        // 2. Time Check (unless forced)
-        if (!force && settings.posting_times && settings.posting_times.length > 0) {
+        // 2. Time Check (unless forced or ignoreTime is set)
+        if (!force && !ignoreTime && settings.posting_times && settings.posting_times.length > 0) {
             const now = new Date();
             const bratislavaTime = new Intl.DateTimeFormat('en-GB', {
                 timeZone: 'Europe/Bratislava',

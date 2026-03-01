@@ -1,0 +1,18 @@
+name: Full Automation Bot Cron
+
+on:
+  schedule:
+    # Spustí sa každých 8 hodín (napr. 00:00, 08:00, 16:00 UTC)
+    - cron: '0 */8 * * *'
+  workflow_dispatch: # Obsahuje manuálne tlačidlo "Run workflow" v GitHub UI
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Full Automation Bot API
+        run: |
+          # Vola API s pridavnym parametrom ignoreTime=true
+          # Ten zabezpeci, ze bot bude ignorovat casove rozvrhy a vykona sa ihned,
+          # ale STALE bude kontrolovat, ci je bot realne zapnuty v databaze.
+          curl -X GET "${{ secrets.API_BASE_URL }}/api/admin/bot-full-automation?secret=${{ secrets.ADMIN_SECRET }}&ignoreTime=true"
