@@ -60,7 +60,7 @@ export function InContentAd({ articles }: InContentAdProps) {
 
                         <Link
                             href={`/article/${article.slug}`}
-                            className="inline-flex items-center gap-2 px-6 py-3 bg-white text-black font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-primary hover:text-white transition-all hover:scale-105 active:scale-95"
+                            className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-primary/80 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-primary/20"
                         >
                             Chcem čítať viac
                             <ArrowRight size={14} />
