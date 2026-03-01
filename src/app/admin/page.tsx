@@ -1224,12 +1224,36 @@ export default function AdminPage() {
 
     const handlePublish = async (id: string, currentStatus: string) => {
         const newStatus = currentStatus === "published" ? "draft" : "published";
-        const { error } = await supabase.from("articles").update({ status: newStatus }).eq("id", id);
-        if (!error) {
-            fetchArticles();
-            await fetch("/api/revalidate?secret=make-com-webhook-secret", { method: "POST" });
+
+        if (newStatus === "published") {
+            setStatus("loading");
+            setMessage("Spúšťam finálnu AI kontrolu (text, obrázok, kategória)...");
+            try {
+                const res = await fetch("/api/admin/final-review", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ articleId: id, secret: "make-com-webhook-secret" })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || "Failed final review");
+                setStatus("success");
+                setMessage("Článok prešiel kontrolou a bol publikovaný!");
+                fetchArticles();
+                setTimeout(() => setStatus("idle"), 4000);
+            } catch (err: unknown) {
+                console.error("Final review failed:", err);
+                setStatus("error");
+                setMessage("AI kontrola zlyhala: " + (err as Error).message);
+                setTimeout(() => setStatus("idle"), 6000);
+            }
         } else {
-            alert("Chyba pri zmene statusu: " + error.message);
+            const { error } = await supabase.from("articles").update({ status: "draft" }).eq("id", id);
+            if (!error) {
+                fetchArticles();
+                await fetch("/api/revalidate?secret=make-com-webhook-secret", { method: "POST" });
+            } else {
+                alert("Chyba pri zmene statusu: " + error.message);
+            }
         }
     };
 

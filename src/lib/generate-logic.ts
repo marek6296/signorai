@@ -13,6 +13,118 @@ export function getOpenAIClient() {
     return openaiClient;
 }
 
+export async function runFinalReviewAndPublish(articleId: string) {
+    const { data: article, error: fetchError } = await supabase
+        .from('articles')
+        .select('*')
+        .eq('id', articleId)
+        .single();
+
+    if (fetchError || !article) {
+        throw new Error(`Nepodarilo sa načítať článok: ${articleId}`);
+    }
+
+    console.log(`>>> [Final Review] Checking article: ${article.title}`);
+
+    const openai = getOpenAIClient();
+
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+        {
+            role: "system",
+            content: `Si nekompromisný Šéfredaktor spravodajského portálu. Toto je tvoja finálna kontrola pred publikovaním.
+Tvoje úlohy:
+1. Skontrolovať gramatiku, štylistiku a odstrániť z 'excerpt' a 'ai_summary' akékoľvek HTML značky (napr. <p>). Ponechaj text čistý.
+2. Skontrolovať zhodu textu, preklepy. 
+3. Vybrať najvhodnejšiu kategóriu (povolené: AI, Tech, Biznis, Krypto, Svet, Politika, Veda, Gaming, Návody & Tipy, Iné).
+4. Zhodnotiť poskytnutú fotografiu (ak je k dispozícii). Ak je fotka kvalitná a súvisí s témou, ponechaj "image_needs_replacement": false. Ak obrázok nedáva zmysel, je nekvalitný, chýba alebo ide o nejaké divné logo/miniatúru, nastav true a poskytni presný ANGLICKÝ 2-4 slovný vyhľadávací dotaz do Googlu pre získanie novej fotky.
+
+Zároveň vrátiš upravené texty podľa bodu 1 a 2.
+Vráť LEN JSON objekt v tvare:
+{
+  "title": "upravený nadpis",
+  "excerpt": "čistý úryvok bez HTML",
+  "ai_summary": "čisté zhrnutie bez HTML",
+  "content": "upravený HTML obsah",
+  "category": "Vybraná Kategória",
+  "image_needs_replacement": boolean,
+  "new_image_search_query": "anglický dotaz alebo prázdny string"
+}`
+        }
+    ];
+
+    const userContentArr: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [
+        {
+            type: "text",
+            text: `Aktuálne dáta článku:
+NADPIS: ${article.title}
+KATEGÓRIA: ${article.category}
+ÚRYVOK: ${article.excerpt}
+ZHRNUTIE: ${article.ai_summary || ""}
+OBSAH: ${article.content}`
+        }
+    ];
+
+    if (article.main_image && article.main_image.startsWith('http')) {
+        userContentArr.push({
+            type: "image_url",
+            image_url: {
+                url: article.main_image,
+                detail: "low"
+            }
+        });
+    }
+
+    messages.push({
+        role: "user",
+        content: userContentArr
+    });
+
+    const res = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: messages,
+        response_format: { type: "json_object" },
+        temperature: 0.2
+    });
+
+    const reply = res.choices[0]?.message?.content || "{}";
+    const reviewedData = JSON.parse(reply);
+
+    console.log(`>>> [Final Review] AI decision:`, reviewedData);
+
+    let finalImageUrl = article.main_image;
+    if (reviewedData.image_needs_replacement && reviewedData.new_image_search_query) {
+        console.log(`>>> [Final Review] Finding new image with query: ${reviewedData.new_image_search_query}`);
+        const newImg = await searchImage(reviewedData.new_image_search_query);
+        if (newImg) {
+            finalImageUrl = newImg;
+        }
+    }
+
+    const { error: updateError } = await supabase
+        .from('articles')
+        .update({
+            title: reviewedData.title || article.title,
+            excerpt: reviewedData.excerpt || article.excerpt,
+            ai_summary: reviewedData.ai_summary || article.ai_summary,
+            content: reviewedData.content || article.content,
+            category: reviewedData.category || article.category,
+            main_image: finalImageUrl,
+            status: 'published',
+            published_at: article.published_at || new Date().toISOString()
+        })
+        .eq('id', articleId);
+
+    if (updateError) throw updateError;
+
+    if (article.slug) {
+        revalidatePath(`/article/${article.slug}`, 'page');
+    }
+    revalidatePath('/', 'layout');
+    revalidatePath('/kategoria/[kategoria]', 'page');
+
+    return { success: true, articleId };
+}
+
 export async function searchWeb(query: string) {
     const apiKey = process.env.SERPER_API_KEY;
     if (!apiKey) {
@@ -276,7 +388,8 @@ Nikdy nevracaj žiadnu inú kategóriu. AI dávaj len ak je to jadro správy. Pr
         };
 
         console.log("Saving to Supabase...");
-        const { data, error } = await supabase.from('articles').insert([dbData]).select().single();
+        const { data: insertedData, error } = await supabase.from('articles').insert([dbData]).select().single();
+        let data = insertedData;
 
         if (error) {
             console.error("Supabase insert error:", error);
@@ -284,6 +397,14 @@ Nikdy nevracaj žiadnu inú kategóriu. AI dávaj len ak je to jadro správy. Pr
         }
 
         console.log("Supabase save success, ID:", data.id);
+
+        if (targetStatus === 'published') {
+            console.log("Running final review before publishing...");
+            await runFinalReviewAndPublish(data.id);
+            // Fetch the updated data after review to return it
+            const { data: updatedData } = await supabase.from('articles').select().eq('id', data.id).single();
+            if (updatedData) data = updatedData;
+        }
 
         // 4. Revalidate
         revalidatePath("/", "layout");
@@ -451,10 +572,18 @@ Výstup VŽDY EXAKTNE VO FORMÁTE JSON:
         };
 
         console.log(`>>> [Logic] Saving article to DB with status: ${targetStatus}`);
-        const { data, error } = await supabase.from('articles').insert([dbData]).select().single();
+        const { data: insertedData, error } = await supabase.from('articles').insert([dbData]).select().single();
+        let data = insertedData;
         if (error) {
             console.error(">>> [Logic] Supabase insert failed:", error);
             throw error;
+        }
+
+        if (targetStatus === 'published') {
+            console.log(">>> [Logic] Running final review before publishing...");
+            await runFinalReviewAndPublish(data.id);
+            const { data: updatedData } = await supabase.from('articles').select().eq('id', data.id).single();
+            if (updatedData) data = updatedData;
         }
 
         revalidatePath("/", "layout");
