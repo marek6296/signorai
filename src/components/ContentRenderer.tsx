@@ -43,15 +43,21 @@ export function ContentRenderer({ content, relatedArticles }: ContentRendererPro
     const afterAd = cleanParagraphs.slice(injectionPoint).join('');
 
     return (
-        <div className="prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-primary hover:prose-a:text-primary/80">
+        <div className="flex flex-col">
             {/* Top part */}
-            <div dangerouslySetInnerHTML={{ __html: beforeAd }} />
+            <div
+                className="prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-primary hover:prose-a:text-primary/80"
+                dangerouslySetInnerHTML={{ __html: beforeAd }}
+            />
 
-            {/* The Ad / Recommendation */}
+            {/* The Ad / Recommendation - NOT inside prose to avoid style conflicts */}
             <InContentAd articles={relatedArticles} />
 
             {/* Bottom part */}
-            <div dangerouslySetInnerHTML={{ __html: afterAd }} />
+            <div
+                className="prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-primary hover:prose-a:text-primary/80"
+                dangerouslySetInnerHTML={{ __html: afterAd }}
+            />
         </div>
     );
 }
