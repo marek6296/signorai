@@ -81,6 +81,45 @@ export async function GET(
                     }}
                 >
 
+                    {/* Background Accents for depth using SVG for Satori compatibility */}
+                    <svg
+                        style={{
+                            position: 'absolute',
+                            top: -250,
+                            right: -250,
+                            width: 500,
+                            height: 500,
+                        }}
+                        viewBox="0 0 500 500"
+                    >
+                        <defs>
+                            <radialGradient id="glowTopRight" cx="50%" cy="50%" r="50%">
+                                <stop offset="0%" stopColor="rgba(0, 255, 204, 0.2)" />
+                                <stop offset="100%" stopColor="rgba(0, 255, 204, 0)" />
+                            </radialGradient>
+                        </defs>
+                        <circle cx="250" cy="250" r="250" fill="url(#glowTopRight)" />
+                    </svg>
+
+                    <svg
+                        style={{
+                            position: 'absolute',
+                            bottom: -300,
+                            left: -300,
+                            width: 600,
+                            height: 600,
+                        }}
+                        viewBox="0 0 600 600"
+                    >
+                        <defs>
+                            <radialGradient id="glowBottomLeft" cx="50%" cy="50%" r="50%">
+                                <stop offset="0%" stopColor="rgba(0, 255, 204, 0.2)" />
+                                <stop offset="100%" stopColor="rgba(0, 255, 204, 0)" />
+                            </radialGradient>
+                        </defs>
+                        <circle cx="300" cy="300" r="300" fill="url(#glowBottomLeft)" />
+                    </svg>
+
                     {/* Top Branding */}
                     <div
                         style={{
