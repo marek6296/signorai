@@ -85,12 +85,12 @@ export async function GET(
                     <svg
                         style={{
                             position: 'absolute',
-                            top: -250,
-                            right: -250,
-                            width: 500,
-                            height: 500,
+                            top: -450,
+                            right: -450,
+                            width: 900,
+                            height: 900,
                         }}
-                        viewBox="0 0 500 500"
+                        viewBox="0 0 900 900"
                     >
                         <defs>
                             <radialGradient id="glowTopRight" cx="50%" cy="50%" r="50%">
@@ -98,18 +98,18 @@ export async function GET(
                                 <stop offset="100%" stopColor="rgba(255, 255, 255, 0)" />
                             </radialGradient>
                         </defs>
-                        <circle cx="250" cy="250" r="250" fill="url(#glowTopRight)" />
+                        <circle cx="450" cy="450" r="450" fill="url(#glowTopRight)" />
                     </svg>
 
                     <svg
                         style={{
                             position: 'absolute',
-                            bottom: -300,
-                            left: -300,
-                            width: 600,
-                            height: 600,
+                            bottom: -600,
+                            left: -600,
+                            width: 1200,
+                            height: 1200,
                         }}
-                        viewBox="0 0 600 600"
+                        viewBox="0 0 1200 1200"
                     >
                         <defs>
                             <radialGradient id="glowBottomLeft" cx="50%" cy="50%" r="50%">
@@ -117,7 +117,7 @@ export async function GET(
                                 <stop offset="100%" stopColor="rgba(255, 255, 255, 0)" />
                             </radialGradient>
                         </defs>
-                        <circle cx="300" cy="300" r="300" fill="url(#glowBottomLeft)" />
+                        <circle cx="600" cy="600" r="600" fill="url(#glowBottomLeft)" />
                     </svg>
 
                     {/* Top Branding */}
