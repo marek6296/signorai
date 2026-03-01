@@ -944,8 +944,19 @@ export default function AdminPage() {
             }
 
             if (postsToSave.length > 0) {
-                const { error } = await supabase.from('social_posts').insert(postsToSave);
+                const { data: insertedPosts, error } = await supabase.from('social_posts').insert(postsToSave).select();
                 if (error) console.error("Chyba pri ukladaní postov:", error);
+
+                if (insertedPosts) {
+                    insertedPosts.filter(p => p.platform === 'Instagram').forEach(p => {
+                        fetch("/api/admin/pre-render-social-image", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ id: p.id })
+                        }).catch(e => console.error("Pre-render async task error", e));
+                    });
+                }
+
                 fetchPlannedPosts();
             }
 

@@ -196,6 +196,30 @@ Perex: ${article.excerpt}`;
                 .single();
 
             if (insertError) continue;
+
+            // PRE-RENDER INSTAGRAM POST IMAGE
+            if (savedPost.platform === 'Instagram') {
+                try {
+                    const currentHost = req.headers.get("x-forwarded-host") || req.headers.get("host") || "postovinky.news";
+                    const protocol = currentHost.includes("localhost") ? "http" : "https";
+                    const preRenderEndpoint = `${protocol}://${currentHost}/api/admin/pre-render-social-image`;
+
+                    const res = await fetch(preRenderEndpoint, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ id: savedPost.id })
+                    });
+                    if (res.ok) {
+                        const dat = await res.json();
+                        if (dat.url) {
+                            savedPost.image_url = dat.url;
+                        }
+                    }
+                } catch (e) {
+                    console.error(">>> [Social Autopilot] Pre-rendering failed for", savedPost.id, e);
+                }
+            }
+
             savedPosts.push(savedPost);
 
             if (autoPublish && savedPost) {

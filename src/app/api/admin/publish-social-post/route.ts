@@ -58,7 +58,7 @@ export async function POST(req: Request) {
         const article = post.articles;
         const articleUrl = `https://postovinky.news/article/${article?.slug}`;
 
-        let finalImageUrl = customImageUrl || article?.main_image;
+        let finalImageUrl = customImageUrl || post.image_url || article?.main_image;
 
         // NEW: Handle direct image upload from client (bit-perfect preview)
         if (uploadedFile) {
@@ -90,8 +90,8 @@ export async function POST(req: Request) {
                 console.error("[Instagram Direct Upload Failed]", err);
             }
         }
-        // Fallback: Use server-side generator if no direct upload or it failed
-        else if (post.platform === 'Instagram' && !customImageUrl) {
+        // Fallback: Use server-side generator if no direct upload, it failed, and no pre-cached image
+        else if (post.platform === 'Instagram' && !customImageUrl && !post.image_url) {
             try {
                 const headerHost = req.headers.get("x-forwarded-host") || req.headers.get("host") || "postovinky.news";
                 const protocol = headerHost.includes("localhost") ? "http" : "https";
