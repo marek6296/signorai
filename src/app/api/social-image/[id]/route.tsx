@@ -85,41 +85,41 @@ export async function GET(
                     <svg
                         style={{
                             position: 'absolute',
-                            top: -900,
-                            right: -900,
-                            width: 1800,
-                            height: 1800,
+                            top: -700,
+                            right: -700,
+                            width: 1400,
+                            height: 1400,
                         }}
-                        viewBox="0 0 1800 1800"
+                        viewBox="0 0 1400 1400"
                     >
                         <defs>
                             <radialGradient id="glowTopRight" cx="50%" cy="50%" r="50%">
-                                <stop offset="0%" stopColor="rgba(255, 255, 255, 0.3)" />
-                                <stop offset="35%" stopColor="rgba(255, 255, 255, 0.15)" />
+                                <stop offset="0%" stopColor="rgba(255, 255, 255, 0.25)" />
+                                <stop offset="40%" stopColor="rgba(255, 255, 255, 0.1)" />
                                 <stop offset="100%" stopColor="rgba(255, 255, 255, 0)" />
                             </radialGradient>
                         </defs>
-                        <circle cx="900" cy="900" r="900" fill="url(#glowTopRight)" />
+                        <circle cx="700" cy="700" r="700" fill="url(#glowTopRight)" />
                     </svg>
 
                     <svg
                         style={{
                             position: 'absolute',
-                            bottom: -1000,
-                            left: -1000,
-                            width: 2000,
-                            height: 2000,
+                            bottom: -800,
+                            left: -800,
+                            width: 1600,
+                            height: 1600,
                         }}
-                        viewBox="0 0 2000 2000"
+                        viewBox="0 0 1600 1600"
                     >
                         <defs>
                             <radialGradient id="glowBottomLeft" cx="50%" cy="50%" r="50%">
-                                <stop offset="0%" stopColor="rgba(255, 255, 255, 0.25)" />
-                                <stop offset="45%" stopColor="rgba(255, 255, 255, 0.1)" />
+                                <stop offset="0%" stopColor="rgba(255, 255, 255, 0.2)" />
+                                <stop offset="50%" stopColor="rgba(255, 255, 255, 0.08)" />
                                 <stop offset="100%" stopColor="rgba(255, 255, 255, 0)" />
                             </radialGradient>
                         </defs>
-                        <circle cx="1000" cy="1000" r="1000" fill="url(#glowBottomLeft)" />
+                        <circle cx="800" cy="800" r="800" fill="url(#glowBottomLeft)" />
                     </svg>
 
                     {/* Top Branding */}
@@ -156,7 +156,6 @@ export async function GET(
                                 letterSpacing: '0.3em',
                                 marginLeft: 12,
                                 transform: 'translateY(-4px)',
-                                fontFamily: interBlack ? 'Inter' : 'sans-serif',
                             }}
                         >
                             News
@@ -170,7 +169,7 @@ export async function GET(
                             flexDirection: 'column',
                             alignItems: 'center',
                             textAlign: 'center',
-                            width: 820,
+                            width: 900,
                         }}
                     >
                         {/* Top Line */}
