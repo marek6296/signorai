@@ -3216,21 +3216,21 @@ export default function AdminPage() {
                                 ></div>
                                 <div className="relative bg-[#121212] w-full max-w-5xl rounded-[40px] border border-white/10 flex flex-col max-h-[90vh] shadow-[0_0_100px_rgba(0,0,0,0.8)] overflow-hidden">
                                     {/* Header */}
-                                    <div className="px-10 py-8 border-b border-white/5 flex items-center justify-between bg-[#1a1a1a] text-white">
-                                        <div className="flex items-center gap-6">
-                                            <div className="bg-primary/20 p-3 rounded-2xl">
-                                                <Sparkles className="w-6 h-6 text-primary" />
+                                    <div className="px-6 py-5 md:px-10 md:py-6 border-b border-white/5 flex items-center justify-between bg-[#1a1a1a] text-white">
+                                        <div className="flex items-center gap-4">
+                                            <div className="bg-primary/20 p-2.5 rounded-xl hidden xs:block">
+                                                <Sparkles className="w-5 h-5 text-primary" />
                                             </div>
                                             <div>
-                                                <h3 className="text-2xl font-black uppercase tracking-widest leading-none mb-2 text-white line-clamp-1 max-w-[500px]">{articleTitle}</h3>
-                                                <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Detail sociálnych postov</p>
+                                                <h3 className="text-base md:text-xl font-black uppercase tracking-widest leading-none mb-1 text-white line-clamp-1 max-w-[200px] xs:max-w-[400px] md:max-w-[500px]">{articleTitle}</h3>
+                                                <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">Detail sociálnych postov</p>
                                             </div>
                                         </div>
                                         <button
                                             onClick={() => setSelectedPlannerArticle(null)}
-                                            className="p-4 bg-white/5 hover:bg-red-500/20 hover:text-red-500 rounded-2xl transition-all"
+                                            className="p-2.5 bg-white/5 hover:bg-red-500/10 hover:text-red-500 rounded-xl transition-all"
                                         >
-                                            <XCircle className="w-8 h-8" />
+                                            <XCircle className="w-6 h-6" />
                                         </button>
                                     </div>
 
@@ -3238,27 +3238,27 @@ export default function AdminPage() {
                                     <div className="flex-grow overflow-y-auto w-full relative">
                                         {/* Bulk Actions Bar */}
                                         {selectedPostsForPublishing.length > 0 && (
-                                            <div className="sticky top-0 z-20 bg-indigo-600 text-white px-10 py-4 flex items-center justify-between shadow-2xl animate-in slide-in-from-top-full duration-300">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-                                                        <Zap className="w-4 h-4 text-white" />
+                                            <div className="sticky top-0 z-[100] bg-primary text-primary-foreground px-6 py-3 flex items-center justify-between shadow-2xl animate-in slide-in-from-top-full duration-300 rounded-b-2xl">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-lg bg-black/20 flex items-center justify-center">
+                                                        <Zap className="w-4 h-4" />
                                                     </div>
-                                                    <span className="text-[10px] font-black uppercase tracking-[0.2em]">
-                                                        Vybrané: {selectedPostsForPublishing.length} formáty
+                                                    <span className="text-[10px] font-black uppercase tracking-[0.1em]">
+                                                        Vybrané: {selectedPostsForPublishing.length} príspevkov
                                                     </span>
                                                 </div>
-                                                <div className="flex gap-4">
+                                                <div className="flex gap-2">
                                                     <button
                                                         onClick={() => setSelectedPostsForPublishing([])}
-                                                        className="text-[9px] font-black uppercase tracking-widest px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl transition-all"
+                                                        className="text-[9px] font-black uppercase tracking-widest px-4 py-2 bg-black/10 hover:bg-black/20 rounded-lg transition-all"
                                                     >
-                                                        Zrušiť výber
+                                                        Zrušiť
                                                     </button>
                                                     <button
                                                         onClick={handlePublishMultiplePosts}
-                                                        className="text-[9px] font-black uppercase tracking-widest px-6 py-2 bg-white text-indigo-600 rounded-xl transition-all hover:scale-105 active:scale-95 flex items-center gap-2 shadow-lg shadow-black/20"
+                                                        className="text-[9px] font-black uppercase tracking-widest px-5 py-2 bg-white text-primary rounded-lg transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
                                                     >
-                                                        Publikovať simultánne
+                                                        Publikovať
                                                     </button>
                                                 </div>
                                             </div>
@@ -3266,14 +3266,17 @@ export default function AdminPage() {
 
                                         <div className="grid grid-cols-1 lg:grid-cols-2 min-h-full">
                                             {/* Posts Column */}
-                                            <div className="p-8 lg:p-10 space-y-8 bg-muted/5 border-r border-white/5">
+                                            <div className="p-5 md:p-8 space-y-6 bg-muted/[0.02] border-r border-white/5">
                                                 {posts.map((post) => (
                                                     <div key={post.id} className={cn(
-                                                        "rounded-[32px] border-2 p-8 transition-all",
-                                                        post.status === 'posted' ? "bg-muted/10 border-green-500/20" : "bg-[#1a1a1a] border-white/5 shadow-xl"
+                                                        "rounded-3xl border transition-all",
+                                                        post.status === 'posted'
+                                                            ? "bg-muted/5 border-green-500/20"
+                                                            : "bg-[#151515] border-white/[0.03] shadow-2xl shadow-black/50"
                                                     )}>
-                                                        <div className="flex items-center justify-between mb-8">
-                                                            <div className="flex items-center gap-6">
+                                                        {/* Header: Platform & Actions */}
+                                                        <div className="flex items-center justify-between p-4 md:p-5 border-b border-white/[0.02]">
+                                                            <div className="flex items-center gap-3">
                                                                 {/* Checkbox for selection */}
                                                                 {post.status !== 'posted' && (
                                                                     <button
@@ -3283,47 +3286,49 @@ export default function AdminPage() {
                                                                             );
                                                                         }}
                                                                         className={cn(
-                                                                            "w-8 h-8 rounded-xl border-2 flex items-center justify-center transition-all",
+                                                                            "w-5 h-5 rounded-md border flex items-center justify-center transition-all shrink-0",
                                                                             selectedPostsForPublishing.includes(post.id)
-                                                                                ? "bg-indigo-500 border-indigo-500 text-white"
-                                                                                : "border-white/10 hover:border-white/30"
+                                                                                ? "bg-primary border-primary text-white"
+                                                                                : "border-white/10 hover:border-white/20 bg-white/5"
                                                                         )}
                                                                     >
-                                                                        {selectedPostsForPublishing.includes(post.id) && <Check className="w-4 h-4" />}
+                                                                        {selectedPostsForPublishing.includes(post.id) && <Check className="w-3 h-3" strokeWidth={3} />}
                                                                     </button>
                                                                 )}
-                                                                <div className="flex items-center gap-4">
+                                                                <div className="flex items-center gap-3">
                                                                     <div className={cn(
-                                                                        "w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg",
-                                                                        post.platform === 'Instagram' ? "bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600" :
-                                                                            post.platform === 'Facebook' ? "bg-blue-600" : "bg-white text-black"
+                                                                        "w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-lg shrink-0",
+                                                                        post.platform === 'Instagram' ? "bg-gradient-to-br from-indigo-500 via-purple-500 via-pink-500 to-orange-400" :
+                                                                            post.platform === 'Facebook' ? "bg-[#1877F2]" : "bg-white text-black"
                                                                     )}>
-                                                                        {post.platform === 'Instagram' && <Instagram size={22} />}
-                                                                        {post.platform === 'Facebook' && <Facebook size={22} />}
-                                                                        {post.platform === 'X' && <XIcon size={22} />}
+                                                                        {post.platform === 'Instagram' && <Instagram size={18} />}
+                                                                        {post.platform === 'Facebook' && <Facebook size={18} />}
+                                                                        {post.platform === 'X' && <XIcon size={18} />}
                                                                     </div>
-                                                                    <span className="text-lg font-black uppercase tracking-[0.1em]">{post.platform}</span>
+                                                                    <span className="text-sm font-black uppercase tracking-widest opacity-90">{post.platform}</span>
                                                                 </div>
                                                             </div>
-                                                            <div className="flex gap-3">
+
+                                                            <div className="flex items-center gap-1.5">
                                                                 {post.status !== 'posted' && (post.platform === 'Facebook' || post.platform === 'Instagram') && (
                                                                     <button
                                                                         onClick={() => handlePublishSocialPost(post.id)}
-                                                                        className="p-3 bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500 hover:text-white rounded-xl transition-all shadow-md"
+                                                                        className="h-8 px-3 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-lg transition-all flex items-center gap-2 group border border-primary/20"
                                                                         title="Publikovať teraz cez API"
                                                                     >
-                                                                        <Zap size={20} />
+                                                                        <Zap size={14} className="group-hover:fill-current transition-all" />
+                                                                        <span className="text-[10px] font-black uppercase tracking-tighter hidden xs:inline">Publikovať</span>
                                                                     </button>
                                                                 )}
                                                                 <button
                                                                     onClick={() => handleToggleSocialPosted(post)}
                                                                     className={cn(
-                                                                        "p-3 rounded-xl transition-all shadow-md",
-                                                                        post.status === 'posted' ? "bg-green-500 text-white" : "bg-white/5 text-zinc-400 hover:bg-primary/20 hover:text-primary"
+                                                                        "w-8 h-8 rounded-lg transition-all flex items-center justify-center",
+                                                                        post.status === 'posted' ? "bg-green-500 text-white" : "bg-white/5 text-zinc-500 hover:bg-white/10 hover:text-white"
                                                                     )}
-                                                                    title={post.status === 'posted' ? "Už publikované" : "Označiť ako publikované (manuálne)"}
+                                                                    title={post.status === 'posted' ? "Už publikované" : "Označiť ako publikované"}
                                                                 >
-                                                                    <CheckCircle2 size={20} />
+                                                                    <CheckCircle2 size={16} />
                                                                 </button>
                                                                 <button
                                                                     onClick={() => {
@@ -3332,24 +3337,25 @@ export default function AdminPage() {
                                                                             if (posts.length <= 1) setSelectedPlannerArticle(null);
                                                                         }
                                                                     }}
-                                                                    className="p-3 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all shadow-md"
+                                                                    className="w-8 h-8 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg transition-all flex items-center justify-center"
                                                                 >
-                                                                    <Trash2 size={20} />
+                                                                    <Trash2 size={16} />
                                                                 </button>
                                                             </div>
                                                         </div>
 
-                                                        <div className="space-y-4">
-                                                            <div className="flex items-center justify-between">
-                                                                <span className="text-[11px] font-black uppercase tracking-widest text-zinc-500">Obsah príspevku</span>
+                                                        {/* Content Area */}
+                                                        <div className="p-4 md:p-5 space-y-3">
+                                                            <div className="flex items-center justify-between px-1">
+                                                                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500">Obsah príspevku</span>
                                                                 <button
                                                                     onClick={() => { copyToClipboard(post.content); alert(`Text pre ${post.platform} bol skopírovaný.`); }}
-                                                                    className="text-[11px] font-black uppercase tracking-widest text-primary hover:text-primary/80 flex items-center gap-2 transition-colors"
+                                                                    className="text-[9px] font-black uppercase tracking-widest text-primary/70 hover:text-primary flex items-center gap-1.5 transition-colors"
                                                                 >
-                                                                    <Copy size={14} /> Skopírovať
+                                                                    <Copy size={11} /> Skopírovať
                                                                 </button>
                                                             </div>
-                                                            <div className="bg-black/40 border border-white/5 rounded-2xl p-6 text-sm font-medium leading-relaxed max-h-[250px] overflow-y-auto whitespace-pre-wrap text-zinc-300 ring-1 ring-inset ring-white/5">
+                                                            <div className="bg-black/20 border border-white/[0.03] rounded-2xl p-4 text-[13px] font-medium leading-relaxed max-h-[200px] overflow-y-auto whitespace-pre-wrap text-zinc-400 scrollbar-hide">
                                                                 {post.content}
                                                             </div>
                                                         </div>
@@ -3358,13 +3364,14 @@ export default function AdminPage() {
                                             </div>
 
                                             {/* Preview Column */}
-                                            <div className="p-8 lg:p-10 bg-black flex flex-col items-center justify-center lg:sticky lg:top-0 h-fit lg:h-[calc(90vh-100px)] min-h-[500px]">
-                                                <div className="w-full max-w-[450px] scale-90 md:scale-100">
+                                            <div className="p-6 md:p-10 bg-black/40 border-t lg:border-t-0 border-white/5 flex flex-col items-center justify-center lg:sticky lg:top-0 h-fit lg:h-[calc(90vh-80px)] min-h-[400px]">
+                                                <div className="w-full max-w-[420px] scale-90 md:scale-100 flex flex-col items-center">
                                                     <InstagramPreview title={articleTitle} />
+                                                    <div className="mt-8 flex flex-col items-center animate-pulse">
+                                                        <span className="text-[9px] font-black uppercase tracking-[0.4em] text-zinc-600">Live Preview</span>
+                                                        <div className="w-8 h-[1px] bg-primary/30 mt-2"></div>
+                                                    </div>
                                                 </div>
-                                                <p className="mt-12 text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 text-center">
-                                                    Náhľad vizuálu postu
-                                                </p>
                                             </div>
                                         </div>
                                     </div>
