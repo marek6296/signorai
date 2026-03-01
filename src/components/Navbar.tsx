@@ -5,7 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "./ThemeToggle";
 import { cn } from "@/lib/utils";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Search, ArrowRight } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 const categories = [
     { name: "Najnovšie", href: "/" },
@@ -26,6 +27,18 @@ export function Navbar() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
 
+    const router = useRouter();
+    const [searchQuery, setSearchQuery] = useState("");
+
+    const handleSearch = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (searchQuery.trim()) {
+            router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+            setIsMenuOpen(false);
+            setSearchQuery("");
+        }
+    };
+
     useEffect(() => {
         const checkAdmin = () => {
             setIsAdmin(localStorage.getItem("admin_logged_in") === "true");
@@ -45,6 +58,20 @@ export function Navbar() {
     return (
         <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className="container mx-auto flex flex-col items-center justify-center py-2 md:py-3 relative px-4 sm:px-6 lg:px-8">
+
+                {/* DESKTOP SEARCH (Left) */}
+                <div className="hidden md:flex absolute left-3 sm:left-4 lg:left-10 top-1/2 md:top-8 -translate-y-1/2 md:translate-y-0 items-center">
+                    <form onSubmit={handleSearch} className="relative group">
+                        <input
+                            type="text"
+                            placeholder="Hľadať..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="bg-muted/30 border border-white/5 rounded-full py-2 pl-10 pr-4 text-[11px] font-black uppercase tracking-widest w-40 focus:w-64 focus:bg-background focus:border-primary/50 transition-all duration-500 outline-none"
+                        />
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                    </form>
+                </div>
 
                 {/* Brand Logo Section */}
                 <Link href="/" className="flex items-baseline gap-2 group px-8 md:px-0" onClick={() => setIsMenuOpen(false)}>
@@ -125,6 +152,26 @@ export function Navbar() {
                 "md:hidden absolute top-full left-0 w-full bg-background/95 backdrop-blur shadow-2xl border-b border-border/40 flex flex-col items-center py-6 gap-2 transition-all duration-300 ease-in-out origin-top",
                 isMenuOpen ? "scale-y-100 opacity-100" : "scale-y-0 opacity-0 pointer-events-none"
             )}>
+                {/* Mobile Search */}
+                <div className="w-11/12 max-w-sm mb-4">
+                    <form onSubmit={handleSearch} className="relative">
+                        <input
+                            type="text"
+                            placeholder="Hľadať v správach..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full bg-muted/40 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-sm font-black uppercase tracking-widest outline-none focus:border-primary/50 focus:bg-background transition-all"
+                        />
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                        <button
+                            type="submit"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-primary text-primary-foreground rounded-xl"
+                        >
+                            <ArrowRight size={16} />
+                        </button>
+                    </form>
+                </div>
+
                 {allCategories.map((category) => {
                     const isActive = pathname === category.href || (category.href !== "/" && pathname.startsWith(category.href));
 
