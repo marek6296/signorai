@@ -49,21 +49,13 @@ async function handleAutopilot(request: NextRequest, mode: 'automated' | 'manual
         const autopilotEnabled = settings.value.enabled;
         let itemsToProcess: AutopilotItem[] = [];
 
-        console.log(`>>> [Autopilot] Logic branch for mode: ${mode}`);
+        // UNIFIED DISCOVERY PHASE for both Automated and Manual runs
+        console.log(`>>> [Autopilot] Triggering dynamic discovery for mode: ${mode}`);
+        const freshNews = await discoverNewNews(1);
+        console.log(`>>> [Autopilot] Discovered ${freshNews.length} items from feeds`);
 
-        if (mode === 'automated') {
-            if (!autopilotEnabled) {
-                console.log(">>> [Autopilot] Automated run skipped (disabled)");
-                return NextResponse.json({ message: "Autopilot is disabled in settings" });
-            }
-
-            const freshNews = await discoverNewNews(1);
-            console.log(`>>> [Autopilot] Discovered ${freshNews.length} fresh items`);
-
-            if (freshNews.length === 0) {
-                return NextResponse.json({ message: "No fresh news found for autopilot run", count: 0 });
-            }
-
+        let insertedItems: AutopilotItem[] = [];
+        if (freshNews.length > 0) {
             const { data: inserted, error: insertError } = await supabase
                 .from('suggested_news')
                 .insert(freshNews)
@@ -71,50 +63,51 @@ async function handleAutopilot(request: NextRequest, mode: 'automated' | 'manual
 
             if (insertError) {
                 if (insertError.message.includes('unique')) {
-                    console.log(">>> [Autopilot] All items were duplicates");
-                    return NextResponse.json({ message: "No new unique news discovered today", count: 0 });
+                    console.log(">>> [Autopilot] Some or all items were duplicates in DB");
+                } else {
+                    console.error(">>> [Autopilot] Insert error:", insertError.message);
                 }
-                throw insertError;
             }
+            insertedItems = (inserted || []) as AutopilotItem[];
+        }
 
-            const insertedItems = inserted as AutopilotItem[];
-            const categoriesMap = new Map();
-            freshNews.forEach(newsItem => {
-                const cat = newsItem.category || "AI";
-                if (!categoriesMap.has(cat)) {
-                    const match = insertedItems.find(i => i.url === newsItem.url);
-                    if (match) categoriesMap.set(cat, match);
-                }
-            });
-            itemsToProcess = Array.from(categoriesMap.values());
+        // Logic for selecting what to process
+        // We prioritize items we JUST discovered and successfully inserted (they are truly fresh)
+        const categoriesMap = new Map();
 
-        } else {
-            // MANUAL MODE - processes EXISTING pending suggestions
-            console.log(">>> [Autopilot] Manual mode: Fetching pending suggestions");
-            const { data: suggestions, error: suggestionsError } = await supabase
+        // 1. First, try to pick from freshly inserted unique items (one per category)
+        insertedItems.forEach(item => {
+            const cat = item.category || "AI";
+            if (!categoriesMap.has(cat)) {
+                categoriesMap.set(cat, item);
+            }
+        });
+
+        // 2. If it's a Manual run and we still have "space" in categories, 
+        // we can peek at existing 'pending' suggestions to fulfill the request if discovery was thin.
+        // But per user request "nebral uz nasich navrhnutych tem", we stick mostly to fresh discovery.
+        // However, we'll allow it only if discovery yielded NOTHING new at all.
+        if (categoriesMap.size === 0) {
+            console.log(">>> [Autopilot] Discovery yielded no NEW items. Checking existing pending queue...");
+            const { data: pending, error: pendingError } = await supabase
                 .from('suggested_news')
                 .select('*')
                 .eq('status', 'pending')
-                .order('created_at', { ascending: false });
+                .order('created_at', { ascending: false })
+                .limit(20);
 
-            if (suggestionsError) throw suggestionsError;
-
-            console.log(`>>> [Autopilot] Found ${suggestions?.length || 0} pending suggestions`);
-
-            if (!suggestions || suggestions.length === 0) {
-                return NextResponse.json({ message: "Nenašli sa žiadne navrhované témy. Najprv spusti objavovanie správ.", count: 0 });
+            if (!pendingError && pending) {
+                pending.forEach(item => {
+                    const cat = item.category || "AI";
+                    if (!categoriesMap.has(cat)) {
+                        categoriesMap.set(cat, item);
+                    }
+                });
             }
-
-            const categoriesMap = new Map();
-            suggestions.forEach(item => {
-                const cat = item.category || "AI";
-                if (!categoriesMap.has(cat)) {
-                    categoriesMap.set(cat, item);
-                }
-            });
-            itemsToProcess = Array.from(categoriesMap.values());
-            console.log(`>>> [Autopilot] Selected ${itemsToProcess.length} unique categories to process`);
         }
+
+        itemsToProcess = Array.from(categoriesMap.values());
+        console.log(`>>> [Autopilot] Final selection: ${itemsToProcess.length} unique category items to process`);
 
         if (itemsToProcess.length === 0) {
             return NextResponse.json({ message: "Žiadne články na spracovanie", count: 0 });
