@@ -13,3 +13,7 @@ jobs:
       - name: Trigger Full Automation Bot API
         run: |
           curl -X GET -H "x-bot-secret: ${{ secrets.ADMIN_SECRET }}" "${{ secrets.API_BASE_URL }}/api/admin/bot-full-automation${{ github.event_name == 'workflow_dispatch' && '?ignoreTime=true' || '' }}"
+
+      - name: Trigger AI Autopilot API
+        run: |
+          curl -X GET "${{ secrets.API_BASE_URL }}/api/admin/auto-pilot?secret=${{ secrets.ADMIN_SECRET }}"

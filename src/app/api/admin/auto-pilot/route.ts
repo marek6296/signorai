@@ -47,12 +47,28 @@ async function handleAutopilot(request: NextRequest, mode: 'automated' | 'manual
         }
 
         const autopilotEnabled = settings.value.enabled;
+        const lastRun = settings.value.last_run;
         let itemsToProcess: AutopilotItem[] = [];
 
         // UNIFIED DISCOVERY PHASE for both Automated and Manual runs
-        if (mode === 'automated' && !autopilotEnabled) {
-            console.log(">>> [Autopilot] Automated run skipped (disabled in settings)");
-            return NextResponse.json({ message: "Autopilot is disabled" });
+        if (mode === 'automated') {
+            if (!autopilotEnabled) {
+                console.log(">>> [Autopilot] Automated run skipped (disabled in settings)");
+                return NextResponse.json({ message: "Autopilot is disabled" });
+            }
+
+            // Interval check: 4 hours (4 * 60 = 240 minutes)
+            if (lastRun) {
+                const lastRunDate = new Date(lastRun);
+                const now = new Date();
+                const diffMs = now.getTime() - lastRunDate.getTime();
+                const diffMins = diffMs / (1000 * 60);
+
+                if (diffMins < 235) { // 5 min buffer
+                    console.log(`>>> [Autopilot] Automated run skipped (last run was ${Math.round(diffMins)} mins ago, interval is 4h)`);
+                    return NextResponse.json({ message: "Interval not reached", lastRun });
+                }
+            }
         }
 
         console.log(`>>> [Autopilot] Triggering dynamic discovery for mode: ${mode}`);

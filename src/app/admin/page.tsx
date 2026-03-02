@@ -267,11 +267,25 @@ export default function AdminPage() {
 
         const updateAutopilotCountdown = () => {
             const now = new Date();
-            // Najbližšia celá hodina
-            const nextHour = new Date(now);
-            nextHour.setHours(now.getHours() + 1, 0, 0, 0);
+            let nextRun: Date;
 
-            const diffSeconds = Math.floor((nextHour.getTime() - now.getTime()) / 1000);
+            if (autopilotSettings.last_run) {
+                const last = new Date(autopilotSettings.last_run);
+                nextRun = new Date(last.getTime() + 4 * 60 * 60 * 1000);
+
+                // Ak už uplynul čas, ale bot ešte nebežal (lebo GitHub cron ešte neprišiel), 
+                // ukážeme napr. "Pripravujem..." alebo 0s.
+                if (nextRun.getTime() < now.getTime()) {
+                    setCountdownAutopilot("Pripravujem...");
+                    return;
+                }
+            } else {
+                // Ak ešte nikdy nebežal, nabudúce v najbližšiu celú hodinu
+                nextRun = new Date(now);
+                nextRun.setHours(now.getHours() + 1, 0, 0, 0);
+            }
+
+            const diffSeconds = Math.floor((nextRun.getTime() - now.getTime()) / 1000);
 
             if (diffSeconds === 0) {
                 fetchAutopilotSettings();
@@ -2504,7 +2518,7 @@ export default function AdminPage() {
                                             )}
                                         </div>
                                         <p className="text-muted-foreground font-medium text-sm md:text-lg leading-relaxed mb-6">
-                                            <strong className="text-foreground">Každú hodinu</strong> automaticky vyhľadá najlepšie svetové trendy, spracuje ich a publikuje priamo na web.
+                                            <strong className="text-foreground">Každé 4 hodiny</strong> automaticky vyhľadá najlepšie svetové trendy, spracuje ich a publikuje priamo na web.
                                         </p>
 
                                         {/* Autopilot Live Status Feed - Premium Countdown */}
