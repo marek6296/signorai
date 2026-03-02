@@ -93,63 +93,74 @@ export async function GET(req: NextRequest) {
             }
         }
 
-        // 3. Category Selection (Round Robin)
+        // 3. Category Selection (Round Robin with Fallback)
         const categories = settings.target_categories && settings.target_categories.length > 0
             ? settings.target_categories
             : ["AI"];
 
-        let categoryIndex = (settings.last_category_index !== undefined)
+        let startIndex = (settings.last_category_index !== undefined)
             ? (settings.last_category_index + 1) % categories.length
             : 0;
 
         // Safety: if categories changed and index is now invalid
-        if (categoryIndex >= categories.length) categoryIndex = 0;
+        if (startIndex >= categories.length) startIndex = 0;
 
-        const category = categories[categoryIndex];
-
-        // Prepare updated settings base
-        const baseSettings = {
-            ...settings,
-            last_run: new Date().toISOString(),
-            last_category_index: categoryIndex
-        };
-
-        console.log(`>>> [Bot] Starting automation for category: ${category}`);
-
-        // 4. Discovery
-        await supabase.from('site_settings').update({ value: { ...baseSettings, last_status: `Aktívny (Hľadám novinky v ${category}...)` } }).eq('key', 'social_bot');
-        const foundItems = await discoverNewNews(3, [category]);
-        if (foundItems.length === 0) {
-            await supabase
-                .from('site_settings')
-                .update({ value: { ...baseSettings, last_status: `Aktívny (Žiadne nové správy v kategórii ${category})` } })
-                .eq('key', 'social_bot');
-            return NextResponse.json({ message: `No new items found for ${category}` });
-        }
-
-        // 5. Filter for Freshness
+        // Fetch existing URLs once before the loop to optimize performance
         const { data: latestArticles } = await supabase.from("articles").select("source_url");
         const existingUrls = (latestArticles || []).map(a => (a.source_url || "").trim().toLowerCase());
 
-        const freshItems = foundItems.filter((item) => {
-            const url = (item.url || "").trim().toLowerCase();
-            return url && !existingUrls.includes(url);
-        });
+        let targetCategory = "";
+        let targetCategoryIndex = startIndex;
+        let freshItems: { url: string; title: string; source: string; summary: string; category: string; status: string }[] = [];
+
+        // Loop through all selected categories, starting intelligently from the next one in line
+        for (let i = 0; i < categories.length; i++) {
+            const currentIndex = (startIndex + i) % categories.length;
+            const categoryToTry = categories[currentIndex];
+
+            console.log(`>>> [Bot] Trying category (${i + 1}/${categories.length}): ${categoryToTry}`);
+            await supabase.from('site_settings').update({
+                value: { ...settings, last_status: `Aktívny (Hľadám novinky v sekcii ${categoryToTry}...)` }
+            }).eq('key', 'social_bot');
+
+            const foundItems = await discoverNewNews(5, [categoryToTry]); // fetch a bit more per category to increase chance of fresh content
+            if (foundItems.length > 0) {
+                // Filter for freshness
+                const fresh = foundItems.filter((item) => {
+                    const url = (item.url || "").trim().toLowerCase();
+                    return url && !existingUrls.includes(url);
+                });
+
+                if (fresh.length > 0) {
+                    freshItems = fresh;
+                    targetCategory = categoryToTry;
+                    targetCategoryIndex = currentIndex;
+                    break; // Stop searching! We found fresh content in this category.
+                }
+            }
+        }
+
+        // Base settings to be saved whether we found an article or not
+        const baseSettings = {
+            ...settings,
+            last_run: new Date().toISOString(),
+            last_category_index: targetCategoryIndex // Always remember the last category we successfully processed or tried last
+        };
 
         if (freshItems.length === 0) {
             await supabase
                 .from('site_settings')
-                .update({ value: { ...baseSettings, last_status: `Aktívny (Všetky novinky v ${category} už boli spracované)` } })
+                .update({ value: { ...baseSettings, last_status: `Aktívny (Nenašli sa žiadne nespracované články v priradených kategóriách)` } })
                 .eq('key', 'social_bot');
-            return NextResponse.json({ message: "All discovered items are already processed" });
+            return NextResponse.json({ message: "No fresh items found across all selected categories." });
         }
 
         const target = freshItems[0];
-        console.log(`>>> [Bot] Selected target: ${target.title} (${target.url})`);
+        console.log(`>>> [Bot] Selected target: ${target.title} (${target.url}) from category: ${targetCategory}`);
 
         // 6. Generate Article
         await supabase.from('site_settings').update({ value: { ...baseSettings, last_status: `Aktívny (Píšem článok: ${target.title}...)` } }).eq('key', 'social_bot');
-        const article = await processArticleFromUrl(target.url, 'published', category);
+        const article = await processArticleFromUrl(target.url, 'published', targetCategory);
         console.log(`>>> [Bot] Article generated: ${article.id}`);
 
         // 7. Generate Social Posts
