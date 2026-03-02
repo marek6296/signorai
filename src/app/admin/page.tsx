@@ -56,6 +56,7 @@ type SocialBotSettings = {
     last_run?: string;
     last_status?: string;
     last_category_index?: number;
+    use_breaking_news?: boolean;
 };
 
 type SocialPost = {
@@ -2287,7 +2288,7 @@ export default function AdminPage() {
                                                     <Globe className="w-4 h-4 text-indigo-500" />
                                                     <label className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground block">Cieľové kategórie bota</label>
                                                 </div>
-                                                <div className="flex flex-wrap gap-2">
+                                                <div className={cn("flex flex-wrap gap-2 transition-opacity duration-300", socialBotSettings.use_breaking_news && "opacity-30 pointer-events-none")}>
                                                     {["Novinky SK/CZ", "AI", "Tech", "Biznis", "Krypto", "Svet", "Politika", "Gaming"].map((cat) => {
                                                         const isSelected = socialBotSettings.target_categories?.includes(cat);
                                                         return (
@@ -2312,6 +2313,37 @@ export default function AdminPage() {
                                                             </button>
                                                         );
                                                     })}
+                                                </div>
+
+                                                {/* Breaking News Toggle */}
+                                                <div className="mt-4 pt-4 border-t border-white/5">
+                                                    <label className="flex items-start gap-3 cursor-pointer group">
+                                                        <div className="relative flex items-center mt-0.5">
+                                                            <input
+                                                                type="checkbox"
+                                                                className="sr-only"
+                                                                checked={!!socialBotSettings.use_breaking_news}
+                                                                onChange={() => handleSaveSocialBotSettings({ ...socialBotSettings, use_breaking_news: !socialBotSettings.use_breaking_news })}
+                                                            />
+                                                            <div className={cn(
+                                                                "w-11 h-6 rounded-full transition-all duration-300",
+                                                                socialBotSettings.use_breaking_news ? "bg-amber-500 shadow-md shadow-amber-500/20" : "bg-neutral-600"
+                                                            )} />
+                                                            <div className={cn(
+                                                                "absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-sm",
+                                                                socialBotSettings.use_breaking_news ? "left-6" : "left-1"
+                                                            )} />
+                                                        </div>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-white text-sm font-black tracking-widest flex items-center gap-2">
+                                                                <Zap className={cn("w-4 h-4", socialBotSettings.use_breaking_news ? "text-amber-500 fill-amber-500" : "text-muted-foreground")} />
+                                                                VYHĽADAŤ ÚPLNÉ NOVINKY (TRENDING TÉMA)
+                                                            </span>
+                                                            <span className="text-[10px] text-muted-foreground mt-1 max-w-xl">
+                                                                Ak je toto zapnuté, bot <strong>bude ignorovať kategórie vyššie</strong>. Namiesto nich prehľadá sieť ako <span className="text-amber-500">Manuálny AI Agent</span> a spracuje tú najhorúcejšiu celosvetovú tému za posledných 24 hodín pred publikovaním.
+                                                            </span>
+                                                        </div>
+                                                    </label>
                                                 </div>
                                             </div>
                                             <div className="space-y-4">

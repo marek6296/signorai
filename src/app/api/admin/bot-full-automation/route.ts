@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { discoverNewNews } from "@/lib/discovery-logic";
-import { processArticleFromUrl } from "@/lib/generate-logic";
+import { processArticleFromUrl, processArticleFromTopic } from "@/lib/generate-logic";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -98,75 +98,90 @@ export async function GET(req: NextRequest) {
             }
         }
 
-        // 3. Category Selection (Round Robin with Fallback)
-        const categories = settings.target_categories && settings.target_categories.length > 0
-            ? settings.target_categories
-            : ["AI"];
-
-        let startIndex = (settings.last_category_index !== undefined)
-            ? (settings.last_category_index + 1) % categories.length
-            : 0;
-
-        // Safety: if categories changed and index is now invalid
-        if (startIndex >= categories.length) startIndex = 0;
-
-        // Fetch existing URLs once before the loop to optimize performance
-        const { data: latestArticles } = await supabase.from("articles").select("source_url");
-        const existingUrls = (latestArticles || []).map(a => (a.source_url || "").trim().toLowerCase());
-
-        let targetCategory = "";
-        let targetCategoryIndex = startIndex;
-        let freshItems: { url: string; title: string; source: string; summary: string; category: string; status: string }[] = [];
-
-        // Loop through all selected categories, starting intelligently from the next one in line
-        for (let i = 0; i < categories.length; i++) {
-            const currentIndex = (startIndex + i) % categories.length;
-            const categoryToTry = categories[currentIndex];
-
-            console.log(`>>> [Bot] Trying category (${i + 1}/${categories.length}): ${categoryToTry}`);
-            await supabase.from('site_settings').update({
-                value: { ...settings, last_status: `Aktívny (Hľadám novinky v sekcii ${categoryToTry}...)` }
-            }).eq('key', 'social_bot');
-
-            const foundItems = await discoverNewNews(5, [categoryToTry]); // fetch a bit more per category to increase chance of fresh content
-            if (foundItems.length > 0) {
-                // Filter for freshness
-                const fresh = foundItems.filter((item) => {
-                    const url = (item.url || "").trim().toLowerCase();
-                    return url && !existingUrls.includes(url);
-                });
-
-                if (fresh.length > 0) {
-                    freshItems = fresh;
-                    targetCategory = categoryToTry;
-                    targetCategoryIndex = currentIndex;
-                    break; // Stop searching! We found fresh content in this category.
-                }
-            }
-        }
-
-        // Base settings to be saved whether we found an article or not
+        let article;
+        let finalStatusMessage = "";
         const baseSettings = {
             ...settings,
-            last_run: new Date().toISOString(),
-            last_category_index: targetCategoryIndex // Always remember the last category we successfully processed or tried last
+            last_run: new Date().toISOString()
         };
 
-        if (freshItems.length === 0) {
-            await supabase
-                .from('site_settings')
-                .update({ value: { ...baseSettings, last_status: `Aktívny (Nenašli sa žiadne nespracované články v priradených kategóriách)` } })
-                .eq('key', 'social_bot');
-            return NextResponse.json({ message: "No fresh items found across all selected categories." });
+        if (settings.use_breaking_news) {
+            console.log(`>>> [Bot] Running in Global Breaking News mode...`);
+            await supabase.from('site_settings').update({
+                value: { ...baseSettings, last_status: `Aktívny (Hľadám najzaujímavejšiu globálnu novinku...)` }
+            }).eq('key', 'social_bot');
+
+            const promptMessage = "Vyhladaj najzaujimavejsiu a najviac rozpravanu temu za poslednych 24 hodin a spracuj ju";
+            article = await processArticleFromTopic(promptMessage, 'published');
+            console.log(`>>> [Bot] Breaking News article generated: ${article.id}`);
+            finalStatusMessage = `Úspešne publikované: ${article.title}`;
+        } else {
+            // 3. Category Selection (Round Robin with Fallback)
+            const categories = settings.target_categories && settings.target_categories.length > 0
+                ? settings.target_categories
+                : ["AI"];
+
+            let startIndex = (settings.last_category_index !== undefined)
+                ? (settings.last_category_index + 1) % categories.length
+                : 0;
+
+            // Safety: if categories changed and index is now invalid
+            if (startIndex >= categories.length) startIndex = 0;
+
+            // Fetch existing URLs once before the loop to optimize performance
+            const { data: latestArticles } = await supabase.from("articles").select("source_url");
+            const existingUrls = (latestArticles || []).map(a => (a.source_url || "").trim().toLowerCase());
+
+            let targetCategory = "";
+            let targetCategoryIndex = startIndex;
+            let freshItems: { url: string; title: string; source: string; summary: string; category: string; status: string }[] = [];
+
+            // Loop through all selected categories, starting intelligently from the next one in line
+            for (let i = 0; i < categories.length; i++) {
+                const currentIndex = (startIndex + i) % categories.length;
+                const categoryToTry = categories[currentIndex];
+
+                console.log(`>>> [Bot] Trying category (${i + 1}/${categories.length}): ${categoryToTry}`);
+                await supabase.from('site_settings').update({
+                    value: { ...settings, last_status: `Aktívny (Hľadám novinky v sekcii ${categoryToTry}...)` }
+                }).eq('key', 'social_bot');
+
+                const foundItems = await discoverNewNews(5, [categoryToTry]); // fetch a bit more per category to increase chance of fresh content
+                if (foundItems.length > 0) {
+                    // Filter for freshness
+                    const fresh = foundItems.filter((item) => {
+                        const url = (item.url || "").trim().toLowerCase();
+                        return url && !existingUrls.includes(url);
+                    });
+
+                    if (fresh.length > 0) {
+                        freshItems = fresh;
+                        targetCategory = categoryToTry;
+                        targetCategoryIndex = currentIndex;
+                        break; // Stop searching! We found fresh content in this category.
+                    }
+                }
+            }
+
+            baseSettings.last_category_index = targetCategoryIndex;
+
+            if (freshItems.length === 0) {
+                await supabase
+                    .from('site_settings')
+                    .update({ value: { ...baseSettings, last_status: `Aktívny (Nenašli sa žiadne nespracované články v priradených kategóriách)` } })
+                    .eq('key', 'social_bot');
+                return NextResponse.json({ message: "No fresh items found across all selected categories." });
+            }
+
+            const target = freshItems[0];
+            console.log(`>>> [Bot] Selected target: ${target.title} (${target.url}) from category: ${targetCategory}`);
+
+            // 6. Generate Article
+            await supabase.from('site_settings').update({ value: { ...baseSettings, last_status: `Aktívny (Píšem článok: ${target.title}...)` } }).eq('key', 'social_bot');
+            article = await processArticleFromUrl(target.url, 'published', targetCategory);
+            console.log(`>>> [Bot] Article generated: ${article.id}`);
+            finalStatusMessage = `Úspešne publikované: ${article.title}`;
         }
-
-        const target = freshItems[0];
-        console.log(`>>> [Bot] Selected target: ${target.title} (${target.url}) from category: ${targetCategory}`);
-
-        // 6. Generate Article
-        await supabase.from('site_settings').update({ value: { ...baseSettings, last_status: `Aktívny (Píšem článok: ${target.title}...)` } }).eq('key', 'social_bot');
-        const article = await processArticleFromUrl(target.url, 'published', targetCategory);
-        console.log(`>>> [Bot] Article generated: ${article.id}`);
 
         // 7. Generate Social Posts
         await supabase.from('site_settings').update({ value: { ...baseSettings, last_status: `Aktívny (Publikujem na sociálne siete...)` } }).eq('key', 'social_bot');
@@ -192,7 +207,7 @@ export async function GET(req: NextRequest) {
         const autopilotData = await autopilotRes.json();
         console.log(`>>> [Bot] Social Autopilot finished:`, autopilotData);
 
-        const finalStatus = `Úspešne publikované: ${article.title}`;
+        const finalStatus = finalStatusMessage;
         await supabase
             .from('site_settings')
             .update({ value: { ...baseSettings, last_status: finalStatus } })
