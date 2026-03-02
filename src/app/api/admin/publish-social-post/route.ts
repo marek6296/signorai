@@ -60,77 +60,35 @@ export async function POST(req: Request) {
 
         let finalImageUrl = customImageUrl || post.image_url || article?.main_image;
 
-        // NEW: Handle direct image upload from client (bit-perfect preview)
-        if (uploadedFile) {
-            try {
-                const imageBuffer = Buffer.from(await uploadedFile.arrayBuffer());
-                const fileName = `direct-${id}-${Date.now()}.png`;
-
-                console.log(`[Instagram Direct Upload] Size: ${imageBuffer.byteLength} bytes`);
-
-                const { error: uploadError } = await supabase.storage
-                    .from("social-images")
-                    .upload(fileName, imageBuffer, {
-                        contentType: 'image/png',
-                        upsert: true
-                    });
-
-                if (uploadError) throw uploadError;
-
-                const { data: { publicUrl } } = supabase.storage
-                    .from("social-images")
-                    .getPublicUrl(fileName);
-
-                finalImageUrl = publicUrl;
-                console.log(`[Instagram Direct Upload] Success: ${finalImageUrl}`);
-
-                // Give Supabase Storage a moment to ensure the file is publicly available for Meta's crawlers
-                await new Promise(r => setTimeout(r, 5000));
-            } catch (err) {
-                console.error("[Instagram Direct Upload Failed]", err);
-            }
-        }
-        // Fallback: Use server-side generator if no direct upload, it failed, and no pre-cached image
-        else if (post.platform === 'Instagram' && !customImageUrl && !post.image_url) {
+        // For Instagram, we ALWAYS want to use the server-side Satori image (not browser screenshots)
+        // to ensure 100% pixel-perfect matching across all bots, automations, and manual clicks.
+        if (post.platform === 'Instagram') {
             try {
                 const headerHost = req.headers.get("x-forwarded-host") || req.headers.get("host") || "postovinky.news";
                 const protocol = headerHost.includes("localhost") ? "http" : "https";
-                const dynamicAppUrl = `${protocol}://${headerHost}`;
-                const generatorUrl = `${dynamicAppUrl}/api/social-image/${id}.png?t=${Date.now()}`;
+                const preRenderEndpoint = `${protocol}://${headerHost}/api/admin/pre-render-social-image`;
 
-                console.log(`[Instagram Storage Fallback] Using generator: ${generatorUrl}`);
+                console.log(`[Instagram Satori Vizuál] Forcing fresh server-side generation...`);
+                const res = await fetch(preRenderEndpoint, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ id: post.id })
+                });
 
-                // Generator needs a bit of time
-                await new Promise(r => setTimeout(r, 3000));
-                const imageRes = await fetch(generatorUrl);
-
-                if (imageRes.ok) {
-                    const imageBuffer = await imageRes.arrayBuffer();
-                    if (imageBuffer.byteLength > 1000) {
-                        const fileName = `fallback-${id}-${Date.now()}.png`;
-                        const { error: uploadError } = await supabase.storage
-                            .from("social-images")
-                            .upload(fileName, imageBuffer, {
-                                contentType: 'image/png',
-                                upsert: true
-                            });
-
-                        if (!uploadError) {
-                            const { data: { publicUrl } } = supabase.storage
-                                .from("social-images")
-                                .getPublicUrl(fileName);
-                            finalImageUrl = publicUrl;
-                            console.log(`[Instagram Storage Fallback] Generator success, uploaded to: ${publicUrl}`);
-                            // Wait for CDN replication before pinging Meta with the new URL
-                            await new Promise(r => setTimeout(r, 5000));
-                        }
+                if (res.ok) {
+                    const dat = await res.json();
+                    if (dat.url) {
+                        finalImageUrl = dat.url;
+                        console.log(`[Instagram Satori Vizuál] Success, using exact URL: ${finalImageUrl}`);
+                        // The pre-render endpoint already waited 4s, but we'll add 2s extra buffer 
+                        await new Promise(r => setTimeout(r, 2000));
                     }
                 } else {
-                    console.warn(`[Instagram Storage Fallback] Generator returned: ${imageRes.status}.`);
+                    console.warn(`[Instagram Satori Vizuál] Failed, using cached or fallback.`);
                 }
-            } catch (storageError) {
-                console.error("[Instagram Storage Fallback Error]", storageError);
-                finalImageUrl = article?.main_image || finalImageUrl;
+            } catch (err) {
+                console.error("[Instagram Satori Vizuál Error]", err);
+                finalImageUrl = post.image_url || article?.main_image || customImageUrl;
             }
         }
 
