@@ -9,7 +9,7 @@
         },
         {
             "path": "/api/admin/bot-full-automation",
-            "schedule": "*/20 * * * *"
+            "schedule": "*/15 * * * *"
         }
     ]
 }
