@@ -2,8 +2,8 @@ name: Full Automation Bot Cron
 
 on:
   schedule:
-    # Spustí sa každých 8 hodín (napr. 00:00, 08:00, 16:00 UTC)
-    - cron: '0 */8 * * *'
+    # Kontroluje každých 15 minút (spustí bota, len ak je na webe nastavený tento čas)
+    - cron: '*/15 * * * *'
   workflow_dispatch: # Obsahuje manuálne tlačidlo "Run workflow" v GitHub UI
 
 jobs:
@@ -12,7 +12,7 @@ jobs:
     steps:
       - name: Trigger Full Automation Bot API
         run: |
-          # Vola API s pridavnym parametrom ignoreTime=true
-          # Ten zabezpeci, ze bot bude ignorovat casove rozvrhy a vykona sa ihned,
-          # ale STALE bude kontrolovat, ci je bot realne zapnuty v databaze.
-          curl -X GET "${{ secrets.API_BASE_URL }}/api/admin/bot-full-automation?secret=${{ secrets.ADMIN_SECRET }}&ignoreTime=true"
+          # Vola API a ak je workflow spustene ročne (z UI), prida parameter ignoreTime
+          # To znamená, že autmatizovaný cron najprv skontroluje, aký čas má nastavený v DB
+          # a proces vykoná iba ak sa nachádza v príslušnom okne.
+          curl -X GET "${{ secrets.API_BASE_URL }}/api/admin/bot-full-automation?secret=${{ secrets.ADMIN_SECRET }}${{ github.event_name == 'workflow_dispatch' && '&ignoreTime=true' || '' }}"
