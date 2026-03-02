@@ -13,7 +13,8 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const authHeader = req.headers.get("authorization");
     const headerSecret = authHeader ? authHeader.replace("Bearer ", "").trim() : null;
-    const secret = url.searchParams.get("secret") || headerSecret;
+    const customHeaderSecret = req.headers.get("x-bot-secret");
+    const secret = url.searchParams.get("secret") || customHeaderSecret || headerSecret;
     const force = url.searchParams.get("force") === "true";
     const ignoreTime = url.searchParams.get("ignoreTime") === "true";
     const isVercelCron = req.headers.get("x-vercel-cron") === "1";
