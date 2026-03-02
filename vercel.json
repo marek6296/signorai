@@ -6,10 +6,6 @@
         {
             "path": "/api/admin/auto-pilot",
             "schedule": "0 */4 * * *"
-        },
-        {
-            "path": "/api/admin/bot-full-automation",
-            "schedule": "*/15 * * * *"
         }
     ]
 }

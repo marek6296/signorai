@@ -56,21 +56,13 @@ export async function GET(req: NextRequest) {
 
             console.log(`>>> [Bot] Current Bratislava Time: ${bratislavaTime}`);
 
-            const [currH, currM] = bratislavaTime.split(':').map(Number);
-            const currTotalMinutes = currH * 60 + currM;
+            const [currH] = bratislavaTime.split(':').map(Number);
 
-            // Find the closest scheduled time that has passed but not been executed yet
+            // GitHub action now runs every hour, but might be delayed by 10-45 mins.
+            // We just check if the current hour matches the hour they scheduled.
             const isTime = settings.posting_times.some((t: string) => {
-                const [h, m] = t.split(':').map(Number);
-                const scheduledMinutes = h * 60 + m;
-
-                // We allow a large window (e.g. 5 hours) but the 'last_run' will prevent double execution.
-                // This ensures that if the cron runs 10 mins late, it still catches the window.
-                const diff = currTotalMinutes - scheduledMinutes;
-
-                // If the scheduled time is in the future but within the day, diff will be negative.
-                // If the scheduled time was earlier today, diff is positive.
-                return diff >= 0 && diff < 60; // 60 minute window for cron to catch it
+                const [h] = t.split(':').map(Number);
+                return currH === h;
             });
 
             // Double run protection: If we are in a valid window, check when we last succeeded.
@@ -80,8 +72,8 @@ export async function GET(req: NextRequest) {
                     const diffMs = now.getTime() - lastRunDate.getTime();
                     const diffMins = diffMs / (1000 * 60);
 
-                    // If we run successfully less than 70 minutes ago, don't run again in this window.
-                    if (diffMins < 70 && settings.last_status?.includes("Úspešne publikované")) {
+                    // ak bežal úspešne pred menej ako 55 minútami, v tej istej hodine už druhýkrát nepôjde
+                    if (diffMins < 55 && settings.last_status?.includes("Úspešne publikované")) {
                         console.log(`>>> [Bot] Skipping: Already run successfully ${Math.round(diffMins)} mins ago.`);
                         return NextResponse.json({ message: "Already run recently for this window", lastRun: settings.last_run });
                     }

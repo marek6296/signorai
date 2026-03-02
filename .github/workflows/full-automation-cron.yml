@@ -2,8 +2,8 @@ name: Full Automation Bot Cron
 
 on:
   schedule:
-    # Kontroluje každých 15 minút (spustí bota, len ak je na webe nastavený tento čas)
-    - cron: '*/15 * * * *'
+    # Kontroluje každú hodinu (často vplyvom GitHubu spúšťa neskôr o +10 až +30 min)
+    - cron: '0 * * * *'
   workflow_dispatch: # Obsahuje manuálne tlačidlo "Run workflow" v GitHub UI
 
 jobs:

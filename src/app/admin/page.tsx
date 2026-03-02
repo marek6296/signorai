@@ -2318,10 +2318,10 @@ export default function AdminPage() {
                                                 <div className="flex flex-col gap-1 mb-3">
                                                     <div className="flex items-center gap-2">
                                                         <Clock className="w-4 h-4 text-indigo-500" />
-                                                        <label className="text-[10px] font-black uppercase tracking-[0.15em] text-foreground block">Presné časy publikovania</label>
+                                                        <label className="text-[10px] font-black uppercase tracking-[0.15em] text-foreground block">Hodiny publikovania (Približný čas)</label>
                                                     </div>
                                                     <span className="text-[10px] text-muted-foreground italic pl-6">
-                                                        Bot sa pripája každých 15 minút. Časy zadávajte zásadne v 15-minútových intervaloch (napr. 09:00, 10:15, 12:30, 18:45).
+                                                        GitHub Bot sa pozdĺž dňa spúšťa každú hodinu. Článok sa vygeneruje v priebehu danej zadanej hodiny (naprieč oneskoreniam cca +15 až +45 min).
                                                     </span>
                                                 </div>
                                                 <div className="flex flex-wrap gap-2 pl-6">
@@ -2341,14 +2341,14 @@ export default function AdminPage() {
                                                     ))}
                                                     <button
                                                         onClick={() => {
-                                                            const time = prompt("Zadajte presný čas publikovania v 15-min. intervaloch (napr. 09:00, 14:15, 17:30, 20:45):", "12:00");
-                                                            if (time && /^([0-1]?[0-9]|2[0-3]):(00|15|30|45)$/.test(time)) {
+                                                            const time = prompt("Zadajte IBA celú hodinu publikovania (napr. 09:00, 14:00, 18:00, 20:00):", "12:00");
+                                                            if (time && /^([0-1]?[0-9]|2[0-3]):00$/.test(time)) {
                                                                 const formattedTime = time.length === 4 ? `0${time}` : time; // handle "9:00" -> "09:00"
                                                                 // Deduplicate and sort
                                                                 const uniqueTimes = Array.from(new Set([...socialBotSettings.posting_times, formattedTime])).sort();
                                                                 handleSaveSocialBotSettings({ ...socialBotSettings, posting_times: uniqueTimes });
                                                             } else if (time) {
-                                                                alert("Neplatný formát! Čas musí byť vo formáte HH:MM a končiť výhradne na 00, 15, 30 alebo 45.");
+                                                                alert("Neplatný formát! Čas musí byť zadaný výhradne ako celá hodina, s koncovkou :00 (napríklad 11:00 alebo 18:00).");
                                                             }
                                                         }}
                                                         className="px-4 py-2 bg-indigo-500/5 text-indigo-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 hover:text-white transition-all border-2 border-dashed border-indigo-500/30 flex items-center gap-2"
