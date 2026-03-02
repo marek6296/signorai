@@ -52,8 +52,8 @@ export async function POST(req: NextRequest) {
 
         await supabase.from('social_posts').update({ image_url: publicUrl }).eq('id', id);
 
-        // Give the storage edge network a hot second to replicate the file just in case it's instantly queried
-        await new Promise(r => setTimeout(r, 1000));
+        // Give the storage edge network 4 full seconds to replicate the file just in case it's instantly queried by Meta/Instagram bots
+        await new Promise(r => setTimeout(r, 4000));
 
         console.log(`>>> [Pre-render Storage] Success, image cached: ${publicUrl}`);
 

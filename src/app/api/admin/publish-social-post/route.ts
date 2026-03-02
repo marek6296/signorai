@@ -85,7 +85,7 @@ export async function POST(req: Request) {
                 console.log(`[Instagram Direct Upload] Success: ${finalImageUrl}`);
 
                 // Give Supabase Storage a moment to ensure the file is publicly available for Meta's crawlers
-                await new Promise(r => setTimeout(r, 2000));
+                await new Promise(r => setTimeout(r, 5000));
             } catch (err) {
                 console.error("[Instagram Direct Upload Failed]", err);
             }
@@ -100,7 +100,8 @@ export async function POST(req: Request) {
 
                 console.log(`[Instagram Storage Fallback] Using generator: ${generatorUrl}`);
 
-                await new Promise(r => setTimeout(r, 1000));
+                // Generator needs a bit of time
+                await new Promise(r => setTimeout(r, 3000));
                 const imageRes = await fetch(generatorUrl);
 
                 if (imageRes.ok) {
@@ -119,6 +120,9 @@ export async function POST(req: Request) {
                                 .from("social-images")
                                 .getPublicUrl(fileName);
                             finalImageUrl = publicUrl;
+                            console.log(`[Instagram Storage Fallback] Generator success, uploaded to: ${publicUrl}`);
+                            // Wait for CDN replication before pinging Meta with the new URL
+                            await new Promise(r => setTimeout(r, 5000));
                         }
                     }
                 } else {

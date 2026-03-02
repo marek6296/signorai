@@ -223,6 +223,10 @@ Perex: ${article.excerpt}`;
             savedPosts.push(savedPost);
 
             if (autoPublish && savedPost) {
+                // Wait another 3 seconds for strict robustness before the publishing request fires.
+                // The pre-render endpoint already waited 4s, but Meta bots can be very fast & sensitive.
+                await new Promise(r => setTimeout(r, 3000));
+
                 try {
                     // Call our specialized publishing API to ensure we follow the EXACT same logic
                     // as the manual "Publish" button (storage buffering, FB link logic, etc.)
