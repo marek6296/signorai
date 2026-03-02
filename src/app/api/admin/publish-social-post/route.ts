@@ -97,8 +97,9 @@ export async function POST(req: Request) {
             try {
                 // Pre Facebook chceme čistý Link Post (aby si FB sám stiahol obrázok z webu)
                 result = await publishToFacebook(post.content, articleUrl);
-            } catch (fbError: any) {
-                console.warn("[Facebook] Link scrape failed:", fbError.message);
+            } catch (fbError: unknown) {
+                const fbErrorMsg = fbError instanceof Error ? fbError.message : String(fbError);
+                console.warn("[Facebook] Link scrape failed:", fbErrorMsg);
                 console.log("[Facebook] Falling back to Photo Post with generated AI Vizuál...");
 
                 // Fallback to Satori image if Meta cannot scrape the original site's article image

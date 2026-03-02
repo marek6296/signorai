@@ -87,8 +87,9 @@ OBSAH: ${article.content}`
             response_format: { type: "json_object" },
             temperature: 0.2
         });
-    } catch (openAiError: any) {
-        console.warn(`>>> [Final Review] OpenAI failed (possibly inaccessible image url): ${openAiError.message}`);
+    } catch (openAiError: unknown) {
+        const errorMsg = openAiError instanceof Error ? openAiError.message : String(openAiError);
+        console.warn(`>>> [Final Review] OpenAI failed (possibly inaccessible image url): ${errorMsg}`);
         console.log(`>>> [Final Review] Retrying without the image URL...`);
         // Remove the image_url part and retry
         const textOnlyContentArr = userContentArr.filter(part => part.type === 'text');
