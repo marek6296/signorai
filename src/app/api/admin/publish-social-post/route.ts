@@ -13,13 +13,13 @@ const supabase = createClient(
 export async function POST(req: Request) {
     try {
         const contentType = req.headers.get("content-type") || "";
-        let id: string, secret: string, customImageUrl: string | undefined, uploadedFile: File | null = null;
+        let id: string, secret: string, customImageUrl: string | undefined;
 
         if (contentType.includes("multipart/form-data")) {
             const formData = await req.formData();
             id = formData.get("id") as string;
             secret = formData.get("secret") as string;
-            uploadedFile = formData.get("image") as File;
+            // image from formData is deliberately ignored for Instagram to force Satori pre-render
         } else {
             const body = await req.json();
             id = body.id;
