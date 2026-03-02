@@ -79,12 +79,32 @@ OBSAH: ${article.content}`
         content: userContentArr
     });
 
-    const res = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: messages,
-        response_format: { type: "json_object" },
-        temperature: 0.2
-    });
+    let res;
+    try {
+        res = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: messages,
+            response_format: { type: "json_object" },
+            temperature: 0.2
+        });
+    } catch (openAiError: any) {
+        console.warn(`>>> [Final Review] OpenAI failed (possibly inaccessible image url): ${openAiError.message}`);
+        console.log(`>>> [Final Review] Retrying without the image URL...`);
+        // Remove the image_url part and retry
+        const textOnlyContentArr = userContentArr.filter(part => part.type === 'text');
+        messages.pop(); // Remove the last user message with image
+        messages.push({
+            role: "user",
+            content: textOnlyContentArr
+        });
+
+        res = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: messages,
+            response_format: { type: "json_object" },
+            temperature: 0.2
+        });
+    }
 
     const reply = res.choices[0]?.message?.content || "{}";
     const reviewedData = JSON.parse(reply);

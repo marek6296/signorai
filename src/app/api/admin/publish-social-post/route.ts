@@ -92,12 +92,37 @@ export async function POST(req: Request) {
             }
         }
 
-        // 3. Publish based on platform
         let result;
         if (post.platform === 'Facebook') {
-            // Pre Facebook chceme čistý Link Post (aby si FB sám stiahol obrázok z webu)
-            // Posielame aj explicitný link, aby FB vygeneroval poriadny náhľad (preview card)
-            result = await publishToFacebook(post.content, articleUrl);
+            try {
+                // Pre Facebook chceme čistý Link Post (aby si FB sám stiahol obrázok z webu)
+                result = await publishToFacebook(post.content, articleUrl);
+            } catch (fbError: any) {
+                console.warn("[Facebook] Link scrape failed:", fbError.message);
+                console.log("[Facebook] Falling back to Photo Post with generated AI Vizuál...");
+
+                // Fallback to Satori image if Meta cannot scrape the original site's article image
+                const headerHost = req.headers.get("x-forwarded-host") || req.headers.get("host") || "postovinky.news";
+                const protocol = headerHost.includes("localhost") ? "http" : "https";
+                const preRenderEndpoint = `${protocol}://${headerHost}/api/admin/pre-render-social-image`;
+
+                const res = await fetch(preRenderEndpoint, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ id: post.id })
+                });
+
+                let fallbackImg = post.image_url;
+                if (res.ok) {
+                    const dat = await res.json();
+                    if (dat.url) fallbackImg = dat.url;
+                }
+
+                if (!fallbackImg) throw fbError;
+
+                // Post as Photo (no explicit link param, link text remains in the message)
+                result = await publishToFacebook(post.content, undefined, fallbackImg);
+            }
         } else if (post.platform === 'Instagram') {
             // Instagram MUST have our generated 1:1 image to avoid aspect ratio errors
             if (!finalImageUrl || (finalImageUrl === article?.main_image)) {
