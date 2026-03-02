@@ -2315,35 +2315,19 @@ export default function AdminPage() {
                                                 </div>
                                             </div>
                                             <div className="space-y-4">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <Calendar className="w-4 h-4 text-indigo-500" />
-                                                    <label className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground block">Interval publikovania</label>
-                                                </div>
-                                                <div className="flex items-center gap-3">
-                                                    <div className="relative">
-                                                        <input
-                                                            type="number"
-                                                            value={socialBotSettings.interval_hours}
-                                                            min="1"
-                                                            max="168"
-                                                            onChange={(e) => setSocialBotSettings({ ...socialBotSettings, interval_hours: parseInt(e.target.value) || 1 })}
-                                                            onBlur={() => handleSaveSocialBotSettings(socialBotSettings)}
-                                                            className="w-24 bg-background border-2 border-border rounded-xl px-4 py-3 text-center font-bold focus:border-indigo-500 focus:outline-none transition-all shadow-inner"
-                                                        />
+                                                <div className="flex flex-col gap-1 mb-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <Clock className="w-4 h-4 text-indigo-500" />
+                                                        <label className="text-[10px] font-black uppercase tracking-[0.15em] text-foreground block">Presné časy publikovania</label>
                                                     </div>
-                                                    <span className="text-xs font-black text-muted-foreground uppercase tracking-widest">Hodín</span>
+                                                    <span className="text-[10px] text-muted-foreground italic pl-6">
+                                                        Bot sa pripája každých 15 minút. Časy zadávajte zásadne v 15-minútových intervaloch (napr. 09:00, 10:15, 12:30, 18:45).
+                                                    </span>
                                                 </div>
-                                            </div>
-
-                                            <div className="space-y-4">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <Clock className="w-4 h-4 text-indigo-500" />
-                                                    <label className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground block">Presné časy</label>
-                                                </div>
-                                                <div className="flex flex-wrap gap-2">
+                                                <div className="flex flex-wrap gap-2 pl-6">
                                                     {socialBotSettings.posting_times.map((time, idx) => (
-                                                        <div key={idx} className="flex items-center gap-2 bg-muted/30 hover:bg-muted/50 px-3.5 py-2 rounded-xl border border-border/50 group/time transition-all">
-                                                            <span className="text-xs font-black tabular-nums">{time}</span>
+                                                        <div key={idx} className="flex items-center gap-2 bg-indigo-500/10 hover:bg-indigo-500/20 px-3.5 py-2 rounded-xl border border-indigo-500/30 group/time transition-all">
+                                                            <span className="text-xs font-black tabular-nums text-indigo-600 dark:text-indigo-400">{time}</span>
                                                             <button
                                                                 onClick={() => {
                                                                     const newTimes = socialBotSettings.posting_times.filter((_, i) => i !== idx);
@@ -2357,14 +2341,17 @@ export default function AdminPage() {
                                                     ))}
                                                     <button
                                                         onClick={() => {
-                                                            const time = prompt("Zadajte čas publikovania (HH:MM):", "12:00");
-                                                            if (time && /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(time)) {
-                                                                handleSaveSocialBotSettings({ ...socialBotSettings, posting_times: [...socialBotSettings.posting_times, time].sort() });
+                                                            const time = prompt("Zadajte presný čas publikovania v 15-min. intervaloch (napr. 09:00, 14:15, 17:30, 20:45):", "12:00");
+                                                            if (time && /^([0-1]?[0-9]|2[0-3]):(00|15|30|45)$/.test(time)) {
+                                                                const formattedTime = time.length === 4 ? `0${time}` : time; // handle "9:00" -> "09:00"
+                                                                // Deduplicate and sort
+                                                                const uniqueTimes = Array.from(new Set([...socialBotSettings.posting_times, formattedTime])).sort();
+                                                                handleSaveSocialBotSettings({ ...socialBotSettings, posting_times: uniqueTimes });
                                                             } else if (time) {
-                                                                alert("Neplatný formát času. Použite HH:MM (napr. 09:30 alebo 21:00)");
+                                                                alert("Neplatný formát! Čas musí byť vo formáte HH:MM a končiť výhradne na 00, 15, 30 alebo 45.");
                                                             }
                                                         }}
-                                                        className="px-4 py-2 bg-indigo-500/10 text-indigo-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 hover:text-white transition-all border-2 border-dashed border-indigo-500/30 flex items-center gap-2"
+                                                        className="px-4 py-2 bg-indigo-500/5 text-indigo-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 hover:text-white transition-all border-2 border-dashed border-indigo-500/30 flex items-center gap-2"
                                                     >
                                                         <Plus className="w-3.5 h-3.5" /> Pridať
                                                     </button>
