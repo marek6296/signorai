@@ -11,7 +11,9 @@ const LEGACY_SECRET = "make-com-webhook-secret";
 
 export async function GET(req: NextRequest) {
     const url = new URL(req.url);
-    const secret = url.searchParams.get("secret");
+    const authHeader = req.headers.get("authorization");
+    const headerSecret = authHeader ? authHeader.replace("Bearer ", "").trim() : null;
+    const secret = url.searchParams.get("secret") || headerSecret;
     const force = url.searchParams.get("force") === "true";
     const ignoreTime = url.searchParams.get("ignoreTime") === "true";
     const isVercelCron = req.headers.get("x-vercel-cron") === "1";
