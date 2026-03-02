@@ -2341,14 +2341,14 @@ export default function AdminPage() {
                                                     ))}
                                                     <button
                                                         onClick={() => {
-                                                            const time = prompt("Zadajte IBA celú hodinu publikovania (napr. 09:00, 14:00, 18:00, 20:00):", "12:00");
-                                                            if (time && /^([0-1]?[0-9]|2[0-3]):00$/.test(time)) {
+                                                            const time = prompt("Zadajte presný čas publikovania včítane minút (napr. 09:00, 14:15, 17:35, 20:42):", "12:00");
+                                                            if (time && /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(time)) {
                                                                 const formattedTime = time.length === 4 ? `0${time}` : time; // handle "9:00" -> "09:00"
                                                                 // Deduplicate and sort
                                                                 const uniqueTimes = Array.from(new Set([...socialBotSettings.posting_times, formattedTime])).sort();
                                                                 handleSaveSocialBotSettings({ ...socialBotSettings, posting_times: uniqueTimes });
                                                             } else if (time) {
-                                                                alert("Neplatný formát! Čas musí byť zadaný výhradne ako celá hodina, s koncovkou :00 (napríklad 11:00 alebo 18:00).");
+                                                                alert("Neplatný formát! Čas musí byť zadaný vo formáte HH:MM (napr. 09:15 alebo 18:40).");
                                                             }
                                                         }}
                                                         className="px-4 py-2 bg-indigo-500/5 text-indigo-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 hover:text-white transition-all border-2 border-dashed border-indigo-500/30 flex items-center gap-2"

@@ -56,13 +56,23 @@ export async function GET(req: NextRequest) {
 
             console.log(`>>> [Bot] Current Bratislava Time: ${bratislavaTime}`);
 
-            const [currH] = bratislavaTime.split(':').map(Number);
+            const [currH, currM] = bratislavaTime.split(':').map(Number);
+            const currTotalMinutes = currH * 60 + currM;
 
             // GitHub action now runs every hour, but might be delayed by 10-45 mins.
-            // We just check if the current hour matches the hour they scheduled.
+            // Alebo používateľ testuje manuálne.
+            // Overíme, či aktuálny čas neubehol viac než 59 minút po naplánovanom čase.
             const isTime = settings.posting_times.some((t: string) => {
-                const [h] = t.split(':').map(Number);
-                return currH === h;
+                const [h, m] = t.split(':').map(Number);
+                const scheduledTotalMinutes = h * 60 + (m || 0);
+
+                let diff = currTotalMinutes - scheduledTotalMinutes;
+                // Prechod cez polnoc
+                if (diff < -12 * 60) {
+                    diff += 24 * 60;
+                }
+
+                return diff >= 0 && diff < 59;
             });
 
             // Double run protection: If we are in a valid window, check when we last succeeded.
