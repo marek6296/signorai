@@ -192,7 +192,7 @@ export async function GET(
                                 textTransform: 'uppercase',
                                 margin: 0,
                                 letterSpacing: '-0.01em',
-                                wordSpacing: '0.15em',
+                                wordSpacing: '0.35em',
                                 fontFamily: interBlack ? 'Inter' : 'sans-serif',
                                 textAlign: 'center',
                             }}
