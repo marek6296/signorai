@@ -1,16 +1,16 @@
 import type { Metadata } from "next";
 
-const BASE_URL = "https://postovinky.news";
+const BASE_URL = "https://aiwai.news";
 
 export const metadata: Metadata = {
   title: "Ochrana osobných údajov",
-  description: "Zásady ochrany osobných údajov portálu Postovinky. Ako zbierame, používame a chránime vaše údaje v súlade s GDPR.",
+  description: "Zásady ochrany osobných údajov portálu AIWai. Ako zbierame, používame a chránime vaše údaje v súlade s GDPR.",
   alternates: { canonical: `${BASE_URL}/ochrana-sukromia` },
   openGraph: {
-    title: "Ochrana osobných údajov | Postovinky",
+    title: "Ochrana osobných údajov | AIWai",
     description: "Vaše súkromie je pre nás prioritou. Prečítajte si naše zásady spracovania osobných údajov.",
     url: `${BASE_URL}/ochrana-sukromia`,
-    siteName: "Postovinky",
+    siteName: "AIWai",
     locale: "sk_SK",
   },
 };
@@ -32,7 +32,7 @@ export default function PrivacyPage() {
                 <section className="space-y-4">
                     <h2 className="text-2xl font-bold text-foreground font-syne">1. Úvodné informácie</h2>
                     <p>
-                        Vaše súkromie je pre nás prioritou. Tento dokument vysvetľuje, ako POSTOVINKY ({'\"'}my{'\"'}, {'\"'}nás{'\"'} alebo {'\"'}portál{'\"'}) zhromažďujú, používajú a chránia vaše osobné údaje pri návšteve našej webovej stránky.
+                        Vaše súkromie je pre nás prioritou. Tento dokument vysvetľuje, ako AIWai ({'\"'}my{'\"'}, {'\"'}nás{'\"'} alebo {'\"'}portál{'\"'}) zhromažďujú, používajú a chránia vaše osobné údaje pri návšteve našej webovej stránky.
                     </p>
                 </section>
 
@@ -70,7 +70,7 @@ export default function PrivacyPage() {
                 <section className="p-8 rounded-2xl bg-muted/30 border border-border/50">
                     <h2 className="text-xl font-bold text-foreground font-syne mb-2">Máte otázky?</h2>
                     <p className="text-sm">
-                        Ak máte akékoľvek otázky týkajúce sa vašich údajov, napíšte nám na <span className="text-primary font-bold">redakcia@postovinky.sk</span>.
+                        Ak máte akékoľvek otázky týkajúce sa vašich údajov, napíšte nám na <span className="text-primary font-bold">redakcia@aiwai.sk</span>.
                     </p>
                 </section>
             </div>

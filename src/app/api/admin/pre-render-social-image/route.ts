@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
 
         if (!id) return NextResponse.json({ error: "Missing ID" }, { status: 400 });
 
-        const headerHost = req.headers.get("x-forwarded-host") || req.headers.get("host") || "postovinky.news";
+        const headerHost = req.headers.get("x-forwarded-host") || req.headers.get("host") || "aiwai.news";
         const protocol = headerHost.includes("localhost") ? "http" : "https";
         const dynamicAppUrl = `${protocol}://${headerHost}`;
         const generatorUrl = `${dynamicAppUrl}/api/social-image/${id}.png?t=${Date.now()}`;

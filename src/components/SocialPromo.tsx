@@ -41,7 +41,7 @@ export function SocialPromo() {
                 {mounted && (
                     <Image
                         src={logoSrc}
-                        alt="Postovinky Logo Background"
+                        alt="AIWai Logo Background"
                         fill
                         className="object-cover transition-transform duration-1000 group-hover:scale-110"
                         priority
@@ -69,7 +69,7 @@ export function SocialPromo() {
                     {/* Larger Social Buttons Grid */}
                     <div className="flex items-center justify-center gap-6">
                         <a
-                            href="https://www.instagram.com/postovinky.news/"
+                            href="https://www.instagram.com/aiwai.news/"
                             target="_blank"
                             rel="noopener noreferrer"
                             className={`w-14 h-14 rounded-2xl border flex items-center justify-center hover:scale-110 active:scale-90 transition-all shadow-xl group/icon ${mounted && resolvedTheme === "light"
@@ -93,7 +93,7 @@ export function SocialPromo() {
                             <Facebook className="w-7 h-7" />
                         </a>
                         <a
-                            href="https://x.com/POSTOVINKY"
+                            href="https://x.com/AIWai"
                             target="_blank"
                             rel="noopener noreferrer"
                             className={`w-14 h-14 rounded-2xl border flex items-center justify-center hover:scale-110 active:scale-90 transition-all shadow-xl group/icon ${mounted && resolvedTheme === "light"

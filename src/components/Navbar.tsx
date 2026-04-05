@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "./ThemeToggle";
 import { cn } from "@/lib/utils";
-import { Menu, X, Search, ArrowRight, Loader2, Sparkles } from "lucide-react";
+import { Menu, X, Search, ArrowRight, Loader2, Sparkles, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { type Article } from "@/lib/data";
@@ -13,17 +13,9 @@ import Image from "next/image";
 
 const categories = [
     { name: "Najnovšie", href: "/" },
-    { name: "Novinky SK/CZ", href: "/kategoria/novinky" },
     { name: "AI", href: "/kategoria/ai" },
     { name: "Tech", href: "/kategoria/tech" },
-    { name: "Biznis", href: "/kategoria/biznis" },
-    { name: "Krypto", href: "/kategoria/krypto" },
-    { name: "Svet", href: "/kategoria/svet" },
-    { name: "Politika", href: "/kategoria/politika" },
-    { name: "Veda", href: "/kategoria/veda" },
-    { name: "Gaming", href: "/kategoria/gaming" },
     { name: "Návody & Tipy", href: "/kategoria/navody" },
-    { name: "Iné", href: "/kategoria/ine" },
 ];
 
 export function Navbar() {
@@ -98,10 +90,10 @@ export function Navbar() {
 
     return (
         <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <div className="container mx-auto flex flex-col items-center justify-center py-2 md:py-3 relative px-4 sm:px-6 lg:px-8">
+            <div className="container mx-auto flex flex-col items-center justify-center py-3 md:py-5 relative px-4 sm:px-6 lg:px-8">
 
-                {/* DESKTOP SEARCH (Left Corner) */}
-                <div className="hidden md:flex absolute left-4 lg:left-10 top-1/2 md:top-4 -translate-y-1/2 md:translate-y-0 items-center z-50">
+                {/* DESKTOP SEARCH + DROPDOWN MENU (Left Corner) */}
+                <div className="hidden md:flex absolute left-4 lg:left-10 top-1/2 -translate-y-1/2 flex-col items-start gap-1.5 z-50">
                     <div className="relative">
                         <form onSubmit={handleSearch} className="flex items-center group bg-muted/20 hover:bg-muted/40 rounded-full px-3 transition-all border border-white/5 focus-within:border-primary/50">
                             <button type="submit" className="p-1.5 text-muted-foreground group-focus-within:text-primary hover:text-primary transition-colors">
@@ -171,16 +163,53 @@ export function Navbar() {
                             </div>
                         )}
                     </div>
+
+                    {/* DROPDOWN MENU */}
+                    <div className="relative group ml-8 text-[11px]">
+                        <button className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors">
+                            Menu <ChevronDown size={12} className="transition-transform duration-300 group-hover:rotate-180" />
+                        </button>
+                        <div className="absolute top-full left-0 mt-2 w-52 bg-background/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden
+                            opacity-0 invisible translate-y-2
+                            group-hover:opacity-100 group-hover:visible group-hover:translate-y-0
+                            transition-all duration-300 ease-out z-50 flex flex-col p-2 gap-1">
+                            {allCategories.map((cat) => {
+                                const isActiveCat = pathname === cat.href || (cat.href !== "/" && pathname.startsWith(cat.href));
+                                return (
+                                    <Link
+                                        key={cat.name}
+                                        href={cat.href}
+                                        className={cn(
+                                            "flex items-center px-4 py-3 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all duration-200",
+                                            isActiveCat
+                                                ? "text-primary-foreground bg-primary shadow-md"
+                                                : "text-muted-foreground hover:text-foreground hover:bg-primary/10"
+                                        )}
+                                    >
+                                        {cat.name}
+                                    </Link>
+                                );
+                            })}
+                        </div>
+                    </div>
                 </div>
 
                 {/* Brand Logo Section */}
-                <Link href="/" className="flex items-baseline gap-2 group px-8 md:px-0" onClick={() => setIsMenuOpen(false)}>
-                    <span className="font-syne font-extrabold text-2xl md:text-6xl tracking-tighter uppercase 
+                <Link href="/" className="flex items-center gap-3 group px-8 md:px-0" onClick={() => setIsMenuOpen(false)}>
+                    <span className="font-syne font-extrabold text-2xl md:text-5xl tracking-tighter uppercase 
                         bg-gradient-to-r from-foreground via-foreground/50 to-foreground 
                         bg-clip-text text-transparent animate-text-shimmer leading-none">
-                        POSTOVINKY
+                        AIWai
                     </span>
-                    <span className="text-primary font-black text-[8px] md:text-xs uppercase tracking-[0.3em] opacity-70 group-hover:opacity-100 transition-opacity translate-y-[-1px] md:translate-y-[-2.5px] ml-1">
+                    <Image 
+                        src="/aiwai-logo.png" 
+                        alt="AIWai News Logo" 
+                        width={200} 
+                        height={50} 
+                        className="h-8 md:h-12 w-auto object-contain transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6" 
+                        priority 
+                    />
+                    <span className="text-primary font-black text-[10px] md:text-base uppercase tracking-[0.3em] opacity-80 group-hover:opacity-100 transition-opacity mt-1">
                         News
                     </span>
                 </Link>
@@ -196,50 +225,7 @@ export function Navbar() {
                     </button>
                 </div>
 
-                {/* Desktop Nav */}
-                <nav className="hidden md:flex items-center justify-center gap-x-1 w-full mt-4 mb-1">
-                    {allCategories.map((category) => {
-                        const isActive = pathname === category.href || (category.href !== "/" && pathname.startsWith(category.href));
 
-                        return (
-                            <Link
-                                key={category.name}
-                                href={category.href}
-                                className={cn(
-                                    "group relative flex items-center justify-center px-3 py-2 text-[11px] font-black uppercase tracking-wider rounded-xl transition-colors duration-[600ms] ease-in-out z-10 whitespace-nowrap",
-                                    isActive
-                                        ? "text-primary-foreground"
-                                        : "text-muted-foreground hover:text-foreground"
-                                )}
-                            >
-                                {/* AKTÍVNY STAV: Extrémne plynulé objavenie a zväčšenie po kliknutí (elegantný ease-in-out) */}
-                                <span
-                                    className={cn(
-                                        "absolute inset-0 w-full h-full rounded-xl border-2 transition-all duration-[600ms] ease-in-out z-0",
-                                        isActive
-                                            ? "bg-primary border-primary scale-100 opacity-100 shadow-md"
-                                            : "bg-transparent border-transparent scale-[0.85] opacity-0"
-                                    )}
-                                />
-
-                                {/* HOVER STAV: Jemné vynorenie na pozadí, funguje aj s aktívnym plynulo za sebou */}
-                                {!isActive && (
-                                    <span
-                                        className="absolute inset-0 w-full h-full rounded-xl border-2 border-transparent transition-all duration-[400ms] ease-out group-hover:border-primary/40 group-hover:bg-primary/5 scale-95 group-hover:scale-100 z-0"
-                                    />
-                                )}
-
-                                {/* Samotný text ležiaci na vrchu s veľmi jemným zväčšením */}
-                                <span className={cn(
-                                    "relative z-10 transition-transform duration-[600ms] ease-in-out",
-                                    isActive ? "scale-[1.03]" : "scale-100 group-hover:scale-[1.03]"
-                                )}>
-                                    {category.name}
-                                </span>
-                            </Link>
-                        );
-                    })}
-                </nav>
 
                 {/* Top Right: Theme Toggle (Centred vertically on mobile, top corner on desktop) */}
                 <div className="absolute right-3 sm:right-4 lg:right-10 top-1/2 md:top-4 -translate-y-1/2 md:translate-y-0 flex items-center">

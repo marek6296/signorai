@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Article } from "@/lib/data";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Sparkles, Loader2 } from "lucide-react";
 
 interface Props {
     params: { id: string };
@@ -23,6 +23,7 @@ export default function EditArticlePage({ params }: Props) {
     const [category, setCategory] = useState("");
     const [aiSummary, setAiSummary] = useState("");
     const [mainImage, setMainImage] = useState("");
+    const [isGeneratingImage, setIsGeneratingImage] = useState(false);
 
     const [status, setStatus] = useState<"loading" | "idle" | "saving" | "success" | "error">("loading");
     const [message, setMessage] = useState("");
@@ -63,6 +64,40 @@ export default function EditArticlePage({ params }: Props) {
             }
         }
     }, [params.id, router]);
+
+    const handleGenerateImage = async () => {
+        if (!title || !excerpt) {
+            alert("Pre vygenerovanie obrázka je potrebný vyplnený Nadpis a Perex.");
+            return;
+        }
+
+        setIsGeneratingImage(true);
+        setMessage("Generujem nový hlavný obrázok cez AI (môže to chvíľu trvať)...");
+
+        try {
+            const res = await fetch("/api/admin/article-image-generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ title, excerpt }),
+            });
+
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || "Image generation failed");
+            }
+
+            const data = await res.json();
+            if (data.imageUrl) {
+                setMainImage(data.imageUrl);
+                setMessage("Obrázok bol úspešne vygenerovaný!");
+            }
+        } catch (error: any) {
+            setMessage("Chyba pri generovaní obrázka: " + error.message);
+            setStatus("error");
+        } finally {
+            setIsGeneratingImage(false);
+        }
+    };
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -171,15 +206,8 @@ export default function EditArticlePage({ params }: Props) {
                                     className="w-full bg-background border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
                                     required
                                 >
-                                    <option value="Novinky SK/CZ">Novinky SK/CZ</option>
                                     <option value="AI">AI</option>
                                     <option value="Tech">Tech</option>
-                                    <option value="Biznis">Biznis</option>
-                                    <option value="Krypto">Krypto</option>
-                                    <option value="Svet">Svet</option>
-                                    <option value="Politika">Politika</option>
-                                    <option value="Veda">Veda</option>
-                                    <option value="Gaming">Gaming</option>
                                     <option value="Návody & Tipy">Návody & Tipy</option>
                                     <option value="Newsletter">Newsletter</option>
                                 </select>
@@ -197,7 +225,29 @@ export default function EditArticlePage({ params }: Props) {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium mb-2">Hlavný Obrázok (URL)</label>
+                            <label className="flex items-center justify-between text-sm font-medium mb-2">
+                                <span>Hlavný Obrázok (URL)</span>
+                                <button
+                                    type="button"
+                                    onClick={handleGenerateImage}
+                                    disabled={isGeneratingImage}
+                                    className="px-3 py-1 bg-white text-black font-bold uppercase rounded text-[10px] tracking-wider hover:bg-neutral-200 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                                >
+                                    {isGeneratingImage ? (
+                                        <><Loader2 className="w-3 h-3 animate-spin"/> Generujem...</>
+                                    ) : (
+                                        <><Sparkles className="w-3 h-3" /> AI Generovať</>
+                                    )}
+                                </button>
+                            </label>
+                            
+                            {mainImage && (
+                                <div className="mb-3 relative w-full aspect-video rounded-xl overflow-hidden border border-border/50 bg-muted/20 flex items-center justify-center">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src={mainImage} alt="Main Image Preview" className="object-cover w-full h-full" />
+                                </div>
+                            )}
+
                             <input
                                 type="url"
                                 value={mainImage}

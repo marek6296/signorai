@@ -102,7 +102,7 @@ export async function POST(req: Request) {
         if (articleId) {
             selectedArticles = availableArticles;
         } else {
-            const selectionPrompt = `Si elitný sociálny stratég pre technologický portál Postovinky. Z nasledujúceho zoznamu správ za posledných 24 hodín vyber PRESNE 4 témy, ktoré sú momentálne NAJVYŠŠOU PRIORITOU.
+            const selectionPrompt = `Si elitný sociálny stratég pre technologický portál AIWai. Z nasledujúceho zoznamu správ za posledných 24 hodín vyber PRESNE 4 témy, ktoré sú momentálne NAJVYŠŠOU PRIORITOU.
             
 Hľadaj témy, ktoré:
 1. Sú najviac relevantné k aktuálnemu svetovému dianiu a technologickým trendom (to, čo sa práve teraz najviac rieši).
@@ -141,9 +141,9 @@ ODPOVEDAJ LEN VO FORMÁTE JSON:
                 const alreadyPosted = allExistingPosts?.some((p: SocialPost) => p.article_id === article.id && p.platform === platform);
                 if (alreadyPosted) continue;
 
-                const url = `https://postovinky.news/article/${article.slug}`;
+                const url = `https://aiwai.news/article/${article.slug}`;
 
-                const promptSystem = `Si špičkový social media manažér pre seriózny technologický a AI portál Postovinky. Tvojou úlohou je napísať profesionálny, úderný a stručný príspevok.
+                const promptSystem = `Si špičkový social media manažér pre seriózny technologický a AI portál AIWai. Tvojou úlohou je napísať profesionálny, úderný a stručný príspevok.
 
 PRAVIDLÁ:
 1. Jazyk: Profesionálna, moderná slovenčina (žiadne klišé ako "pozor", "máme tu", "uži si").
@@ -200,7 +200,7 @@ Perex: ${article.excerpt}`;
             // PRE-RENDER INSTAGRAM POST IMAGE
             if (savedPost.platform === 'Instagram') {
                 try {
-                    const currentHost = req.headers.get("x-forwarded-host") || req.headers.get("host") || "postovinky.news";
+                    const currentHost = req.headers.get("x-forwarded-host") || req.headers.get("host") || "aiwai.news";
                     const protocol = currentHost.includes("localhost") ? "http" : "https";
                     const preRenderEndpoint = `${protocol}://${currentHost}/api/admin/pre-render-social-image`;
 
@@ -230,7 +230,7 @@ Perex: ${article.excerpt}`;
                 try {
                     // Call our specialized publishing API to ensure we follow the EXACT same logic
                     // as the manual "Publish" button (storage buffering, FB link logic, etc.)
-                    const currentHost = req.headers.get("host") || "postovinky.news";
+                    const currentHost = req.headers.get("host") || "aiwai.news";
                     const protocol = currentHost.includes("localhost") ? "http" : "https";
                     const publishEndpoint = `${protocol}://${currentHost}/api/admin/publish-social-post`;
 

@@ -1,4 +1,4 @@
-# SEO – Postovinky
+# SEO – AIWai
 
 ## Čo je v projekte nastavené
 
@@ -11,7 +11,7 @@
 
 ## 1. Google Search Console
 
-1. Choď na [Google Search Console](https://search.google.com/search-console) a pridaj majetok `https://postovinky.news`.
+1. Choď na [Google Search Console](https://search.google.com/search-console) a pridaj majetok `https://aiwai.news`.
 2. Pri **verifikácii metódou „Meta tag“** skopíruj hodnotu z poľa `content` (napr. `AbCdEf123...`).
 3. Do **prostredia nasadenia** (Vercel / server) pridaj premennú:
    ```bash
@@ -20,7 +20,7 @@
    (nahraď skutočným kódom z Search Console.)
 4. Po nasadení znova spusti verifikáciu v Search Console.
 5. V Search Console pridaj **Sitemap**:  
-   `https://postovinky.news/sitemap.xml`
+   `https://aiwai.news/sitemap.xml`
 
 ---
 
@@ -35,7 +35,7 @@
 
 Po nasadení skontroluj:
 
-- [PageSpeed Insights](https://pagespeed.web.dev/) – zadaj `https://postovinky.news`
+- [PageSpeed Insights](https://pagespeed.web.dev/) – zadaj `https://aiwai.news`
 - V Search Console: **Skúsenosti** → Core Web Vitals
 
 Na homepage je pre prvý (hlavný) obrázok nastavené `priority`, čo pomáha LCP.

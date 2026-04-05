@@ -13,7 +13,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
-        const promptSystem = `Si špičkový social media manažér pre seriózny technologický a AI portál Postovinky. Tvojou úlohou je napísať profesionálny, úderný a stručný príspevok.
+        const promptSystem = `Si špičkový social media manažér pre seriózny technologický a AI portál AIWai. Tvojou úlohou je napísať profesionálny, úderný a stručný príspevok.
 
 PRAVIDLÁ:
 1. Jazyk: Profesionálna, moderná slovenčina (žiadne klišé ako "pozor", "máme tu", "uži si").

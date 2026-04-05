@@ -18,15 +18,7 @@ export interface Article {
 export const CATEGORY_MAP: Record<string, string> = {
     "ai": "AI",
     "tech": "Tech",
-    "biznis": "Biznis",
-    "krypto": "Krypto",
-    "svet": "Svet",
-    "politika": "Politika",
-    "veda": "Veda",
     "navody": "Návody & Tipy",
-    "gaming": "Gaming",
-    "novinky": "Novinky SK/CZ",
-    "ine": "Iné"
 };
 
 export async function getLatestArticle(): Promise<Article | null> {

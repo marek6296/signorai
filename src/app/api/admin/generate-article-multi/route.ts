@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
 
         const allImages = validResults.flatMap(r => r.images || []);
 
-        const promptSystem = `Si šéfredaktor a špičkový copywriter pre prestížny magazín o umelej inteligencii POSTOVINKY na Slovensku. 
+        const promptSystem = `Si šéfredaktor a špičkový copywriter pre prestížny magazín o umelej inteligencii AIWai na Slovensku. 
 Dostaneš materiály z NIEKOĽKÝCH RÔZNYCH ZDROJOV. Tvojou úlohou je vykonať ich hĺbkovú syntézu do jedného prémiového článku.
 
 ZÁVÄZNÉ PRAVIDLÁ PRE KVALITU A ŠTRUKTÚRU:
@@ -108,7 +108,7 @@ VÝSTUP MUSÍ BYŤ EXAKTNE VO FORMÁTE JSON:
     "excerpt": "Perex v slovenčine (1-2 pútavé odseky).",
     "content": "Samotný syntetizovaný článok v HTML. Obsahuje text aj <img> značky s obrázkami zo zoznamu!",
     "ai_summary": "Extrémne stručné a inteligentné zhrnutie (max 2 vety).",
-    "category": "AI, Tech, Biznis, Krypto, Svet, Politika, Veda, Gaming, Návody & Tipy, Newsletter, Iné",
+    "category": "AI, Tech, Návody & Tipy, Newsletter, Iné",
     "selected_main_image_url": "URL kľúčového obrázka pre miniatúru článku",
     "research_insights": "Krátky postreh o syntéze."
 }
@@ -135,7 +135,7 @@ Vráť len čistý JSON.`;
         }
 
         // Validate category
-        const validCategories = ["AI", "Tech", "Biznis", "Krypto", "Svet", "Politika", "Veda", "Gaming", "Návody & Tipy", "Newsletter", "Iné"];
+        const validCategories = ["AI", "Tech", "Návody & Tipy", "Newsletter", "Iné"];
         let finalCategory = articleData.category;
         if (typeof finalCategory === 'string') {
             finalCategory = finalCategory.trim();

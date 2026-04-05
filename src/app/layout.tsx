@@ -11,20 +11,20 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const syne = Syne({ subsets: ["latin"], weight: ["400", "700", "800"], variable: "--font-syne" });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://postovinky.news"),
+  metadataBase: new URL("https://aiwai.news"),
   title: {
-    default: "POSTOVINKY - Najnovšie správy a trendy",
-    template: "%s | POSTOVINKY"
+    default: "AIWai - Správy o Umelej Inteligencii a Technológiách",
+    template: "%s | AIWai"
   },
-  description: "Váš prémiový digitálny magazín o novinkách, technológiách a svetových trendoch. Denný prehľad zo sveta AI, tech, biznisu a svetových udalostí.",
-  keywords: ["správy", "novinky", "technológie", "AI", "umelá inteligencia", "Slovensko", "magazín", "trendy"],
-  authors: [{ name: "Postovinky", url: "https://postovinky.news" }],
-  creator: "Postovinky",
-  publisher: "Postovinky",
+  description: "Váš prémiový zdroj správ o umelej inteligencii, AI modeloch, technológiách a digitálnych trendoch. Denný prehľad sveta AI.",
+  keywords: ["umelá inteligencia", "AI", "GPT", "Claude", "Gemini", "technológie", "AI výskum", "startupy", "AIWai", "AI správy", "Slovensko"],
+  authors: [{ name: "AIWai", url: "https://aiwai.news" }],
+  creator: "AIWai",
+  publisher: "AIWai",
   formatDetection: { email: false, address: false, telephone: false },
   alternates: {
     canonical: "/",
-    languages: { "sk-SK": "https://postovinky.news" },
+    languages: { "sk-SK": "https://aiwai.news" },
   },
   robots: {
     index: true,
@@ -36,16 +36,16 @@ export const metadata: Metadata = {
     apple: "/logo/black.png",
   },
   openGraph: {
-    title: "POSTOVINKY - Digitálny magazín",
-    description: "Váš denný prehľad toho najdôležitejšieho zo sveta technológií, biznisu a svetových udalostí.",
-    url: "https://postovinky.news",
-    siteName: "Postovinky",
+    title: "AIWai - AI & Tech Spravodajstvo",
+    description: "Váš denný prehľad zo sveta umelej inteligencie, technológií a digitálnych inovácií.",
+    url: "https://aiwai.news",
+    siteName: "AIWai",
     images: [
       {
         url: "/logo/black.png",
         width: 512,
         height: 512,
-        alt: "Postovinky – logo",
+        alt: "AIWai – logo",
       },
     ],
     locale: "sk_SK",
@@ -53,8 +53,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "POSTOVINKY - Digitálny magazín",
-    description: "Váš denný prehľad zo sveta technológií, biznisu a svetových udalostí.",
+    title: "AIWai - AI & Tech Spravodajstvo",
+    description: "Správy o umelej inteligencii, technológiách a digitálnych trendoch.",
     images: ["/logo/black.png"],
   },
   ...(process.env.GOOGLE_SITE_VERIFICATION && {
@@ -72,8 +72,8 @@ export default function RootLayout({
   return (
     <html lang="sk" suppressHydrationWarning className="dark">
       <head>
-        <link rel="preconnect" href="https://postovinky.news" />
-        <link rel="dns-prefetch" href="https://postovinky.news" />
+        <link rel="preconnect" href="https://aiwai.news" />
+        <link rel="dns-prefetch" href="https://aiwai.news" />
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -103,12 +103,12 @@ export default function RootLayout({
               __html: JSON.stringify({
                 "@context": "https://schema.org",
                 "@type": "Organization",
-                "@id": "https://postovinky.news/#organization",
-                "name": "Postovinky",
-                "url": "https://postovinky.news",
+                "@id": "https://aiwai.news/#organization",
+                "name": "AIWai",
+                "url": "https://aiwai.news",
                 "logo": {
                   "@type": "ImageObject",
-                  "url": "https://postovinky.news/logo/black.png",
+                  "url": "https://aiwai.news/logo/black.png",
                   "width": 512,
                   "height": 512
                 },
@@ -124,14 +124,14 @@ export default function RootLayout({
               __html: JSON.stringify({
                 "@context": "https://schema.org",
                 "@type": "WebSite",
-                "name": "Postovinky",
-                "url": "https://postovinky.news",
+                "name": "AIWai",
+                "url": "https://aiwai.news",
                 "description": "Váš prémiový digitálny magazín o novinkách, technológiách a svetových trendoch.",
                 "inLanguage": "sk-SK",
-                "publisher": { "@id": "https://postovinky.news/#organization" },
+                "publisher": { "@id": "https://aiwai.news/#organization" },
                 "potentialAction": {
                   "@type": "SearchAction",
-                  "target": { "@type": "EntryPoint", "urlTemplate": "https://postovinky.news/search?q={search_term_string}" },
+                  "target": { "@type": "EntryPoint", "urlTemplate": "https://aiwai.news/search?q={search_term_string}" },
                   "query-input": "required name=search_term_string"
                 }
               })

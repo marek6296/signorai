@@ -1,17 +1,17 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 
-const BASE_URL = "https://postovinky.news";
+const BASE_URL = "https://aiwai.news";
 
 export const metadata: Metadata = {
   title: "O nás",
-  description: "Sme POSTOVINKY – váš digitálny sprievodca svetom. Prinášame najrelevantnejšie správy, analýzy a trendy v slovenskom jazyku zo sveta AI a technológií.",
+  description: "Sme AIWai – váš digitálny sprievodca svetom. Prinášame najrelevantnejšie správy, analýzy a trendy v slovenskom jazyku zo sveta AI a technológií.",
   alternates: { canonical: `${BASE_URL}/o-nas` },
   openGraph: {
-    title: "O nás | Postovinky",
+    title: "O nás | AIWai",
     description: "Prečo sme vznikli a čo u nás nájdete. Naša vízia digitálnej éry.",
     url: `${BASE_URL}/o-nas`,
-    siteName: "Postovinky",
+    siteName: "AIWai",
     locale: "sk_SK",
   },
 };
@@ -26,7 +26,7 @@ export default function AboutPage() {
                 </h1>
                 <div className="h-1 w-20 bg-primary mx-auto" />
                 <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-                    Sme POSTOVINKY – váš digitálny sprievodca svetom, kde umelá inteligencia už nie je hudbou budúcnosti, ale realitou dneška.
+                    Sme AIWai – váš digitálny sprievodca svetom, kde umelá inteligencia už nie je hudbou budúcnosti, ale realitou dneška.
                 </p>
             </div>
 
@@ -49,7 +49,7 @@ export default function AboutPage() {
                 <section className="p-8 rounded-2xl bg-muted/50 border border-border/50 space-y-4">
                     <h2 className="text-2xl font-bold text-foreground font-syne italic text-center">Naša vízia</h2>
                     <p className="text-center italic">
-                        {"\""}Veríme, že digitálna éra by mala patriť všetkým, ktorí sú zvedaví. Cieľom POSTOVINKY je byť mostom medzi komplexnou technológiou a koncovým čitateľom.{"\""}
+                        {"\""}Veríme, že digitálna éra by mala patriť všetkým, ktorí sú zvedaví. Cieľom AIWai je byť mostom medzi komplexnou technológiou a koncovým čitateľom.{"\""}
                     </p>
                 </section>
 

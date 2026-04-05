@@ -45,24 +45,20 @@ export async function POST(request: NextRequest) {
 Tvojou jedinou úlohou je vrátiť EXAKTNE JEDEN kľúč kategórie v JSON formáte na základe tém:
 
 KATEGÓRIE NA VÝBER:
-- Novinky SK/CZ
 - AI
 - Tech
-- Biznis
-- Krypto
-- Svet
-- Politika
-- Veda
-- Gaming
 - Návody & Tipy
 - Iné
 
+Všetok text vráť vo formáte JSON ako list kategórií pre každý článok. Vždy zisti o čom článok je a daj ho do JEDNEJ, najviac pasujúcej kategórie. Ak je na hranici, skús preferovať AI a Tech kategóriu, nakoľko je to náš primárny fokus.
+Kľúč z ktorého budem brať je "categories" a hodnota je pole kategórií prislúchajúcich id článkov, napríklad:
+
 Pravidlá určovania:
-- Ak ide o Slovensko alebo Česko (firmy, politici, lokálne témy), automaticky zvoľ "Novinky SK/CZ" (je to priorita!)
-- Ak ide o Bitcoin/krypto, zvoľ "Krypto".
-- Ak ide o AI/LLM, zvoľ "AI".
-- Ak ide o hry a konzoly, zvoľ "Gaming".
-- AK TÉMA NESEDÍ NA ŽIADNU Z VYŠŠIE UVEDENÝCH, ZVOĽ "Iné".
+- Ak ide o Slovensko alebo Česko (napr. slovenský startup, český výskum), spomeň to v článku, ale zvoľ "Tech" alebo "AI" podľa zamerania.
+- Ak ide vyslovene o umelú inteligenciu alebo LLM, zvoľ "AI".
+- Ostatné tech inovácie zaraď pod "Tech".
+- Návody, postupy a tipy zaraď pod "Návody & Tipy".
+- Ak téma nespĺňa nič z toho, zvoľ "Iné".
 
 Výstup musí byť STRICT JSON formát:
 {
@@ -84,7 +80,7 @@ Nepíš žiadne iné slová okolo.`;
             if (!content) throw new Error("Empty AI response");
 
             const parsed = JSON.parse(content);
-            const validCategories = ["Novinky SK/CZ", "AI", "Tech", "Biznis", "Krypto", "Svet", "Politika", "Veda", "Gaming", "Návody & Tipy", "Iné"];
+            const validCategories = ["AI", "Tech", "Návody & Tipy", "Iné"];
             let category = parsed.category || "Iné";
 
             if (!validCategories.includes(category)) {

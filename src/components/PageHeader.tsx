@@ -6,7 +6,7 @@ interface PageHeaderProps {
     label?: string;
 }
 
-export function PageHeader({ title, description, label = "Postovinky" }: PageHeaderProps) {
+export function PageHeader({ title, description, label = "AIWai" }: PageHeaderProps) {
     return (
         <div className="relative mb-6">
             {/* Box without continuous borders or backgrounds, just the corner brackets */}

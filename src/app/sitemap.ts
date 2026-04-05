@@ -2,7 +2,7 @@ import { MetadataRoute } from 'next';
 import { getAllArticlesForSitemap, CATEGORY_MAP } from '@/lib/data';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-    const baseUrl = 'https://postovinky.news';
+    const baseUrl = 'https://aiwai.news';
 
     const staticRoutes: { route: string; priority: number; changeFrequency: 'daily' | 'weekly' | 'monthly' | 'yearly' }[] = [
         { route: '', priority: 1, changeFrequency: 'daily' },

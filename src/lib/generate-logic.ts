@@ -35,7 +35,7 @@ export async function runFinalReviewAndPublish(articleId: string) {
 Tvoje úlohy:
 1. Skontrolovať gramatiku, štylistiku a odstrániť z 'excerpt' a 'ai_summary' akékoľvek HTML značky (napr. <p>). Ponechaj text čistý.
 2. Skontrolovať zhodu textu, preklepy. 
-3. Vybrať najvhodnejšiu kategóriu (povolené: AI, Tech, Biznis, Krypto, Svet, Politika, Veda, Gaming, Návody & Tipy, Iné).
+3. Vybrať najvhodnejšiu kategóriu (povolené: AI, Tech, Návody & Tipy).
 4. Zhodnotiť poskytnutú fotografiu (ak je k dispozícii). Ak je fotka kvalitná a súvisí s témou, ponechaj "image_needs_replacement": false. Ak obrázok nedáva zmysel, je nekvalitný, chýba alebo ide o nejaké divné logo/miniatúru, nastav true a poskytni presný ANGLICKÝ 2-4 slovný vyhľadávací dotaz do Googlu pre získanie novej fotky.
 
 Zároveň vrátiš upravené texty podľa bodu 1 a 2.
@@ -230,18 +230,9 @@ export async function searchImage(query: string): Promise<string | null> {
 }
 
 const VALID_CATEGORIES = [
-    "Novinky SK/CZ",
     "AI",
     "Tech",
-    "Biznis",
-    "Krypto",
-    "Svet",
-    "Politika",
-    "Veda",
-    "Gaming",
     "Návody & Tipy",
-    "Newsletter",
-    "Iné"
 ];
 
 export async function scrapeUrl(url: string): Promise<string> {
@@ -295,46 +286,35 @@ export async function processArticleFromUrl(url: string, targetStatus: 'draft' |
         }
 
         // 2. Generate article with OpenAI
-        const promptSystem = `Si šéfredaktor a špičkový copywriter pre prestížny magazín Postovinky na Slovensku. Bude ti zadaný zdrojový text z nejakého webu.
-Tvojou úlohou je napísať z neho prémiový, pútavý a odborne presný článok v STOPERCENTNEJ, ČISTEJ a PRIRODZENEJ SLOVENČINE.
+        const promptSystem = `Si šéfredaktor a špičkový copywriter pre prestížny AI & Tech magazín AIWai. Bude ti zadaný zdrojový text z nejakého webu.
+Tvojou úlohou je napísať z neho prémiový, pútavý a odborne presný článok o UMELEJ INTELIGENCII alebo TECHNOLÓGIÁCH v STOPERCENTNEJ, ČISTEJ a PRIRODZENEJ SLOVENČINE.
 
 ZÁVÄZNÉ PRAVIDLÁ PRE KVALITU TEXTU:
-1. STRIKTNÁ SLOVENČINA: Text musí byť písaný výhradne v slovenčine. Je PRÍSNE ZAKÁZANÉ používať české slová, české konštrukcie alebo "bohemizmy" (napr. NIKDY nepoužívaj slová ako "taky", "prodej", "řada", "včetně" v českom význame, "doporučit", "stávající", "vzhledem k", ak existuje slovenské "odporučiť", "existujúci", "vzhľadom na").
-2. ŽIADNY STROJOVÝ PREKLAD: Text musí znieť tak, akoby ho napísal rodený Slovák, ktorý je expertom na technológie.
-3. KRITICKÁ GRAMATIKA: Dávaj si extrémny pozor na ZHODU RODOV (napr. NIKDY nepíš "jedno nastavenia", ale "jedno nastavenie" alebo "jednej položky"). Gramatické pády a rody musia byť 100% správne.
-4. Plynulý žurnalistický štýl s prirodzenými vetnými konštrukciami. Vyhni sa anglicizmom a krkolomným doslovným prekladom.
-5. Bezchybná slovenská štylistika je podmienkou. Ak je zdroj v češtine, musíš ho dôkladne PRELOŽIŤ, nie len "poslovenčiť".
-6. Rozčleň text na menšie, ľahko čitateľné odseky.
-7. Vytvor logickú štruktúru s podnadpismi (<h2> alebo <h3>). 
-8. ZÁKAZ DOSLOVNÉHO KOPÍROVANIA: Článok nesmie byť doslovným prekladom alebo kópiou zdrojového textu. Tvojou úlohou je informácie pochopiť, SYNTETIZOVAŤ a napísať ÚPLNE NOVÝ, ORIGINÁLNY TEXT pri zachovaní faktov. Meň poradie informácií, pridávaj kontext a používaj vlastnú slovnú zásobu. Vyhni sa kopírovaniu celých viet zo zdroja.
-9. PONECHAJ VŠETKY OBRÁZKY! Ak sa v zdrojom HTML nachádzajú značky <img>, nevyrezávaj ich, ale vlož ich do svojho preloženého HTML presne na to miesto, kam patria.
-10. CLICKBAIT STRATÉGIA: Nadpis musí byť extrémne pútavý, v štýle moderných virálnych médií, aby maximalizoval mieru prekliku (click-through rate). Musí však čestne odkazovať na tému článku – nezavádzaj, ale vyvolaj silnú zvedavosť alebo emóciu. Používaj silné slovesá, prekvapivé fakty alebo otázky.
+1. STRIKTNÁ SLOVENČINA: Text musí byť písaný výhradne v slovenčine. Je PRÍSNE ZAKÁZANÉ používať české slová alebo bohemizmy.
+2. ŽIADNY STROJOVÝ PREKLAD: Text musí znieť tak, akoby ho napísal rodený Slovák, ktorý je expertom na AI a technológie.
+3. KRITICKÁ GRAMATIKA: Gramatické pády a rody musia byť 100% správne.
+4. Plynulý žurnalistický štýl. Vyhni sa anglicizmom a krkolomným prekladom.
+5. Bezchybná slovenská štylistika. Ak je zdroj v češtine, dôkladne PRELOŽ.
+6. Rozčleň text na menšie odseky s podnadpismi (h2 alebo h3).
+7. ZÁKAZ KOPÍROVANIA: SYNTETIZUJ a napíš ÚPLNE NOVÝ TEXT pri zachovaní faktov.
+8. PONECHAJ OBRÁZKY: img tagy vlož presne na miesto.
+9. CLICKBAIT: Nadpis musí byť extrémne pútavý a čestne odkazovať na tému.
 
-PRAVIDLÁ PRE KATEGORIZÁCIU (Buď veľmi prísny a presný!):
-- Novinky SK/CZ: Lokálne správy, udalosti v SR a ČR, slovenskí/českí politici a domáce firmy.
-- AI: Vývoj AI, nové modely (GPT, Claude), čipy, hlboké technológie a budúcnosť AI.
-- Tech: Spotrebná elektronika (mobily, laptopy), sociálne siete, internetové služby a gadgety.
-- Biznis: Ekonomika, akcie, fúzie firiem, startupy a správy zo sveta financií.
-- Krypto: Bitcoin, blockchain, burzy a regulácia kryptomien.
-- Svet: Významné udalosti zo zahraničia, globálne trendy a zaujímavosti bez silného politického podtextu.
-- Politika: Vlády, voľby, medzinárodné vzťahy a diplomacia (mimo SR/ČR).
-- Veda: Vesmír, medicína, technológie, ktoré menia svet a akademický výskum.
-- Gaming: Videohry, herný hardvér, herný priemysel a herné e-športy.
-- Návody & Tipy: Praktické tutoriály, "ako na to", rady a triky.
-- Iné: Len ak téma ČESTNE A ABSOLÚTNE NESADÁ do žiadnej z vyššie uvedených kategórií.
+PRAVIDLÁ PRE KATEGORIZÁCIU:
+- AI: Vývoj AI, nové modely (GPT, Claude, Gemini, Grok), výskum AI, GPU čipy, agenty, AI bezpečnosť, regulácia AI.
+- Tech: Spotrebná elektronika, smartfóny, softvér, sociálne siete, internet.
+- Návody & Tipy: Praktické tutoriály na AI nástroje.
 
-DÔLEŽITÉ: Ak ide o biznis tech firmy (napr. rast akcií Microsoftu), je to Biznis. Ak ide o politické regulácie AI v USA, je to Politika. Ak ide o slovenského politika, sú to Novinky SK/CZ.
-
-Tvoj výstup musí byť VŽDY EXAKTNE VO FORMÁTE JSON:
+Tvoj výstup VŽDY EXAKTNE VO FORMÁTE JSON:
 {
-    "title": "Virálny, extrémne pútavý clickbait nadpis, ktorý však presne odráža tému v dokonalej slovenčine",
+    "title": "Virálny nadpis v dokonalej slovenčine",
     "slug": "url-friendly-nazov-bez-diakritiky-a-medzier",
-    "excerpt": "Perex: 1 až 2 veľmi pútavé odseky.",
-    "content": "Samotný dlhý článok v HTML s <p>, <strong>, <h2>, <h3> a pôvodnými <img>.",
-    "ai_summary": "Pútavé, podrobné a komplexné zhrnutie článku (približne 10 až 15 viet, rozdelených do 2 až 3 prehľadných odsekov), ktoré slúži ako plnohodnotná audio verzia kľúčových informácií z článku pre poslucháča. Zhrnutie musí pokryť všetky dôležité body článku, nie len úvod.",
-    "category": "JEDNA Z TÝCHTO: Novinky SK/CZ, AI, Tech, Biznis, Krypto, Svet, Politika, Veda, Gaming, Návody & Tipy, Newsletter, Iné"
+    "excerpt": "Perex: 1 až 2 pútavé odseky.",
+    "content": "Článok v HTML s p, strong, h2, h3 a img.",
+    "ai_summary": "Zhrnutie (10-15 viet) pre audio verziu.",
+    "category": "JEDNA Z TÝCHTO: AI, Tech, Návody & Tipy"
 }
-Nikdy nevracaj žiadnu inú kategóriu. AI dávaj len ak je to jadro správy. Pred odoslaním si v duchu skontroluj, či sa v nadpise zhoduje podstatné meno s prídavným menom v správnom rode a páde.`;
+Nikdy nevracaj inú kategóriu.`;
 
         const completion = await getOpenAIClient().chat.completions.create({
             model: "gpt-4o",
@@ -389,9 +369,9 @@ Nikdy nevracaj žiadnu inú kategóriu. AI dávaj len ak je to jadro správy. Pr
                     (lowerCat.includes('svet') && lowerC.includes('svet'));
             });
 
-            finalCategory = found || "Iné";
+            finalCategory = found || "AI";
         } else {
-            finalCategory = "Iné";
+            finalCategory = "AI";
         }
 
         // 3. Save to Supabase
@@ -518,25 +498,24 @@ ${contextDataSnippet}
 Inštrukcia: Na základe týchto hĺbkových faktov napíš komplexný, originálny a pútavý článok v dokonalej slovenčine.
 `;
 
-        const promptSystem = `Si šéfredaktor a špičkový copywriter pre prestížny magazín Postovinky na Slovensku. Tvojou úlohou je na základe priložených hĺbkových faktov napísať prémiový, pútavý a odborne presný článok.
-Máš prístup k reálnym dátam z viacerých špičkových webov. Tvojou úlohou je informácie SYNTETIZOVAŤ a napísať ÚPLNE NOVÝ a unikátny text.
+        const promptSystem = `Si šéfredaktor a špičkový copywriter pre prestížny AI & Tech magazín AIWai. Na základe priložených faktov napíš prémiový článok o umelej inteligencii alebo technológiách.
+Máš prístup k reálnym dátam. Informácie SYNTETIZUJ a napíš ÚPLNE NOVÝ unikátny text.
 
-ZÁVÄZNÉ PRAVIDLÁ PRE KVALITU TEXTU:
-1. STRIKTNÁ A BEZCHYBNÁ SLOVENČINA: Text musí znieť 100% prirodzene, akoby ho napísal vzdelaný rodený Slovák. Dávaj obrovský pozor na logický slovosled vo vetách, pádové väzby a zhodu prídavných mien s podstatnými menami.
-2. ZÁKAZ BOHEMIZMOV: Je PRÍSNE ZAKÁZANÉ používať anglicizmy, české výrazy (napr. stávajúci, rada vecí) alebo krkolomné strojové preklady.
-3. PROFESIONÁLNY A PÚTAVÝ ŠTÝL: Používaj bohatú slovnú zásobu, žurnalistický štýl a dynamické slovesá. Vyhni sa ťažkopádnym súvetiam a opakujúcim sa frázam.
-4. CLICKBAIT STRATÉGIA: Nadpis musí byť extrémne pútavý, v štýle moderných virálnych médií, aby maximalizoval mieru prekliku (CTR). Musí však čestne odkazovať na tému článku a byť gramaticky bezchybný (správny rod a pád).
-5. ŠTRUKTÚRA HTML: "content" musí obsahovať odseky <p>, zvýraznenia <strong> pre dôležité fakty a podnadpisy <h2> alebo <h3> na plynulé čítanie dlhého textu.
+ZÁVÄZNÉ PRAVIDLÁ:
+1. STRIKTNÁ SLOVENČINA: 100% prirodzená slovenčina, žiadne bohemizmy ani anglicizmy.
+2. PROFESIONÁLNY ŠTÝL: Bohatá slovná zásoba, žurnalistický štýl, dynamické slovesá.
+3. CLICKBAIT NADPIS: Extrémne pútavý, gramaticky správny, čestne odkazujúci na tému.
+4. HTML ŠTRUKTÚRA: p, strong, h2, h3 tagy pre prehľadnosť.
 
 Výstup VŽDY EXAKTNE VO FORMÁTE JSON:
 {
-    "title": "Virálny, extrémne pútavý clickbait nadpis v dokonalej a gramaticky správnej slovenčine",
+    "title": "Virálny nadpis v dokonalej slovenčine",
     "slug": "url-friendly-nazov-bez-diakritiky-a-medzier",
-    "excerpt": "Perex: 1 až 2 veľmi pútavé odseky.",
-    "content": "Samotný dlhý článok v HTML s <p>, <strong>, <h2>...",
-    "ai_summary": "Pútavé a komplexné zhrnutie (10 až 15 viet) pre audio verziu. Kľúčový je dynamický prednes a 100% bezchybný slovosled.",
-    "category": "JEDNA Z TÝCHTO: Novinky SK/CZ, AI, Tech, Biznis, Krypto, Svet, Politika, Veda, Gaming, Návody & Tipy, Newsletter, Iné",
-    "image_search_query": "Krátky a presný anglický výraz (max 3-4 slová) na vyhľadanie ilustračnej fotky v najvyššej možnej kvalite."
+    "excerpt": "Perex: 1 až 2 pútavé odseky.",
+    "content": "Článok v HTML s p, strong, h2...",
+    "ai_summary": "Zhrnutie (10-15 viet) pre audio verziu.",
+    "category": "JEDNA Z TÝCHTO: AI, Tech, Návody & Tipy",
+    "image_search_query": "Short English AI tech image search query (max 4 words)."
 }`;
 
         // 5. PHASE: Generate the final article
@@ -565,9 +544,9 @@ Výstup VŽDY EXAKTNE VO FORMÁTE JSON:
                     lowerCat.includes(lowerC) ||
                     lowerC.includes(lowerCat);
             });
-            finalCategory = found || "Iné";
+            finalCategory = found || "AI";
         } else {
-            finalCategory = "Iné";
+            finalCategory = "AI";
         }
 
         // 6. PHASE: Find a relevant image
@@ -618,16 +597,9 @@ Výstup VŽDY EXAKTNE VO FORMÁTE JSON:
 
 function getPlaceholderImage(category: string): string {
     const images: Record<string, string> = {
-        "Novinky SK/CZ": "https://images.unsplash.com/photo-1588694424679-7f7092d04239?auto=format&fit=crop&q=80&w=1200",
         "AI": "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=1200",
         "Tech": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=1200",
-        "Biznis": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=1200",
-        "Krypto": "https://images.unsplash.com/photo-1518546305927-5a555bb7020d?auto=format&fit=crop&q=80&w=1200",
-        "Svet": "https://images.unsplash.com/photo-1521295121783-8a321d551ad2?auto=format&fit=crop&q=80&w=1200",
-        "Politika": "https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?auto=format&fit=crop&q=80&w=1200",
-        "Veda": "https://images.unsplash.com/photo-1507413245164-6160d8298b31?auto=format&fit=crop&q=80&w=1200",
-        "Gaming": "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1200",
         "Návody & Tipy": "https://images.unsplash.com/photo-1456324504439-367cee3b3c32?auto=format&fit=crop&q=80&w=1200"
     };
-    return images[category] || "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=1200";
+    return images[category] || "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=1200";
 }

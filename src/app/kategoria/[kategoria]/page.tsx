@@ -5,7 +5,7 @@ import { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
 
-const BASE_URL = "https://postovinky.news";
+const BASE_URL = "https://aiwai.news";
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const slug = params.kategoria.toLowerCase();
@@ -18,13 +18,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         description,
         alternates: { canonical: canonicalUrl },
         openGraph: {
-            title: `Kategória: ${categoryName} | Postovinky`,
+            title: `Kategória: ${categoryName} | AIWai`,
             description: `Všetky najnovšie správy z kategórie ${categoryName} na jednom mieste.`,
             url: canonicalUrl,
-            siteName: "Postovinky",
+            siteName: "AIWai",
             locale: "sk_SK",
         },
-        twitter: { card: "summary_large_image", title: `${categoryName} | Postovinky`, description },
+        twitter: { card: "summary_large_image", title: `${categoryName} | AIWai`, description },
     };
 }
 

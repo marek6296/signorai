@@ -56,7 +56,7 @@ export async function POST(req: Request) {
         }
 
         const article = post.articles;
-        const articleUrl = `https://postovinky.news/article/${article?.slug}`;
+        const articleUrl = `https://aiwai.news/article/${article?.slug}`;
 
         let finalImageUrl = customImageUrl || post.image_url || article?.main_image;
 
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
         // to ensure 100% pixel-perfect matching across all bots, automations, and manual clicks.
         if (post.platform === 'Instagram') {
             try {
-                const headerHost = req.headers.get("x-forwarded-host") || req.headers.get("host") || "postovinky.news";
+                const headerHost = req.headers.get("x-forwarded-host") || req.headers.get("host") || "aiwai.news";
                 const protocol = headerHost.includes("localhost") ? "http" : "https";
                 const preRenderEndpoint = `${protocol}://${headerHost}/api/admin/pre-render-social-image`;
 
@@ -103,7 +103,7 @@ export async function POST(req: Request) {
                 console.log("[Facebook] Falling back to Photo Post with generated AI Vizuál...");
 
                 // Fallback to Satori image if Meta cannot scrape the original site's article image
-                const headerHost = req.headers.get("x-forwarded-host") || req.headers.get("host") || "postovinky.news";
+                const headerHost = req.headers.get("x-forwarded-host") || req.headers.get("host") || "aiwai.news";
                 const protocol = headerHost.includes("localhost") ? "http" : "https";
                 const preRenderEndpoint = `${protocol}://${headerHost}/api/admin/pre-render-social-image`;
 

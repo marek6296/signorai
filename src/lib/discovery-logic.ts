@@ -3,7 +3,7 @@ import OpenAI from "openai";
 import { supabase } from "@/lib/supabase";
 import { CATEGORY_MAP } from "@/lib/data";
 
-/** Iba tieto kategórie berieme – témy mimo tohto zoznamu sa vôbec nesprácavajú. */
+/** Iba tieto kategórie berieme – témy mimo tohto zoznamu sa vôbec nespracúvajú. */
 const ALLOWED_CATEGORIES = Object.values(CATEGORY_MAP);
 
 let openaiClient: OpenAI | null = null;
@@ -27,16 +27,6 @@ export interface DiscoveryItem {
 }
 
 export const FEED_GROUPS: Record<string, { name: string, url: string }[]> = {
-    "Novinky SK/CZ": [
-        { name: "SME Domov", url: "https://rss.sme.sk/rss/sme-sekcia-slovensko.xml" },
-        { name: "Denno N Domov", url: "https://dennikn.sk/sekcia/slovensko/feed/" },
-        { name: "HNonline", url: "https://hnonline.sk/rss/slovensko" },
-        { name: "Seznam Zprávy", url: "https://www.seznamzpravy.cz/rss" },
-        { name: "iRozhlas.cz", url: "https://www.irozhlas.cz/rss/irozhlas" },
-        { name: "Novinky.cz", url: "https://www.novinky.cz/rss" },
-        { name: "Živé.sk", url: "https://zive.aktuality.sk/rss/" },
-        { name: "Živé.cz", url: "https://www.zive.cz/rss/sc-47/" }
-    ],
     "AI": [
         { name: "The Verge AI", url: "https://www.theverge.com/ai-artificial-intelligence/rss/index.xml" },
         { name: "TechCrunch AI", url: "https://techcrunch.com/category/artificial-intelligence/feed/" },
@@ -44,63 +34,30 @@ export const FEED_GROUPS: Record<string, { name: string, url: string }[]> = {
         { name: "VentureBeat AI", url: "https://venturebeat.com/category/ai/feed/" },
         { name: "AI News", url: "https://www.artificialintelligence-news.com/feed/" },
         { name: "MIT Tech Review AI", url: "https://www.technologyreview.com/topic/artificial-intelligence/feed/" },
-        { name: "Futurism AI", url: "https://futurism.com/feed" }
+        { name: "Futurism AI", url: "https://futurism.com/feed" },
+        { name: "Import AI", url: "https://jack-clark.net/feed/" },
+        { name: "The Batch (DeepLearning.AI)", url: "https://www.deeplearning.ai/the-batch/feed/" },
+        { name: "Hugging Face Blog", url: "https://huggingface.co/blog/feed.xml" },
+        { name: "Google DeepMind", url: "https://deepmind.google/blog/rss/" },
+        { name: "Ars Technica AI", url: "https://arstechnica.com/ai/feed/" },
+        { name: "TLDR AI", url: "https://tldr.tech/ai/rss" },
+        { name: "The Rundown AI", url: "https://www.therundown.ai/rss" },
     ],
     "Tech": [
         { name: "Engadget", url: "https://www.engadget.com/rss.xml" },
         { name: "Ars Technica", url: "https://feeds.feedburner.com/arstechnica/index" },
+        { name: "The Verge", url: "https://www.theverge.com/rss/index.xml" },
         { name: "The Next Web", url: "https://thenextweb.com/feed" },
-        { name: "Mashable", url: "https://mashable.com/feeds/rss/all" },
-        { name: "Gizmodo", url: "https://gizmodo.com/rss" }
-    ],
-    "Biznis": [
-        { name: "CNBC Business", url: "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=15839069" },
-        { name: "Reuters Biz", url: "https://www.reutersagency.com/feed/?best-topics=business" },
-        { name: "CzechCrunch", url: "https://cc.cz/feed/" },
-        { name: "Forbes Business", url: "https://www.forbes.com/business/feed/" },
-        { name: "SME Ekonomika", url: "https://rss.sme.sk/rss/sme-sekcia-ekonomika.xml" },
-        { name: "Business Insider", url: "http://feeds.feedburner.com/businessinsider" }
-    ],
-    "Krypto": [
-        { name: "CoinDesk", url: "https://www.coindesk.com/arc/outboundfeeds/rss/" },
-        { name: "CoinTelegraph", url: "https://cointelegraph.com/rss" },
-        { name: "Decrypt", url: "https://decrypt.co/feed" },
-        { name: "CryptoSlate", url: "https://cryptoslate.com/feed/" }
-    ],
-    "Svet": [
-        { name: "The Guardian World", url: "https://www.theguardian.com/world/rss" },
-        { name: "BBC News World", url: "http://feeds.bbci.co.uk/news/world/rss.xml" },
-        { name: "Reuters World", url: "https://www.reutersagency.com/feed/?best-topics=world-news" },
-        { name: "The NY Times World", url: "https://rss.nytimes.com/services/xml/rss/nyt/World.xml" },
-        { name: "Al Jazeera", url: "https://www.aljazeera.com/xml/rss/all.xml" }
-    ],
-    "Politika": [
-        { name: "Denno N Politika", url: "https://dennikn.sk/sekcia/politika/feed/" },
-        { name: "SME Politika", url: "https://rss.sme.sk/rss/sme-sekcia-politika.xml" },
-        { name: "BBC News Politics", url: "http://feeds.bbci.co.uk/news/politics/rss.xml" },
-        { name: "Politico EU", url: "https://www.politico.eu/feed/" }
-    ],
-    "Gaming": [
-        { name: "IGN", url: "https://feeds.feedburner.com/ign/all" },
-        { name: "Sector.sk", url: "https://www.sector.sk/rss/" },
-        { name: "Games.cz", url: "https://games.tiscali.cz/rss" },
-        { name: "Kotaku", url: "https://kotaku.com/rss" },
-        { name: "Eurogamer", url: "https://www.eurogamer.net/feed/news" },
-        { name: "PC Gamer", url: "https://www.pcgamer.com/rss/" },
-        { name: "Polygon", url: "https://www.polygon.com/rss/index.xml" }
-    ],
-    "Veda": [
-        { name: "Phys.org", url: "https://phys.org/rss-feed/" },
-        { name: "SciTechDaily", url: "https://scitechdaily.com/feed/" },
-        { name: "Nature News", url: "https://www.nature.com/nature.rss" },
-        { name: "ScienceDaily", url: "https://www.sciencedaily.com/rss/all.xml" },
-        { name: "New Scientist", url: "https://www.newscientist.com/feed/home/" }
+        { name: "Gizmodo", url: "https://gizmodo.com/rss" },
+        { name: "9to5Mac", url: "https://9to5mac.com/feed" },
+        { name: "9to5Google", url: "https://9to5google.com/feed" },
+        { name: "TechCrunch", url: "https://techcrunch.com/feed/" },
     ],
     "Návody & Tipy": [
-        { name: "How-To Geek", url: "https://www.howtogeek.com/feed/" },
-        { name: "MakeUseOf", url: "https://www.makeuseof.com/feed/" },
-        { name: "Lifehacker", url: "https://lifehacker.com/rss" }
-    ]
+        { name: "How-To Geek AI", url: "https://www.howtogeek.com/feed/" },
+        { name: "MakeUseOf AI", url: "https://www.makeuseof.com/category/artificial-intelligence/feed/" },
+        { name: "Zapier Blog", url: "https://zapier.com/blog/feeds/latest/" },
+    ],
 };
 
 export const normalizeUrl = (u: string) => u.split('?')[0].toLowerCase().trim().replace(/\/$/, "");
@@ -109,6 +66,31 @@ export async function discoverNewNews(maxDays: number, targetCategories: string[
     const newsByGroup: Record<string, DiscoveryItem[]> = {};
     const now = new Date();
     const maxAgeMs = maxDays * 24 * 60 * 60 * 1000;
+
+    // 0. Fetch Sources from DB vs Defaults
+    let allFeeds: { name: string, url: string, category: string }[] = [];
+    const { data: dbSources } = await supabase
+        .from('discovery_sources')
+        .select('*')
+        .eq('active', true);
+
+    if (dbSources && dbSources.length > 0) {
+        allFeeds = dbSources.map(s => ({ name: s.name, url: s.url, category: s.category }));
+    } else {
+        // Fallback to hardcoded groups from before
+        for (const [group, feeds] of Object.entries(FEED_GROUPS)) {
+            feeds.forEach(f => {
+                allFeeds.push({ ...f, category: group });
+            });
+        }
+    }
+
+    // Filter only those that match categories to fetch
+    const categoriesToFetch = targetCategories.length > 0
+        ? targetCategories.filter(c => ALLOWED_CATEGORIES.includes(c))
+        : [...ALLOWED_CATEGORIES];
+
+    const currentFeeds = allFeeds.filter(f => categoriesToFetch.includes(f.category));
 
     // Pre-fetch all known URLs to avoid thousands of DB queries
     const { data: seenArticles } = await supabase.from('articles').select('source_url');
@@ -119,75 +101,65 @@ export async function discoverNewNews(maxDays: number, targetCategories: string[
         ...(seenSuggestions?.map(s => normalizeUrl(s.url || "")) || [])
     ]);
 
-    // 1. Fetch articles len zo skupín, ktoré sú v našich kategóriách (iné vôbec neberieme)
-    const categoriesToFetch = targetCategories.length > 0
-        ? targetCategories.filter(c => ALLOWED_CATEGORIES.includes(c))
-        : [...ALLOWED_CATEGORIES];
+    // Processing using currentFeeds instead of FEED_GROUPS
+    for (const feed of currentFeeds) {
+        const groupName = feed.category;
+        if (!newsByGroup[groupName]) newsByGroup[groupName] = [];
+        
+        try {
+            const response = await fetch(feed.url);
+            const buffer = await response.arrayBuffer();
+            const contentType = response.headers.get("content-type") || "";
 
-    for (const [groupName, feeds] of Object.entries(FEED_GROUPS)) {
-        if (!ALLOWED_CATEGORIES.includes(groupName)) continue; // skupina nie je naša kategória – preskočiť
-        if (targetCategories.length > 0 && !targetCategories.includes(groupName)) continue;
-
-        newsByGroup[groupName] = [];
-
-        for (const feed of feeds) {
-            try {
-                const response = await fetch(feed.url);
-                const buffer = await response.arrayBuffer();
-                const contentType = response.headers.get("content-type") || "";
-
-                let charset = "utf-8";
-                if (contentType.toLowerCase().includes("charset=")) {
-                    charset = contentType.toLowerCase().split("charset=")[1].split(";")[0].trim();
-                } else if (feed.url.includes("sector.sk") || feed.url.includes("zive.sk")) {
-                    charset = "windows-1250";
-                }
-
-                const decoder = new TextDecoder(charset);
-                const xmlText = decoder.decode(buffer);
-                const feedData = await parser.parseString(xmlText);
-
-                for (const item of feedData.items.slice(0, 20)) {
-                    if (!item.link) continue;
-
-                    const normalized = normalizeUrl(item.link);
-                    if (seenUrls.has(normalized)) continue;
-
-                    const pubDateObj = new Date(item.isoDate || item.pubDate || "");
-                    const pubDateStr = pubDateObj.toISOString();
-
-                    // Date Filtering
-                    if (now.getTime() - pubDateObj.getTime() > maxAgeMs) continue;
-
-                    newsByGroup[groupName].push({
-                        url: item.link,
-                        title: item.title || "",
-                        source: feed.name,
-                        contentSnippet: item.contentSnippet || item.content || "",
-                        groupHint: groupName,
-                        publishedAt: pubDateStr
-                    });
-
-                    // Add to current session to avoid duplicates from other feeds in same run
-                    seenUrls.add(normalized);
-                }
-            } catch (err) {
-                console.error(`Error parsing feed ${feed.name}:`, err);
+            let charset = "utf-8";
+            if (contentType.toLowerCase().includes("charset=")) {
+                charset = contentType.toLowerCase().split("charset=")[1].split(";")[0].trim();
             }
+
+            const decoder = new TextDecoder(charset);
+            const xmlText = decoder.decode(buffer);
+            const feedData = await parser.parseString(xmlText);
+
+            for (const item of feedData.items.slice(0, 20)) {
+                if (!item.link) continue;
+
+                const normalized = normalizeUrl(item.link);
+                if (seenUrls.has(normalized)) continue;
+
+                const pubDateObj = new Date(item.isoDate || item.pubDate || "");
+                const pubDateStr = pubDateObj.toISOString();
+
+                if (now.getTime() - pubDateObj.getTime() > maxAgeMs) continue;
+
+                newsByGroup[groupName].push({
+                    url: item.link,
+                    title: item.title || "",
+                    source: feed.name,
+                    contentSnippet: item.contentSnippet || item.content || "",
+                    groupHint: groupName,
+                    publishedAt: pubDateStr
+                });
+
+                seenUrls.add(normalized);
+            }
+        } catch (err) {
+            console.error(`Error parsing feed ${feed.name}:`, err);
         }
     }
+
+    // Rest of the discovery-logic.ts remains the same but correctly using processed newsByGroup.
+
 
     // 2. Initial Selection & URL Accessibility Check
     const candidatesByGroup: Record<string, DiscoveryItem[]> = {};
     for (const [groupName, items] of Object.entries(newsByGroup)) {
         if (items.length === 0) continue;
-        // Sort by date DESC (newest first)
         const sorted = items.sort((a, b) => {
             const dateA = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
             const dateB = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
             return dateB - dateA;
         });
-        candidatesByGroup[groupName] = sorted.slice(0, 15); // get many candidates to verify accessibility
+        candidatesByGroup[groupName] = sorted.slice(0, 15);
     }
 
     const checkUrlAccessible = async (url: string): Promise<boolean> => {
@@ -195,7 +167,6 @@ export async function discoverNewNews(maxDays: number, targetCategories: string[
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-            // Fetch to ensure we don't hit a 403 / 401 / 404 / paywall
             const res = await fetch(url, {
                 method: 'GET',
                 signal: controller.signal,
@@ -203,7 +174,7 @@ export async function discoverNewNews(maxDays: number, targetCategories: string[
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
                     "Accept-Language": "en-US,en;q=0.5",
-                    "Range": "bytes=0-2048" // Download just a tiny chunk of HTML to verify response code
+                    "Range": "bytes=0-2048"
                 }
             });
             clearTimeout(timeoutId);
@@ -219,7 +190,6 @@ export async function discoverNewNews(maxDays: number, targetCategories: string[
         }
     };
 
-    // 2b. Alespoň 3 dostupné linky na kategóriu (na základe toho potom spracujeme min. 3 návrhy na kategóriu)
     const accessibleByGroup: Record<string, DiscoveryItem[]> = {};
     const MIN_PER_CATEGORY = 3;
     const MAX_ACCESSIBLE_PER_GROUP = 10;
@@ -240,7 +210,6 @@ export async function discoverNewNews(maxDays: number, targetCategories: string[
     const allAccessible = Object.values(accessibleByGroup).flat();
     if (allAccessible.length === 0) return [];
 
-    // 3. AI – do poolu dáme aspoň 3 položky z každej kategórie, aby sme mohli vrátiť min. 3 návrhy na kategóriu
     const pool: DiscoveryItem[] = [];
     const groupNames = Object.keys(accessibleByGroup);
     const wantPerCategory = Math.max(MIN_PER_CATEGORY, Math.min(8, Math.floor(100 / groupNames.length)));
@@ -249,7 +218,6 @@ export async function discoverNewNews(maxDays: number, targetCategories: string[
         const items = accessibleByGroup[groupName].slice(0, wantPerCategory);
         pool.push(...items);
     }
-    // Zoradiť podľa dátumu (najnovšie prvé), zachovať rozumný počet
     pool.sort((a, b) => {
         const dateA = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
         const dateB = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
@@ -267,21 +235,14 @@ export async function discoverNewNews(maxDays: number, targetCategories: string[
                 messages: [
                     {
                         role: "system",
-                        content: `Si profesionálny slovenský redaktor portálu POSTOVINKY. Tvojou ÚLOHOU je pripraviť tému na spracovanie.
-                        
-KATEGORIZÁCIA (Buď veľmi prísny a presný!):
-- Novinky SK/CZ: Akýkoľvek článok týkajúci sa Slovenska alebo Česka (domáce správy, SK/CZ politici, udalosti v regiónoch, lokálne firmy). TOTO MÁ ABSOLÚTNU PRIORITU.
-- Gaming: Všetko o videohrách, konzolách a hernom hardvéri.
-- AI: LEN články o VÝVOJI AI (nové modely, výskum, AI čipy). Ak je AI len malou súčasťou iného produktu, daj Tech.
-- Krypto: Bitcoin, blockchain, regulácie kryptomien.
-- Tech: Spotrebná elektronika, softvér, internetové služby a gadgety.
-- Biznis: Akcie, ekonomika, fúzie firiem, startupy.
-- Politika: Vládne témy, voľby, medzinárodná diplomacia a štátne záležitosti (mimo SR/ČR).
-- Veda: Vesmír, medicína a akademický výskum.
-- Návody & Tipy: "Ako urobiť...", tutoriály.
-- Iné: Ak téma absolútne nezapadá do žiadnej z vyššie uvedených kategórií.
+                        content: `Si profesionálny slovenský redaktor portálu zameraného VÝLUČNE na umelú inteligenciu a technológie. Tvojou ÚLOHOU je pripraviť tému na spracovanie.
 
-Kategória MUSÍ byť presne jedna z: ${ALLOWED_CATEGORIES.join(" | ")}. Ak téma do žiadnej z nich nespadá, zvoľ "Iné".
+KATEGORIZÁCIA (Buď veľmi prísny a presný!):
+- AI: Vývoj AI, nové modely (GPT, Claude, Gemini, Grok), výskum AI, GPU čipy pre AI, agenty, multimodálne modely, AI bezpečnosť, regulácia AI.
+- Tech: Spotrebná elektronika, softvér, smartfóny, počítače, sociálne siete, internetové služby, gadgety – ALE NIE AI (to patrí do AI).
+- Návody & Tipy: Ako používať AI nástroje (ChatGPT, Midjourney, Copilot), praktické tutoriály, tipy na produktivitu s AI.
+
+Kategória MUSÍ byť presne jedna z: ${ALLOWED_CATEGORIES.join(" | ")}.
 Vráť EXAKTNE JSON: {"title": "Slovenský titulok", "summary": "Slovenské zhrnutie...", "category": "jedna z uvedených kategórií"}`
                     },
                     { role: "user", content: `Pôvodný titulok: ${item.title}\nUkážka: ${item.contentSnippet.substring(0, 500)}\nOdporúčaná kategória podľa zdroja: ${item.groupHint}` }
@@ -297,14 +258,14 @@ Vráť EXAKTNE JSON: {"title": "Slovenský titulok", "summary": "Slovenské zhrn
                 c.toLowerCase() === lowerAssigned || lowerAssigned.includes(c.toLowerCase()) || c.toLowerCase().includes(lowerAssigned)
             );
 
-            const assignedCategory = matchedCat || "Iné";
+            const assignedCategory = matchedCat || "AI";
             processedUrls.add(normalizeUrl(item.url));
 
             suggestionsWithAI.push({
                 url: item.url,
                 title: aiData.title || item.title,
                 source: item.source,
-                summary: aiData.summary || "Zaujímavá téma na spracovanie.",
+                summary: aiData.summary || "Zaujímavá AI téma na spracovanie.",
                 category: assignedCategory,
                 status: 'pending'
             });
@@ -313,7 +274,7 @@ Vráť EXAKTNE JSON: {"title": "Slovenský titulok", "summary": "Slovenské zhrn
         }
     }
 
-    // 4. Doplnenie
+    // Doplnenie
     const byCategory = new Map<string, typeof suggestionsWithAI>();
     for (const s of suggestionsWithAI) {
         const list = byCategory.get(s.category) || [];
@@ -336,8 +297,8 @@ Vráť EXAKTNE JSON: {"title": "Slovenský titulok", "summary": "Slovenské zhrn
                     messages: [
                         {
                             role: "system",
-                            content: `Si profesionálny slovenský redaktor portálu POSTOVINKY. Priraď tému do PRESNE JEDNEJ kategórie.
-Kategória MUSÍ byť presne jedna z: ${ALLOWED_CATEGORIES.join(" | ")}. Ak téma do žiadnej z nich nespadá, zvoľ "Iné".
+                            content: `Si profesionálny redaktor AI & Tech portálu. Priraď tému do PRESNE JEDNEJ kategórie.
+Kategória MUSÍ byť presne jedna z: ${ALLOWED_CATEGORIES.join(" | ")}.
 Vráť EXAKTNE JSON: {"title": "Slovenský titulok", "summary": "Slovenské zhrnutie...", "category": "jedna z uvedených kategórií"}`
                         },
                         { role: "user", content: `Pôvodný titulok: ${item.title}\nUkážka: ${item.contentSnippet.substring(0, 500)}\nOdporúčaná kategória: ${item.groupHint}` }
@@ -352,13 +313,13 @@ Vráť EXAKTNE JSON: {"title": "Slovenský titulok", "summary": "Slovenské zhrn
                     c.toLowerCase() === lowerAssigned || lowerAssigned.includes(c.toLowerCase()) || c.toLowerCase().includes(lowerAssigned)
                 );
 
-                const assignedCategory = matchedCat || "Iné";
+                const assignedCategory = matchedCat || "AI";
                 processedUrls.add(normalizeUrl(item.url));
                 suggestionsWithAI.push({
                     url: item.url,
                     title: aiData.title || item.title,
                     source: item.source,
-                    summary: aiData.summary || "Zaujímavá téma na spracovanie.",
+                    summary: aiData.summary || "Zaujímavá AI téma na spracovanie.",
                     category: assignedCategory,
                     status: 'pending'
                 });

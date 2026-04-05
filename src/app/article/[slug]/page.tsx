@@ -17,7 +17,7 @@ interface Props {
     searchParams: { preview?: string };
 }
 
-const BASE_URL = "https://postovinky.news";
+const BASE_URL = "https://aiwai.news";
 const META_DESC_MAX = 160;
 
 function stripHtml(html: string | null | undefined): string {
@@ -49,9 +49,9 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
             description,
             type: "article",
             url: canonicalUrl,
-            siteName: "Postovinky",
+            siteName: "AIWai",
             publishedTime: article.published_at,
-            authors: ["Redakcia Postovinky"],
+            authors: ["Redakcia AIWai"],
             section: article.category,
             images: [
                 {
@@ -85,7 +85,7 @@ export default async function ArticlePage({ params, searchParams }: Props) {
     const relatedArticles = await getRelatedArticlesByCategory(article.category, article.id, 3);
     const publishDate = format(parseISO(article.published_at), "d. MMMM yyyy, HH:mm", { locale: sk });
 
-    const baseUrl = "https://postovinky.news";
+    const baseUrl = "https://aiwai.news";
     const categorySlug = Object.entries(CATEGORY_MAP).find(([, name]) => name === article.category)?.[0] ?? "novinky";
 
     const jsonLdArticle = {
@@ -98,10 +98,10 @@ export default async function ArticlePage({ params, searchParams }: Props) {
         "articleSection": article.category,
         "author": [{
             "@type": "Organization",
-            "name": "Redakcia Postovinky",
+            "name": "Redakcia AIWai",
             "url": baseUrl
         }],
-        "publisher": { "@id": "https://postovinky.news/#organization" },
+        "publisher": { "@id": "https://aiwai.news/#organization" },
         "description": article.excerpt,
         "mainEntityOfPage": { "@type": "WebPage", "@id": `${baseUrl}/article/${article.slug}` }
     };

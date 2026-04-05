@@ -1,16 +1,16 @@
 import type { Metadata } from "next";
 
-const BASE_URL = "https://postovinky.news";
+const BASE_URL = "https://aiwai.news";
 
 export const metadata: Metadata = {
   title: "Kontakt",
-  description: "Kontaktujte redakciu Postovinky. Máte otázku, nápad na spoluprácu alebo nám chcete napísať? Sme tu pre vás.",
+  description: "Kontaktujte redakciu AIWai. Máte otázku, nápad na spoluprácu alebo nám chcete napísať? Sme tu pre vás.",
   alternates: { canonical: `${BASE_URL}/kontakt` },
   openGraph: {
-    title: "Kontakt | Postovinky",
-    description: "Napíšte nám – redakcia@postovinky.sk, Bratislava.",
+    title: "Kontakt | AIWai",
+    description: "Napíšte nám – redakcia@aiwai.sk, Bratislava.",
     url: `${BASE_URL}/kontakt`,
-    siteName: "Postovinky",
+    siteName: "AIWai",
     locale: "sk_SK",
   },
 };
@@ -38,7 +38,7 @@ export default function ContactPage() {
                             </div>
                             <div>
                                 <p className="text-sm text-muted-foreground uppercase tracking-widest font-bold">Email</p>
-                                <p className="text-foreground">redakcia@postovinky.sk</p>
+                                <p className="text-foreground">redakcia@aiwai.sk</p>
                             </div>
                         </div>
 

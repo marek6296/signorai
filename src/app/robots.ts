@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
             { userAgent: '*', allow: '/', disallow: ['/admin', '/api'] },
             { userAgent: 'Googlebot', allow: '/', disallow: ['/admin', '/api'] },
         ],
-        host: 'https://postovinky.news',
-        sitemap: 'https://postovinky.news/sitemap.xml',
+        host: 'https://aiwai.news',
+        sitemap: 'https://aiwai.news/sitemap.xml',
     };
 }

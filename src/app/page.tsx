@@ -6,17 +6,17 @@ import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
 
-const BASE_URL = "https://postovinky.news";
+const BASE_URL = "https://aiwai.news";
 
 export const metadata: Metadata = {
   title: "Hlavné správy",
   description: "Váš denný prehľad toho najdôležitejšieho zo sveta technológií, AI, biznisu a svetových udalostí. Najnovšie články a analýzy na jednom mieste.",
   alternates: { canonical: BASE_URL },
   openGraph: {
-    title: "Hlavné správy | Postovinky",
+    title: "Hlavné správy | AIWai",
     description: "Denný prehľad najdôležitejších správ – tech, AI, biznis, svet.",
     url: BASE_URL,
-    siteName: "Postovinky",
+    siteName: "AIWai",
     locale: "sk_SK",
   },
 };
@@ -44,12 +44,12 @@ export default async function Home() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
         {/* Main large articles column */}
-        <section className="col-span-1 lg:col-span-8 flex flex-col gap-6 md:gap-12">
-          <div className="flex flex-col gap-6 md:gap-12">
+        <section className="col-span-1 lg:col-span-8 flex flex-col gap-3 md:gap-4">
+          <div className="flex flex-col gap-3 md:gap-4">
             <ArticleCard article={latestArticle} featured={true} priority />
 
             {principalArticles.map((article) => (
-              <div key={article.id} className="pt-6 md:pt-12 border-t border-border/50">
+              <div key={article.id} className="pt-3 md:pt-4 border-t border-border/30">
                 <ArticleCard article={article} featured={true} />
               </div>
             ))}

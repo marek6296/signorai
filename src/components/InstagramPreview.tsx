@@ -99,7 +99,7 @@ export function InstagramPreview({
                 pixelRatio: 1,
             });
             const link = document.createElement('a');
-            link.download = `postovinky-social-${variant}-${Date.now()}.png`;
+            link.download = `aiwai-social-${variant}-${Date.now()}.png`;
             link.href = dataUrl;
             link.click();
         } catch (err) {
@@ -197,7 +197,7 @@ export function InstagramPreview({
                                 {/* Top Logo - Matched to Header */}
                                 <div className="absolute top-[120px] left-0 right-0 flex items-baseline justify-center gap-3 z-10">
                                     <span className="font-syne font-extrabold text-[56px] tracking-tighter uppercase text-white">
-                                        POSTOVINKY
+                                        AIWai
                                     </span>
                                     <span className="text-primary font-black text-[16px] uppercase tracking-[0.3em] opacity-80 translate-y-[-4px]">
                                         News
@@ -216,7 +216,7 @@ export function InstagramPreview({
                                 {/* Bottom URL */}
                                 <div className="absolute bottom-[100px] left-0 right-0 text-center z-10">
                                     <div className="bg-white text-black px-12 py-5 inline-block rounded-full font-black text-[26px] tracking-[0.15em] uppercase shadow-2xl">
-                                        www.postovinky.news
+                                        www.aiwai.news
                                     </div>
                                 </div>
 
@@ -267,7 +267,7 @@ export function InstagramPreview({
                                 {/* Brand URL Small Seal */}
                                 <div className="absolute top-[60px] right-[60px] z-10">
                                     <div className="bg-white/10 backdrop-blur-md rounded-full px-6 py-2 border border-white/10">
-                                        <span className="text-white/40 text-[14px] font-black uppercase tracking-widest">postovinky.news</span>
+                                        <span className="text-white/40 text-[14px] font-black uppercase tracking-widest">aiwai.news</span>
                                     </div>
                                 </div>
                             </div>

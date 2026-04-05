@@ -145,7 +145,7 @@ export async function GET(
                                 margin: 0,
                             }}
                         >
-                            POSTOVINKY
+                            AIWai
                         </div>
                         <div
                             style={{
@@ -239,7 +239,7 @@ export async function GET(
                                 fontFamily: interBlack ? 'Inter' : 'sans-serif',
                             }}
                         >
-                            WWW.POSTOVINKY.NEWS
+                            WWW.AIWai.NEWS
                         </div>
                     </div>
                 </div>
