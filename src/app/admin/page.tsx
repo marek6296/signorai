@@ -171,7 +171,7 @@ export default function AdminPage() {
     const [isLoadingSources, setIsLoadingSources] = useState(false);
     const [isSavingSource, setIsSavingSource] = useState(false);
     const [editingSourceId, setEditingSourceId] = useState<string | null>(null);
-    const [sourceForm, setSourceForm] = useState({ name: "", url: "", category: "AI", active: true });
+    const [sourceForm, setSourceForm] = useState({ source_name: "", feed_url: "", category: "AI", is_active: true });
     const [needsMigration, setNeedsMigration] = useState(false);
 
     // Tab control – obnovíme z localStorage pri refreshi (prvý zápis preskočíme, aby sme neprepísali obnovenú kartu)
@@ -928,7 +928,7 @@ export default function AdminPage() {
             if (res.ok) {
                 await fetchDiscoverySources();
                 setEditingSourceId(null);
-                setSourceForm({ name: "", url: "", category: "AI", active: true });
+                setSourceForm({ source_name: "", feed_url: "", category: "AI", is_active: true });
             }
         } catch (e) {
             console.error("Save source failed:", e);
@@ -1619,6 +1619,7 @@ export default function AdminPage() {
 
         try {
             let res: Response;
+            let usedFallback = false;
 
             if (isGemini) {
                 // Gemini Live Search
@@ -1631,6 +1632,27 @@ export default function AdminPage() {
                         query: geminiQuery.trim()
                     })
                 });
+
+                const data = await res.json();
+
+                // If Gemini fails (any reason: MISSING_API_KEY, AUTH_ERROR, etc.), fallback to OpenAI
+                if (!res.ok && (data.code === "MISSING_API_KEY" || data.code === "AUTH_ERROR" || data.code === "API_ERROR")) {
+                    console.warn(">>> Gemini API failed, falling back to OpenAI + RSS method:", data.code);
+                    usedFallback = true;
+                    setDiscoveryStage("Prepínanie na OpenAI + RSS metódu...");
+
+                    // Fallback to OpenAI + RSS
+                    const params = new URLSearchParams({
+                        secret: "make-com-webhook-secret",
+                        days: discoveryDays,
+                    });
+                    if (discoveryTargetCategories.length > 0) {
+                        params.append("categories", discoveryTargetCategories.join(","));
+                    }
+                    res = await fetch(`/api/admin/discover-news?${params.toString()}`);
+                } else if (!res.ok) {
+                    throw new Error(data.message || data.error);
+                }
             } else {
                 // OpenAI + RSS
                 const params = new URLSearchParams({
@@ -1646,7 +1668,8 @@ export default function AdminPage() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.message || data.error);
             setStatus("success");
-            setMessage(data.message || "Boli objavené nové témy!");
+            const fallbackNote = usedFallback ? " (Gemini API nie je nastavený, použil som OpenAI + RSS)" : "";
+            setMessage((data.message || "Boli objavené nové témy!") + fallbackNote);
             fetchSuggestions();
         } catch (error: unknown) {
             setStatus("error");
@@ -4267,8 +4290,8 @@ export default function AdminPage() {
                                                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2 block ml-1">Názov zdroja</label>
                                                 <input 
                                                     type="text" 
-                                                    value={sourceForm.name}
-                                                    onChange={e => setSourceForm({...sourceForm, name: e.target.value})}
+                                                    value={sourceForm.source_name}
+                                                    onChange={e => setSourceForm({...sourceForm, source_name: e.target.value})}
                                                     placeholder="Napr. The Verge AI"
                                                     className="w-full bg-background border border-border/50 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 font-bold"
                                                     required
@@ -4278,8 +4301,8 @@ export default function AdminPage() {
                                                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2 block ml-1">RSS URL adresa</label>
                                                 <input 
                                                     type="url" 
-                                                    value={sourceForm.url}
-                                                    onChange={e => setSourceForm({...sourceForm, url: e.target.value})}
+                                                    value={sourceForm.feed_url}
+                                                    onChange={e => setSourceForm({...sourceForm, feed_url: e.target.value})}
                                                     placeholder="https://domain.com/feed"
                                                     className="w-full bg-background border border-border/50 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 font-mono text-xs"
                                                     required
@@ -4318,7 +4341,7 @@ export default function AdminPage() {
                                                         type="button"
                                                         onClick={() => {
                                                             setEditingSourceId(null);
-                                                            setSourceForm({ name: "", url: "", category: "AI", active: true });
+                                                            setSourceForm({ source_name: "", feed_url: "", category: "AI", is_active: true });
                                                         }}
                                                         className="px-6 bg-muted text-muted-foreground font-black rounded-xl text-xs uppercase tracking-widest hover:bg-muted/80 transition-all"
                                                     >
@@ -4338,7 +4361,7 @@ export default function AdminPage() {
                                             {isLoadingSources && <RefreshCw className="w-4 h-4 animate-spin" />}
                                         </h4>
                                         <div className="grid gap-3">
-                                            {[...discoverySources].sort((a,b) => a.name.localeCompare(b.name)).map((source) => (
+                                            {[...discoverySources].sort((a,b) => a.source_name.localeCompare(b.source_name)).map((source) => (
                                                 <div key={source.id} className="p-5 bg-muted/10 border border-border/50 rounded-3xl hover:bg-muted/20 transition-all group relative">
                                                     <div className="flex justify-between items-start mb-2">
                                                         <div className="flex items-center gap-2">
@@ -4350,7 +4373,7 @@ export default function AdminPage() {
                                                             )}>
                                                                 {source.category}
                                                             </span>
-                                                            {!source.active && (
+                                                            {!source.is_active && (
                                                                 <span className="px-2 py-0.5 rounded-md bg-red-500/10 text-red-500 text-[9px] font-black uppercase tracking-widest border border-red-500/20">
                                                                     Neaktívny
                                                                 </span>
@@ -4361,7 +4384,7 @@ export default function AdminPage() {
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
                                                                     setEditingSourceId(source.id);
-                                                                    setSourceForm({ name: source.name, url: source.url, category: source.category, active: source.active });
+                                                                    setSourceForm({ source_name: source.source_name, feed_url: source.feed_url, category: source.category, is_active: source.is_active });
                                                                 }}
                                                                 className="p-2 hover:bg-blue-500/10 text-blue-500 rounded-lg transition-colors"
                                                             >
@@ -4378,8 +4401,8 @@ export default function AdminPage() {
                                                             </button>
                                                         </div>
                                                     </div>
-                                                    <h5 className="font-bold text-base leading-tight mb-1">{source.name}</h5>
-                                                    <p className="text-[10px] text-zinc-500 font-mono truncate max-w-xs">{source.url}</p>
+                                                    <h5 className="font-bold text-base leading-tight mb-1">{source.source_name}</h5>
+                                                    <p className="text-[10px] text-zinc-500 font-mono truncate max-w-xs">{source.feed_url}</p>
                                                 </div>
                                             ))}
                                             {discoverySources.length === 0 && !isLoadingSources && (

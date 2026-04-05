@@ -15,9 +15,14 @@ async function executeGeminiDiscovery(categories: string[], query: string, secre
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const geminiApiKey = process.env.GEMINI_API_KEY || "AIzaSyB2l5-3mhc5PEDWHH1H7NGQQ-y-B5XPGzk";
+    const geminiApiKey = process.env.GEMINI_API_KEY;
     if (!geminiApiKey) {
-        return NextResponse.json({ error: "GEMINI_API_KEY nie je nastavený na serveri." }, { status: 500 });
+        console.error(">>> [Gemini Topics] GEMINI_API_KEY nie je nastavený!");
+        return NextResponse.json({
+            error: "GEMINI_API_KEY nie je nakonfigurovaný na serveri.",
+            message: "Skús namiesto toho 'Hľadať cez RSS' (OpenAI variant).",
+            code: "MISSING_API_KEY"
+        }, { status: 500 });
     }
 
     const ai = new GoogleGenAI({ apiKey: geminiApiKey });
@@ -151,9 +156,21 @@ Odpoveď vráť AKO ČISTÉ JSON POLE - bez markdown, bez \`\`\` blokov, iba [{"
 
     } catch (error: unknown) {
         console.error(">>> [Gemini Topics] ERROR:", error);
+
+        // Check if this is an auth error (leaked key, permission denied, etc.)
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const isAuthError = errorMessage.includes("403") ||
+                           errorMessage.includes("PERMISSION_DENIED") ||
+                           errorMessage.includes("leaked") ||
+                           errorMessage.includes("Unauthorized");
+
         return NextResponse.json({
             error: "Chyba pri hľadaní tém cez Gemini",
-            detail: error instanceof Error ? error.message : String(error)
+            detail: error instanceof Error ? error.message : String(error),
+            code: isAuthError ? "AUTH_ERROR" : "API_ERROR",
+            message: isAuthError
+                ? "Gemini API kľúč je neplatný alebo zablokovaný. Vygeneruj si nový kľúč z Google Cloud Console."
+                : "Gemini API chyba. Skús namiesto toho OpenAI + RSS metódu."
         }, { status: 500 });
     }
 }

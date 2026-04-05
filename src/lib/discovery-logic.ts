@@ -72,10 +72,10 @@ export async function discoverNewNews(maxDays: number, targetCategories: string[
     const { data: dbSources } = await supabase
         .from('discovery_sources')
         .select('*')
-        .eq('active', true);
+        .eq('is_active', true);
 
     if (dbSources && dbSources.length > 0) {
-        allFeeds = dbSources.map(s => ({ name: s.name, url: s.url, category: s.category }));
+        allFeeds = dbSources.map(s => ({ name: s.source_name, url: s.feed_url, category: s.category }));
     } else {
         // Fallback to hardcoded groups from before
         for (const [group, feeds] of Object.entries(FEED_GROUPS)) {

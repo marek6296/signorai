@@ -15,7 +15,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'imageUrl a prompt sú povinné' }, { status: 400 });
         }
 
-        const apiKey = process.env.GEMINI_API_KEY || "AIzaSyB2l5-3mhc5PEDWHH1H7NGQQ-y-B5XPGzk";
+        const apiKey = process.env.GEMINI_API_KEY || "AIzaSyBwslaqe7TRYOwgEtmMbNxbjDJcbVSr5K4";
         if (!apiKey || apiKey === 'your_gemini_api_key_here') {
             return NextResponse.json({ error: 'API kľúč nie je nakonfigurovaný' }, { status: 500 });
         }

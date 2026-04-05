@@ -10,7 +10,7 @@ export async function GET(req: Request) {
         const { data: existingSources, error: fetchError } = await supabase
             .from('discovery_sources')
             .select('*')
-            .order('name', { ascending: true });
+            .order('source_name', { ascending: true });
 
         if (fetchError) {
             // Check if table doesn't exist
@@ -24,33 +24,33 @@ export async function GET(req: Request) {
         if (existingSources.length === 0) {
             const defaults = [
                 // AI
-                { name: "The Verge AI", url: "https://www.theverge.com/ai-artificial-intelligence/rss/index.xml", category: "AI" },
-                { name: "TechCrunch AI", url: "https://techcrunch.com/category/artificial-intelligence/feed/", category: "AI" },
-                { name: "Wired AI", url: "https://www.wired.com/feed/category/ai/latest/rss", category: "AI" },
-                { name: "VentureBeat AI", url: "https://venturebeat.com/category/ai/feed/", category: "AI" },
-                { name: "AI News", url: "https://www.artificialintelligence-news.com/feed/", category: "AI" },
-                { name: "MIT Tech Review AI", url: "https://www.technologyreview.com/topic/artificial-intelligence/feed/", category: "AI" },
-                { name: "Futurism AI", url: "https://futurism.com/feed", category: "AI" },
-                { name: "Import AI", url: "https://jack-clark.net/feed/", category: "AI" },
-                { name: "The Batch (DeepLearning.AI)", url: "https://www.deeplearning.ai/the-batch/feed/", category: "AI" },
-                { name: "Hugging Face Blog", url: "https://huggingface.co/blog/feed.xml", category: "AI" },
-                { name: "Google DeepMind", url: "https://deepmind.google/blog/rss/", category: "AI" },
-                { name: "Ars Technica AI", url: "https://arstechnica.com/ai/feed/", category: "AI" },
-                { name: "TLDR AI", url: "https://tldr.tech/ai/rss", category: "AI" },
-                { name: "The Rundown AI", url: "https://www.therundown.ai/rss", category: "AI" },
+                { source_name: "The Verge AI", feed_url: "https://www.theverge.com/ai-artificial-intelligence/rss/index.xml", category: "AI" },
+                { source_name: "TechCrunch AI", feed_url: "https://techcrunch.com/category/artificial-intelligence/feed/", category: "AI" },
+                { source_name: "Wired AI", feed_url: "https://www.wired.com/feed/category/ai/latest/rss", category: "AI" },
+                { source_name: "VentureBeat AI", feed_url: "https://venturebeat.com/category/ai/feed/", category: "AI" },
+                { source_name: "AI News", feed_url: "https://www.artificialintelligence-news.com/feed/", category: "AI" },
+                { source_name: "MIT Tech Review AI", feed_url: "https://www.technologyreview.com/topic/artificial-intelligence/feed/", category: "AI" },
+                { source_name: "Futurism AI", feed_url: "https://futurism.com/feed", category: "AI" },
+                { source_name: "Import AI", feed_url: "https://jack-clark.net/feed/", category: "AI" },
+                { source_name: "The Batch (DeepLearning.AI)", feed_url: "https://www.deeplearning.ai/the-batch/feed/", category: "AI" },
+                { source_name: "Hugging Face Blog", feed_url: "https://huggingface.co/blog/feed.xml", category: "AI" },
+                { source_name: "Google DeepMind", feed_url: "https://deepmind.google/blog/rss/", category: "AI" },
+                { source_name: "Ars Technica AI", feed_url: "https://arstechnica.com/ai/feed/", category: "AI" },
+                { source_name: "TLDR AI", feed_url: "https://tldr.tech/ai/rss", category: "AI" },
+                { source_name: "The Rundown AI", feed_url: "https://www.therundown.ai/rss", category: "AI" },
                 // Tech
-                { name: "Engadget", url: "https://www.engadget.com/rss.xml", category: "Tech" },
-                { name: "Ars Technica", url: "https://feeds.feedburner.com/arstechnica/index", category: "Tech" },
-                { name: "The Verge", url: "https://www.theverge.com/rss/index.xml", category: "Tech" },
-                { name: "The Next Web", url: "https://thenextweb.com/feed", category: "Tech" },
-                { name: "Gizmodo", url: "https://gizmodo.com/rss", category: "Tech" },
-                { name: "9to5Mac", url: "https://9to5mac.com/feed", category: "Tech" },
-                { name: "9to5Google", url: "https://9to5google.com/feed", category: "Tech" },
-                { name: "TechCrunch", url: "https://techcrunch.com/feed/", category: "Tech" },
+                { source_name: "Engadget", feed_url: "https://www.engadget.com/rss.xml", category: "Tech" },
+                { source_name: "Ars Technica", feed_url: "https://feeds.feedburner.com/arstechnica/index", category: "Tech" },
+                { source_name: "The Verge", feed_url: "https://www.theverge.com/rss/index.xml", category: "Tech" },
+                { source_name: "The Next Web", feed_url: "https://thenextweb.com/feed", category: "Tech" },
+                { source_name: "Gizmodo", feed_url: "https://gizmodo.com/rss", category: "Tech" },
+                { source_name: "9to5Mac", feed_url: "https://9to5mac.com/feed", category: "Tech" },
+                { source_name: "9to5Google", feed_url: "https://9to5google.com/feed", category: "Tech" },
+                { source_name: "TechCrunch", feed_url: "https://techcrunch.com/feed/", category: "Tech" },
                 // Návody
-                { name: "How-To Geek AI", url: "https://www.howtogeek.com/feed/", category: "Návody & Tipy" },
-                { name: "MakeUseOf AI", url: "https://www.makeuseof.com/category/artificial-intelligence/feed/", category: "Návody & Tipy" },
-                { name: "Zapier Blog", url: "https://zapier.com/blog/feeds/latest/", category: "Návody & Tipy" },
+                { source_name: "How-To Geek AI", feed_url: "https://www.howtogeek.com/feed/", category: "Návody & Tipy" },
+                { source_name: "MakeUseOf AI", feed_url: "https://www.makeuseof.com/category/artificial-intelligence/feed/", category: "Návody & Tipy" },
+                { source_name: "Zapier Blog", feed_url: "https://zapier.com/blog/feeds/latest/", category: "Návody & Tipy" },
             ];
 
             const { data: seeded, error: insertError } = await supabase
