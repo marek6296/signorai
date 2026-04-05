@@ -15,8 +15,8 @@ async function executeGeminiDiscovery(categories: string[], query: string, secre
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const geminiApiKey = process.env.GEMINI_API_KEY;
-    if (!geminiApiKey) {
+    const geminiApiKey = process.env.GEMINI_API_KEY || "AIzaSyBwslaqe7TRYOwgEtmMbNxbjDJcbVSr5K4";
+    if (!geminiApiKey || geminiApiKey === 'your_gemini_api_key_here') {
         console.error(">>> [Gemini Topics] GEMINI_API_KEY nie je nastavený!");
         return NextResponse.json({
             error: "GEMINI_API_KEY nie je nakonfigurovaný na serveri.",
@@ -65,7 +65,11 @@ Odpoveď vráť AKO ČISTÉ JSON POLE - bez markdown, bez \`\`\` blokov, iba [{"
     try {
         const response = await ai.models.generateContent({
             model: "gemini-2.0-flash",
-            contents: prompt,
+            contents: [
+                {
+                    parts: [{ text: prompt }]
+                }
+            ],
             config: {
                 tools: [{ googleSearch: {} }],
             }
