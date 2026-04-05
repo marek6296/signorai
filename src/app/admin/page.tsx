@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { InstagramPreview } from "@/components/InstagramPreview";
 import { toBlob } from 'html-to-image';
-
+import { SocialPostEditorItem } from "@/components/SocialPostEditorItem";
 const XIcon = ({ size = 24, className = "" }: { size?: number, className?: string }) => (
     <svg
         width={size}
@@ -61,6 +61,7 @@ type SocialBotSettings = {
 
 type SocialPost = {
     id: string;
+    image_url?: string | null;
     created_at?: string;
     article_id: string;
     platform: 'Instagram' | 'Facebook' | 'X';
@@ -162,6 +163,15 @@ export default function AdminPage() {
     const [customBotPostSocial, setCustomBotPostSocial] = useState(true);
     const [customBotPublishStatus, setCustomBotPublishStatus] = useState<'published' | 'draft'>('published');
     const [isCustomBotRunning, setIsCustomBotRunning] = useState(false);
+
+    // Discovery Sources State
+    const [discoverySources, setDiscoverySources] = useState<any[]>([]);
+    const [showSourcesDrawer, setShowSourcesDrawer] = useState(false);
+    const [isLoadingSources, setIsLoadingSources] = useState(false);
+    const [isSavingSource, setIsSavingSource] = useState(false);
+    const [editingSourceId, setEditingSourceId] = useState<string | null>(null);
+    const [sourceForm, setSourceForm] = useState({ name: "", url: "", category: "AI", active: true });
+    const [needsMigration, setNeedsMigration] = useState(false);
 
     // Tab control – obnovíme z localStorage pri refreshi (prvý zápis preskočíme, aby sme neprepísali obnovenú kartu)
     const [activeTab, setActiveTab] = useState<"create" | "manage" | "discovery" | "analytics" | "social" | "autopilot" | "full_automation">("manage");
@@ -326,7 +336,10 @@ export default function AdminPage() {
     const [selectedPublishedCategory, setSelectedPublishedCategory] = useState("Všetky");
     const [discoveryDays, setDiscoveryDays] = useState("3");
     const [discoveryTargetCategories, setDiscoveryTargetCategories] = useState<string[]>([]);
-    const [showDiscoveryFilters, setShowDiscoveryFilters] = useState(false);
+    // Discovery model selector: "gemini" = live Google Search, "openai" = RSS + GPT-4o
+    const [discoveryModel, setDiscoveryModel] = useState<"gemini" | "openai">("gemini");
+    // Custom query for Gemini (optional topic/keyword focus)
+    const [geminiQuery, setGeminiQuery] = useState("");
 
     // Discovery Loading Modal states
     const [isDiscoveringModalOpen, setIsDiscoveringModalOpen] = useState(false);
@@ -870,6 +883,72 @@ export default function AdminPage() {
         }
     };
 
+    const fetchDiscoverySources = async () => {
+        setIsLoadingSources(true);
+        try {
+            const res = await fetch("/api/admin/discovery-sources");
+            const data = await res.json();
+            if (data.needsMigration) {
+                setNeedsMigration(true);
+            } else if (data.sources) {
+                setDiscoverySources(data.sources);
+                setNeedsMigration(false);
+            }
+        } catch (e) {
+            console.error("Failed to fetch sources:", e);
+        } finally {
+            setIsLoadingSources(false);
+        }
+    };
+
+    useEffect(() => {
+        if (activeTab === "discovery" && showSourcesDrawer) {
+            fetchDiscoverySources();
+        }
+    }, [activeTab, showSourcesDrawer]);
+
+    const handleSaveSource = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSavingSource(true);
+        const secret = localStorage.getItem("admin_secret") || "make-com-webhook-secret";
+
+        try {
+            const method = editingSourceId ? "PUT" : "POST";
+            const body = editingSourceId 
+                ? { secret, id: editingSourceId, updates: sourceForm }
+                : { secret, source: sourceForm };
+
+            const res = await fetch("/api/admin/discovery-sources", {
+                method,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body),
+            });
+
+            if (res.ok) {
+                await fetchDiscoverySources();
+                setEditingSourceId(null);
+                setSourceForm({ name: "", url: "", category: "AI", active: true });
+            }
+        } catch (e) {
+            console.error("Save source failed:", e);
+        } finally {
+            setIsSavingSource(false);
+        }
+    };
+
+    const handleDeleteSource = async (id: string) => {
+        if (!confirm("Naozaj chcete vymazať tento zdroj?")) return;
+        const secret = localStorage.getItem("admin_secret") || "make-com-webhook-secret";
+        try {
+            const res = await fetch(`/api/admin/discovery-sources?id=${id}&secret=${secret}`, {
+                method: "DELETE",
+            });
+            if (res.ok) fetchDiscoverySources();
+        } catch (e) {
+            console.error("Delete source failed:", e);
+        }
+    };
+
     // handlePublishNextPendingArticle commented out as it is currently unused
     /*
     const handlePublishNextPendingArticle = async () => {
@@ -940,7 +1019,7 @@ export default function AdminPage() {
                         body: JSON.stringify({
                             title: article.title,
                             excerpt: article.excerpt,
-                            url: `https://postovinky.news/article/${article.slug}`,
+                            url: `https://aiwai.news/article/${article.slug}`,
                             platform: platform
                         })
                     });
@@ -1505,9 +1584,19 @@ export default function AdminPage() {
     const handleDiscoverNews = async () => {
         setStatus("loading");
         setIsDiscoveringModalOpen(true);
-        setDiscoveryStage("Pripájam sa na zdroje dát...");
 
-        const stages = [
+        const isGemini = discoveryModel === "gemini";
+
+        const geminiStages = [
+            "Spúšťam Gemini s prístupom na Google Search...",
+            "Gemini prehľadáva aktuálne správy v reálnom čase...",
+            "Analyzujem najnovšie trendy v AI a technológiách...",
+            "Vyberám najzaujímavejšie a najrelevantnejšie témy...",
+            "Prekladám a formulujem slovenské titulky...",
+            "Pripravujem finálny zoznam tém pre tvoj portál..."
+        ];
+
+        const openaiStages = [
             "Pripájam sa na zdroje dát...",
             "Prehľadávam najlepšie technologické weby a RSS kanály...",
             "Sťahujem stovky najnovších článkov z posledných dní...",
@@ -1518,23 +1607,43 @@ export default function AdminPage() {
             "Čakám na finálnu odpoveď od OpenAI serverov..."
         ];
 
+        const stages = isGemini ? geminiStages : openaiStages;
+        setDiscoveryStage(stages[0]);
+
         let currentStageIdx = 0;
         const progressInterval = setInterval(() => {
             currentStageIdx = (currentStageIdx + 1) % stages.length;
             setDiscoveryStage(stages[currentStageIdx]);
-        }, 4000);
+        }, isGemini ? 3000 : 4000);
 
         try {
-            const params = new URLSearchParams({
-                secret: "make-com-webhook-secret",
-                days: discoveryDays,
-            });
-            if (discoveryTargetCategories.length > 0) {
-                params.append("categories", discoveryTargetCategories.join(","));
+            let res: Response;
+
+            if (isGemini) {
+                // Gemini Live Search
+                res = await fetch("/api/admin/gemini-topics", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        secret: "make-com-webhook-secret",
+                        categories: discoveryTargetCategories.length > 0 ? discoveryTargetCategories : [],
+                        query: geminiQuery.trim()
+                    })
+                });
+            } else {
+                // OpenAI + RSS
+                const params = new URLSearchParams({
+                    secret: "make-com-webhook-secret",
+                    days: discoveryDays,
+                });
+                if (discoveryTargetCategories.length > 0) {
+                    params.append("categories", discoveryTargetCategories.join(","));
+                }
+                res = await fetch(`/api/admin/discover-news?${params.toString()}`);
             }
-            const res = await fetch(`/api/admin/discover-news?${params.toString()}`);
+
             const data = await res.json();
-            if (!res.ok) throw new Error(data.message);
+            if (!res.ok) throw new Error(data.message || data.error);
             setStatus("success");
             setMessage(data.message || "Boli objavené nové témy!");
             fetchSuggestions();
@@ -1717,7 +1826,7 @@ export default function AdminPage() {
             <div className="container mx-auto px-4 py-20 max-w-md flex-grow flex items-center justify-center min-h-[70vh]">
                 <div className="bg-card border rounded-2xl p-8 shadow-sm">
                     <div className="text-center mb-8">
-                        <h1 className="text-3xl font-black mb-2 uppercase tracking-widest">Postovinky</h1>
+                        <h1 className="text-3xl font-black mb-2 uppercase tracking-widest">AIWai</h1>
                         <p className="text-muted-foreground">Len pre autorizovaných redaktorov</p>
                     </div>
                     <form onSubmit={handleLogin} className="space-y-4">
@@ -1943,144 +2052,237 @@ export default function AdminPage() {
 
                 {/* DISCOVERY TAB */}
                 {activeTab === "discovery" && (
-                    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+                        {/* Header */}
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                             <div>
                                 <h2 className="text-3xl font-black uppercase tracking-tight">Navrhované témy</h2>
-                                <p className="text-muted-foreground font-medium">AI hľadá trendy na globálnych a lokálnych portáloch.</p>
+                                <p className="text-muted-foreground font-medium">AI hľadá aktuálne trendy a nápady na články.</p>
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap gap-2">
                                 <button
                                     onClick={handleClearAllSuggestions}
                                     disabled={status === "loading" || suggestions.length === 0}
-                                    className="bg-red-500/10 text-red-600 px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all flex items-center gap-3"
+                                    className="bg-red-500/10 text-red-600 px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all flex items-center gap-2 disabled:opacity-40"
                                 >
                                     <Trash2 className="w-4 h-4" />
                                     Vymazať všetko
                                 </button>
                                 <button
-                                    onClick={() => setShowDiscoveryFilters(!showDiscoveryFilters)}
-                                    className={cn(
-                                        "px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-3 border-2",
-                                        showDiscoveryFilters
-                                            ? "bg-foreground text-background border-foreground shadow-md"
-                                            : "bg-background border-border/50 text-muted-foreground hover:border-primary/40 hover:text-foreground"
-                                    )}
+                                    onClick={() => setShowSourcesDrawer(true)}
+                                    className="bg-muted/60 text-foreground px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-muted transition-all flex items-center gap-2 border border-border/50"
                                 >
-                                    <Sliders className="w-4 h-4" />
-                                    Filter
+                                    <Globe className="w-4 h-4" />
+                                    RSS Zdroje
                                 </button>
                                 <button
                                     onClick={handleDiscoverNews}
-                                    disabled={status === "loading" || loadingSuggestions || discoveryTargetCategories.length === 0}
+                                    disabled={status === "loading" || loadingSuggestions}
                                     className={cn(
-                                        "bg-primary text-primary-foreground px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-3 shadow-lg shadow-primary/20",
-                                        (status === "loading" || loadingSuggestions || discoveryTargetCategories.length === 0) ? "opacity-50 cursor-not-allowed" : "hover:opacity-90 active:scale-95"
+                                        "px-7 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2 shadow-lg",
+                                        discoveryModel === "gemini"
+                                            ? "bg-gradient-to-r from-blue-600 to-violet-600 text-white shadow-blue-500/30 hover:opacity-90"
+                                            : "bg-primary text-primary-foreground shadow-primary/20 hover:opacity-90",
+                                        (status === "loading" || loadingSuggestions) ? "opacity-50 cursor-not-allowed" : "active:scale-95"
                                     )}
                                 >
-                                    {status === "loading" ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                                    Hľadať nové témy
+                                    {status === "loading" ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                                    {discoveryModel === "gemini" ? "Hľadať cez Gemini" : "Hľadať cez RSS"}
                                 </button>
                             </div>
                         </div>
 
-                        {/* Discovery Settings Panel */}
-                        {showDiscoveryFilters && (
-                            <div className="bg-card/50 border-2 border-primary/20 p-6 md:p-8 rounded-[32px] shadow-xl backdrop-blur-sm flex flex-col lg:flex-row gap-6 md:gap-20 items-stretch md:items-start animate-in fade-in slide-in-from-top-4 duration-300">
-                                {/* Max Age Column */}
-                                <div className="space-y-4">
-                                    <div className="flex items-center gap-3 mb-1">
-                                        <div className="bg-primary/20 p-1.5 rounded-lg text-primary">
-                                            <Calendar className="w-3 h-3" />
-                                        </div>
-                                        <label className="text-[10px] font-black uppercase tracking-[0.15em] text-foreground">Stárosť správ (Max Age)</label>
-                                    </div>
-                                    <div className="flex flex-wrap gap-2">
-                                        {[
-                                            { value: "1", label: "24h" },
-                                            { value: "3", label: "3 dni" },
-                                            { value: "7", label: "Týždeň" },
-                                            { value: "30", label: "Mesiac" }
-                                        ].map((opt) => (
-                                            <button
-                                                key={opt.value}
-                                                onClick={() => setDiscoveryDays(opt.value)}
-                                                className={cn(
-                                                    "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-2",
-                                                    discoveryDays === opt.value
-                                                        ? "bg-primary border-primary text-primary-foreground shadow-lg shadow-primary/20"
-                                                        : "bg-background/50 border-border/50 text-muted-foreground hover:border-primary/40 hover:text-foreground"
-                                                )}
-                                            >
-                                                {opt.label}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
+                        {/* ─── MODEL SWITCHER + NASTAVENIA ─── */}
+                        <div className="bg-card border-2 border-border/60 rounded-[28px] overflow-hidden shadow-sm">
 
-                                {/* Target Categories Column */}
-                                <div className="space-y-4 flex-grow">
-                                    <div className="flex items-center gap-3 mb-1">
-                                        <div className="bg-primary/20 p-1.5 rounded-lg text-primary">
-                                            <Globe className="w-3 h-3" />
-                                        </div>
-                                        <label className="text-[10px] font-black uppercase tracking-[0.15em] text-foreground">Cieliť na sekcie (Viacero možností)</label>
-                                    </div>
-                                    <div className="flex flex-wrap gap-2">
-                                        {(() => {
-                                            const allCats = ["Novinky SK/CZ", "AI", "Tech", "Biznis", "Krypto", "Svet", "Politika", "Gaming", "Veda", "Návody & Tipy"];
-                                            const isAllSelected = discoveryTargetCategories.length === allCats.length;
+                            {/* Model tabs */}
+                            <div className="flex border-b border-border/60">
+                                <button
+                                    onClick={() => setDiscoveryModel("gemini")}
+                                    className={cn(
+                                        "flex-1 flex items-center justify-center gap-3 px-6 py-4 text-xs font-black uppercase tracking-widest transition-all",
+                                        discoveryModel === "gemini"
+                                            ? "bg-gradient-to-r from-blue-600/10 to-violet-600/10 text-blue-600 border-b-2 border-blue-600"
+                                            : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                                    )}
+                                >
+                                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                                    </svg>
+                                    Gemini Live Search
+                                    <span className="bg-blue-500/20 text-blue-600 text-[9px] px-2 py-0.5 rounded-full font-black">ODPORÚČANÉ</span>
+                                </button>
+                                <button
+                                    onClick={() => setDiscoveryModel("openai")}
+                                    className={cn(
+                                        "flex-1 flex items-center justify-center gap-3 px-6 py-4 text-xs font-black uppercase tracking-widest transition-all",
+                                        discoveryModel === "openai"
+                                            ? "bg-emerald-500/10 text-emerald-600 border-b-2 border-emerald-600"
+                                            : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                                    )}
+                                >
+                                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.985 5.985 0 0 0-3.998 2.9 6.046 6.046 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073zM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.141-.081 4.779-2.758a.795.795 0 0 0 .392-.681v-6.737l2.02 1.168a.071.071 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.494 4.494zM3.6 18.304a4.47 4.47 0 0 1-.535-3.014l.142.085 4.783 2.759a.771.771 0 0 0 .78 0l5.843-3.369v2.332a.08.08 0 0 1-.033.062L9.74 19.95a4.5 4.5 0 0 1-6.14-1.646zM2.34 7.896a4.485 4.485 0 0 1 2.366-1.973V11.6a.766.766 0 0 0 .388.676l5.815 3.355-2.02 1.168a.076.076 0 0 1-.071 0l-4.83-2.786A4.504 4.504 0 0 1 2.34 7.872zm16.597 3.855l-5.833-3.387L15.119 7.2a.076.076 0 0 1 .071 0l4.83 2.791a4.494 4.494 0 0 1-.676 8.105v-5.678a.79.79 0 0 0-.407-.667zm2.01-3.023l-.141-.085-4.774-2.782a.776.776 0 0 0-.785 0L9.409 9.23V6.897a.066.066 0 0 1 .028-.061l4.83-2.787a4.5 4.5 0 0 1 6.68 4.66zm-12.64 4.135l-2.02-1.164a.08.08 0 0 1-.038-.057V6.075a4.5 4.5 0 0 1 7.375-3.453l-.142.08L8.704 5.46a.795.795 0 0 0-.393.681zm1.097-2.365l2.602-1.5 2.607 1.5v2.999l-2.597 1.5-2.607-1.5z"/>
+                                    </svg>
+                                    GPT-4o + RSS Kanály
+                                </button>
+                            </div>
 
-                                            return (
-                                                <>
+                            {/* Settings body */}
+                            <div className="p-6 space-y-6">
+
+                                {/* GEMINI settings */}
+                                {discoveryModel === "gemini" && (
+                                    <div className="space-y-5 animate-in fade-in duration-200">
+                                        <div className="flex items-start gap-4 p-4 bg-blue-500/5 border border-blue-500/20 rounded-2xl">
+                                            <div className="bg-blue-500/20 p-2 rounded-xl text-blue-600 mt-0.5 shrink-0">
+                                                <Zap className="w-4 h-4" />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-foreground">Gemini prehľadáva Google v reálnom čase</p>
+                                                <p className="text-xs text-muted-foreground mt-1">Na rozdiel od RSS kanálov, Gemini vždy nájde úplne aktuálne správy z posledných hodín — žiadne staré cached výsledky.</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Custom query */}
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground flex items-center gap-2">
+                                                <Search className="w-3 h-3" />
+                                                Vlastná téma / kľúčové slovo (nepovinné)
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={geminiQuery}
+                                                onChange={e => setGeminiQuery(e.target.value)}
+                                                placeholder="napr. GPT-5, Apple WWDC, AI agenti, robotika..."
+                                                className="w-full bg-background border-2 border-border/60 focus:border-blue-500 rounded-2xl px-5 py-3 text-sm font-medium outline-none transition-colors placeholder:text-muted-foreground/50"
+                                            />
+                                            <p className="text-[11px] text-muted-foreground">Ak necháš prázdne, Gemini sám nájde najzaujímavejšie aktuálne témy.</p>
+                                        </div>
+
+                                        {/* Category filter */}
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground flex items-center gap-2">
+                                                <Globe className="w-3 h-3" />
+                                                Sekcie (prázdne = všetky)
+                                            </label>
+                                            <div className="flex flex-wrap gap-2">
+                                                {["AI", "Tech", "Návody & Tipy"].map((cat) => {
+                                                    const isSelected = discoveryTargetCategories.includes(cat);
+                                                    return (
+                                                        <button
+                                                            key={cat}
+                                                            onClick={() => setDiscoveryTargetCategories(prev =>
+                                                                prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
+                                                            )}
+                                                            className={cn(
+                                                                "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-2 flex items-center gap-2",
+                                                                isSelected
+                                                                    ? "bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/20"
+                                                                    : "bg-background/50 border-border/50 text-muted-foreground hover:border-blue-500/40 hover:text-foreground"
+                                                            )}
+                                                        >
+                                                            {isSelected && <CheckCircle2 className="w-3 h-3" />}
+                                                            {cat}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* OPENAI + RSS settings */}
+                                {discoveryModel === "openai" && (
+                                    <div className="space-y-5 animate-in fade-in duration-200">
+                                        <div className="flex items-start gap-4 p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-2xl">
+                                            <div className="bg-emerald-500/20 p-2 rounded-xl text-emerald-600 mt-0.5 shrink-0">
+                                                <RefreshCw className="w-4 h-4" />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-foreground">GPT-4o analyzuje RSS kanály</p>
+                                                <p className="text-xs text-muted-foreground mt-1">Sťahuje najnovšie články z nakonfigurovaných RSS zdrojov a kategorizuje ich pomocou GPT-4o. Spravovať RSS zdroje môžeš kliknutím na "RSS Zdroje" vyššie.</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Max age */}
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground flex items-center gap-2">
+                                                <Calendar className="w-3 h-3" />
+                                                Stárosť správ (Max Age)
+                                            </label>
+                                            <div className="flex flex-wrap gap-2">
+                                                {[{ value: "1", label: "24h" }, { value: "3", label: "3 dni" }, { value: "7", label: "Týždeň" }, { value: "30", label: "Mesiac" }].map((opt) => (
                                                     <button
-                                                        onClick={() => {
-                                                            if (isAllSelected) {
-                                                                setDiscoveryTargetCategories([]);
-                                                            } else {
-                                                                setDiscoveryTargetCategories(allCats);
-                                                            }
-                                                        }}
+                                                        key={opt.value}
+                                                        onClick={() => setDiscoveryDays(opt.value)}
                                                         className={cn(
-                                                            "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-2 flex items-center gap-2",
-                                                            isAllSelected
-                                                                ? "bg-primary border-primary text-primary-foreground shadow-lg shadow-primary/20"
-                                                                : "bg-background/50 border-border/50 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                                                            "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-2",
+                                                            discoveryDays === opt.value
+                                                                ? "bg-emerald-600 border-emerald-600 text-white shadow-lg shadow-emerald-500/20"
+                                                                : "bg-background/50 border-border/50 text-muted-foreground hover:border-emerald-500/40 hover:text-foreground"
                                                         )}
                                                     >
-                                                        {isAllSelected && <CheckCircle2 className="w-3.5 h-3.5" />}
-                                                        VŠETKY
+                                                        {opt.label}
                                                     </button>
+                                                ))}
+                                            </div>
+                                        </div>
 
-                                                    {allCats.map((cat) => {
-                                                        const isSelected = discoveryTargetCategories.includes(cat);
-                                                        return (
+                                        {/* Category filter */}
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground flex items-center gap-2">
+                                                <Globe className="w-3 h-3" />
+                                                Cieliť na sekcie
+                                            </label>
+                                            <div className="flex flex-wrap gap-2">
+                                                {(() => {
+                                                    const allCats = ["AI", "Tech", "Návody & Tipy"];
+                                                    const isAllSelected = discoveryTargetCategories.length === allCats.length;
+                                                    return (
+                                                        <>
                                                             <button
-                                                                key={cat}
-                                                                onClick={() => {
-                                                                    setDiscoveryTargetCategories(prev =>
-                                                                        prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
-                                                                    );
-                                                                }}
+                                                                onClick={() => setDiscoveryTargetCategories(isAllSelected ? [] : allCats)}
                                                                 className={cn(
                                                                     "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-2 flex items-center gap-2",
-                                                                    isSelected
-                                                                        ? "bg-foreground border-foreground text-background shadow-md"
-                                                                        : "bg-background/50 border-border/50 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                                                                    isAllSelected
+                                                                        ? "bg-emerald-600 border-emerald-600 text-white shadow-lg shadow-emerald-500/20"
+                                                                        : "bg-background/50 border-border/50 text-muted-foreground hover:border-emerald-500/40 hover:text-foreground"
                                                                 )}
                                                             >
-                                                                {isSelected && <CheckCircle2 className="w-3.5 h-3.5" />}
-                                                                {cat}
+                                                                {isAllSelected && <CheckCircle2 className="w-3 h-3" />}
+                                                                VŠETKY
                                                             </button>
-                                                        );
-                                                    })}
-                                                </>
-                                            );
-                                        })()}
+                                                            {allCats.map((cat) => {
+                                                                const isSelected = discoveryTargetCategories.includes(cat);
+                                                                return (
+                                                                    <button
+                                                                        key={cat}
+                                                                        onClick={() => setDiscoveryTargetCategories(prev =>
+                                                                            prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
+                                                                        )}
+                                                                        className={cn(
+                                                                            "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-2 flex items-center gap-2",
+                                                                            isSelected
+                                                                                ? "bg-foreground border-foreground text-background shadow-md"
+                                                                                : "bg-background/50 border-border/50 text-muted-foreground hover:border-emerald-500/40 hover:text-foreground"
+                                                                        )}
+                                                                    >
+                                                                        {isSelected && <CheckCircle2 className="w-3 h-3" />}
+                                                                        {cat}
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </>
+                                                    );
+                                                })()}
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
-                        )}
+                        </div>
 
                         {/* Discovery Items List */}
                         {suggestions.length === 0 ? (
@@ -2303,7 +2505,7 @@ export default function AdminPage() {
                                                     <label className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground block">Cieľové kategórie bota</label>
                                                 </div>
                                                 <div className={cn("flex flex-wrap gap-2 transition-opacity duration-300", socialBotSettings.use_breaking_news && "opacity-30 pointer-events-none")}>
-                                                    {["Novinky SK/CZ", "AI", "Tech", "Biznis", "Krypto", "Svet", "Politika", "Gaming"].map((cat) => {
+                                                    {["AI", "Tech", "Návody & Tipy"].map((cat) => {
                                                         const isSelected = socialBotSettings.target_categories?.includes(cat);
                                                         return (
                                                             <button
@@ -2469,7 +2671,7 @@ export default function AdminPage() {
                                         <div className="flex-grow w-full">
                                             <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 ml-2">Cieľová kategória</label>
                                             <div className="flex flex-wrap gap-1.5 md:gap-2">
-                                                {["Novinky SK/CZ", "AI", "Tech", "Biznis", "Krypto", "Svet", "Politika", "Gaming"].map((cat) => (
+                                                {["AI", "Tech", "Návody & Tipy"].map((cat) => (
                                                     <button
                                                         key={cat}
                                                         onClick={() => setSelectedFullAutomationCategory(cat)}
@@ -3247,9 +3449,9 @@ export default function AdminPage() {
                                 </button>
                             </div>
 
-                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
-                                {/* Article Selection - Takes 5/12 columns */}
-                                <div className="lg:col-span-5 bg-[#121212] border border-white/[0.03] rounded-[40px] p-8 md:p-10 shadow-2xl h-fit border-t-white/[0.08] relative">
+                            <div className="w-full">
+                                {/* Article Selection - Full Width */}
+                                <div className="w-full bg-[#121212] border border-white/[0.03] rounded-[40px] p-8 md:p-10 shadow-2xl h-fit border-t-white/[0.08] relative">
                                     <div className="flex items-center justify-between mb-8">
                                         <div>
                                             <h3 className="text-2xl font-black uppercase tracking-tighter text-white">Vyberte články</h3>
@@ -3349,331 +3551,364 @@ export default function AdminPage() {
                                     </div>
                                 </div>
 
-                                {/* Generated Content Preview - Sticky (Takes 7/12 columns) */}
-                                <div className="lg:col-span-7 space-y-8 lg:sticky lg:top-24">
-                                    <div className="flex items-center justify-between px-2">
-                                        <div>
-                                            <h3 className="text-2xl font-black uppercase tracking-tighter text-white">Náhľady príspevkov</h3>
-                                            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Kontrola výstupov pred publikáciou</p>
-                                        </div>
-                                    </div>
-
-                                    {socialSelectedArticles.length === 0 ? (
-                                        <div className="bg-[#121212] border border-dashed border-white/5 rounded-[40px] p-24 text-center">
-                                            <div className="w-20 h-20 bg-white/[0.02] rounded-full flex items-center justify-center mx-auto mb-6 scale-animation">
-                                                <Sparkles className="w-10 h-10 text-primary opacity-20" />
+                                {/* Generated Content Preview - Drawer */}
+                                {socialSelectedArticles.length > 0 && typeof document !== "undefined" && createPortal(
+                                    <div className="fixed inset-0 z-[200] flex justify-end">
+                                        {/* Backdrop */}
+                                        <div 
+                                            className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in" 
+                                            onClick={() => setSocialSelectedArticles([])}
+                                        />
+                                        
+                                        {/* Drawer Panel */}
+                                        <div className="relative w-full max-w-[640px] h-full bg-[#0a0a0a] border-l border-white/[0.08] shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+                                            {/* Detail Header */}
+                                            <div className="flex items-center justify-between p-6 border-b border-white/[0.06] flex-shrink-0 bg-black/40 backdrop-blur-xl z-10 sticky top-0">
+                                                <div className="flex flex-col">
+                                                    <h3 className="text-sm font-black uppercase tracking-tighter text-white">Náhľady príspevkov</h3>
+                                                    <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mt-0.5">Kontrola výstupov pred publikáciou</p>
+                                                </div>
+                                                <button onClick={() => setSocialSelectedArticles([])}
+                                                    className="p-2 hover:bg-white/10 rounded-xl transition-all text-zinc-400 hover:text-white flex-shrink-0 ring-1 ring-white/5">
+                                                    <XCircle className="w-5 h-5" />
+                                                </button>
                                             </div>
-                                            <p className="text-[11px] font-black uppercase tracking-[0.3em] text-zinc-600">
-                                                Čakáme na výber článkov
-                                            </p>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-6 max-h-[calc(100vh-250px)] overflow-y-auto pr-3 custom-scrollbar">
-                                            {socialSelectedArticles.map((articleId) => {
-                                                const article = articles.find(a => a.id === articleId);
-                                                const result = socialResults[articleId];
-                                                if (!article) return null;
 
-                                                return (
-                                                    <div key={articleId} className="bg-[#121212] border border-white/[0.05] rounded-[32px] p-8 shadow-2xl animate-in fade-in slide-in-from-right-4 relative overflow-hidden group">
-                                                        <div className="absolute top-0 left-0 w-1 h-full bg-primary/40 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                            {/* Preview Content */}
+                                            <div className="flex-grow p-6 space-y-6 overflow-y-auto custom-scrollbar pb-24">
+                                                {socialSelectedArticles.map((articleId) => {
+                                                    const article = articles.find(a => a.id === articleId);
+                                                    const result = socialResults[articleId];
+                                                    if (!article) return null;
 
-                                                        <div className="flex items-center gap-4 mb-8 pb-6 border-b border-white/[0.03]">
-                                                            <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 ring-1 ring-white/10">
-                                                                <img src={article.main_image} alt="" className="w-full h-full object-cover" />
+                                                    return (
+                                                        <div key={articleId} className="bg-[#121212] border border-white/[0.05] rounded-[32px] p-8 shadow-2xl relative overflow-hidden group">
+                                                            <div className="absolute top-0 left-0 w-1 h-full bg-primary/40 opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                                                            <div className="flex items-center gap-4 mb-8 pb-6 border-b border-white/[0.03]">
+                                                                <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 ring-1 ring-white/10">
+                                                                    <img src={article.main_image} alt="" className="w-full h-full object-cover" />
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <span className="text-[9px] font-black text-primary uppercase tracking-widest block mb-1">{article.category}</span>
+                                                                    <h4 className="text-sm font-black text-white truncate">{article.title}</h4>
+                                                                </div>
                                                             </div>
-                                                            <div className="min-w-0">
-                                                                <span className="text-[9px] font-black text-primary uppercase tracking-widest block mb-1">{article.category}</span>
-                                                                <h4 className="text-sm font-black text-white truncate">{article.title}</h4>
-                                                            </div>
-                                                        </div>
 
-                                                        <div className="space-y-10">
-                                                            {socialPlatforms.map((platform) => {
-                                                                const platformResult = result?.[platform];
-                                                                return (
-                                                                    <div key={platform} className="animate-in fade-in slide-in-from-bottom-2">
-                                                                        <div className="flex items-center justify-between mb-4">
-                                                                            <div className="flex items-center gap-2">
-                                                                                <div className={cn(
-                                                                                    "w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-lg",
-                                                                                    platform === 'Instagram' ? "bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600" :
-                                                                                        platform === 'Facebook' ? "bg-[#1877F2]" : "bg-black border border-white/10"
-                                                                                )}>
-                                                                                    {platform === "Instagram" && <Instagram size={14} />}
-                                                                                    {platform === "Facebook" && <Facebook size={14} />}
-                                                                                    {platform === "X" && <XIcon size={14} />}
+                                                            <div className="space-y-10">
+                                                                {socialPlatforms.map((platform) => {
+                                                                    const platformResult = result?.[platform];
+                                                                    return (
+                                                                        <div key={platform} className="animate-in fade-in slide-in-from-bottom-2">
+                                                                            <div className="flex items-center justify-between mb-4">
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <div className={cn(
+                                                                                        "w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-lg",
+                                                                                        platform === 'Instagram' ? "bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600" :
+                                                                                            platform === 'Facebook' ? "bg-[#1877F2]" : "bg-black border border-white/10"
+                                                                                    )}>
+                                                                                        {platform === "Instagram" && <Instagram size={14} />}
+                                                                                        {platform === "Facebook" && <Facebook size={14} />}
+                                                                                        {platform === "X" && <XIcon size={14} />}
+                                                                                    </div>
+                                                                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{platform} príspevok</span>
                                                                                 </div>
-                                                                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{platform} príspevok</span>
+                                                                                {platformResult && (
+                                                                                    <button
+                                                                                        onClick={() => copyToClipboard(platformResult)}
+                                                                                        className="flex items-center gap-2 px-4 py-2 bg-white/[0.03] hover:bg-primary/10 hover:text-primary rounded-xl transition-all text-[9px] font-black uppercase tracking-widest border border-white/5 active:scale-95"
+                                                                                    >
+                                                                                        <Copy className="w-3.5 h-3.5" />
+                                                                                        Kopírovať
+                                                                                    </button>
+                                                                                )}
                                                                             </div>
-                                                                            {platformResult && (
-                                                                                <button
-                                                                                    onClick={() => copyToClipboard(platformResult)}
-                                                                                    className="flex items-center gap-2 px-4 py-2 bg-white/[0.03] hover:bg-primary/10 hover:text-primary rounded-xl transition-all text-[9px] font-black uppercase tracking-widest border border-white/5 active:scale-95"
-                                                                                >
-                                                                                    <Copy className="w-3.5 h-3.5" />
-                                                                                    Kopírovať
-                                                                                </button>
+
+                                                                            {platformResult ? (
+                                                                                <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-6 relative group transition-colors hover:bg-white/[0.04]">
+                                                                                    <div className="whitespace-pre-wrap text-sm leading-relaxed font-medium text-zinc-300">
+                                                                                        {platformResult}
+                                                                                    </div>
+                                                                                </div>
+                                                                            ) : (
+                                                                                <div className="bg-white/[0.02] border border-dashed border-white/5 rounded-2xl p-8 text-center text-[10px] font-black uppercase tracking-widest text-zinc-600 italic">
+                                                                                    {isGeneratingSocial ? (
+                                                                                        <div className="flex items-center justify-center gap-3">
+                                                                                            <RefreshCw className="w-3 h-3 animate-spin text-primary" />
+                                                                                            <span>AI pripravuje...</span>
+                                                                                        </div>
+                                                                                    ) : "Čaká na vygenerovanie"}
+                                                                                </div>
                                                                             )}
                                                                         </div>
-
-                                                                        {platformResult ? (
-                                                                            <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-6 relative group transition-colors hover:bg-white/[0.04]">
-                                                                                <div className="whitespace-pre-wrap text-sm leading-relaxed font-medium text-zinc-300">
-                                                                                    {platformResult}
-                                                                                </div>
-                                                                            </div>
-                                                                        ) : (
-                                                                            <div className="bg-white/[0.02] border border-dashed border-white/5 rounded-2xl p-8 text-center text-[10px] font-black uppercase tracking-widest text-zinc-600 italic">
-                                                                                {isGeneratingSocial ? (
-                                                                                    <div className="flex items-center justify-center gap-3">
-                                                                                        <RefreshCw className="w-3 h-3 animate-spin text-primary" />
-                                                                                        <span>AI pripravuje...</span>
-                                                                                    </div>
-                                                                                ) : "Čaká na vygenerovanie"}
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                );
-                                                            })}
-                                                            {/* Image Generator Preview - Integrated into card */}
-                                                            <div className="mt-10 pt-8 border-t border-white/[0.03]">
-                                                                <InstagramPreview
-                                                                    title={article.title}
-                                                                    articleImage={article.main_image}
-                                                                    category={article.category}
-                                                                    summary={article.ai_summary}
-                                                                    date={article.published_at}
-                                                                />
+                                                                    );
+                                                                })}
+                                                                {/* Image Generator Preview - Integrated into card */}
+                                                                <div className="mt-10 pt-8 border-t border-white/[0.03]">
+                                                                    <InstagramPreview
+                                                                        title={article.title}
+                                                                        articleImage={article.main_image}
+                                                                        category={article.category}
+                                                                        summary={article.ai_summary}
+                                                                        date={article.published_at}
+                                                                    />
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                );
-                                            })}
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
-                                    )}
-                                </div>
+                                    </div>,
+                                    document.body
+                                )}
                             </div>
 
                             {/* Social Media Planner Section */}
-                            <div className="bg-[#0a0a0a] border border-white/[0.03] rounded-[40px] p-8 md:p-12 shadow-2xl relative overflow-hidden">
-                                {/* Header Row: Title & Action Buttons */}
-                                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 mb-12">
-                                    <h3 className="text-3xl lg:text-4xl font-black uppercase tracking-tighter flex items-center gap-6">
-                                        <div className="w-16 h-16 rounded-[24px] bg-primary/10 flex items-center justify-center text-primary shadow-[0_0_30px_-10px_rgba(var(--primary),0.3)] ring-1 ring-primary/20">
-                                            <Calendar className="w-8 h-8" />
+                            <div className="bg-[#0a0a0a] border border-white/[0.03] rounded-[40px] overflow-hidden shadow-2xl relative">
+                                {/* Header */}
+                                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 p-6 md:p-8 border-b border-white/[0.04]">
+                                    <h3 className="text-xl lg:text-2xl font-black uppercase tracking-tighter flex items-center gap-4">
+                                        <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary ring-1 ring-primary/20">
+                                            <Calendar className="w-5 h-5" />
                                         </div>
                                         <div className="flex flex-col">
-                                            <span className="leading-none text-white">AI Planner &</span>
-                                            <span className="leading-none text-zinc-500 mt-1">História postov</span>
+                                            <span className="leading-none text-white">AI Planner</span>
+                                            <span className="leading-none text-zinc-600 mt-0.5 text-xs">Historia postov</span>
                                         </div>
                                     </h3>
-
-                                    <div className="flex flex-wrap items-center gap-3">
-                                        <button
-                                            onClick={handleSocialAutopilot}
-                                            disabled={isSocialAutopilotGenerating}
-                                            className="h-12 flex items-center gap-3 px-6 bg-white text-black rounded-2xl transition-all hover:bg-zinc-200 active:scale-95 shadow-xl shadow-white/5 disabled:opacity-50 group"
-                                        >
-                                            <Sparkles className={cn("w-4 h-4 text-primary", isSocialAutopilotGenerating && "animate-pulse")} />
-                                            <span className="text-[11px] font-black uppercase tracking-widest whitespace-nowrap">
-                                                {isSocialAutopilotGenerating ? "Analyzujem..." : "AI Automatizátor"}
-                                            </span>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <button onClick={handleSocialAutopilot} disabled={isSocialAutopilotGenerating}
+                                            className="h-9 flex items-center gap-2 px-4 bg-white text-black rounded-xl transition-all hover:bg-zinc-200 active:scale-95 shadow-lg disabled:opacity-50 text-[10px] font-black uppercase tracking-widest">
+                                            <Sparkles className={cn("w-3.5 h-3.5 text-primary", isSocialAutopilotGenerating && "animate-pulse")} />
+                                            {isSocialAutopilotGenerating ? "Analyzujem..." : "AI Automatizátor"}
                                         </button>
-
-                                        <div className="h-12 w-[1px] bg-white/[0.05] mx-1 hidden md:block" />
-
-                                        <button
-                                            onClick={() => setIsPlannerOpen(!isPlannerOpen)}
-                                            className={cn(
-                                                "h-12 flex items-center gap-3 px-6 rounded-2xl transition-all border active:scale-95 shadow-lg",
-                                                isPlannerOpen
-                                                    ? "bg-white/[0.05] border-white/[0.1] text-white hover:bg-white/[0.1]"
-                                                    : "bg-zinc-800 border-zinc-700 text-white hover:bg-zinc-700"
-                                            )}
-                                        >
-                                            {isPlannerOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                                            <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
-                                                {isPlannerOpen ? 'Zabaliť' : 'Rozbaliť'}
-                                            </span>
+                                        <button onClick={fetchPlannedPosts}
+                                            className="h-9 w-9 flex items-center justify-center bg-white/[0.03] hover:bg-white/[0.08] text-zinc-400 hover:text-white rounded-xl transition-all border border-white/[0.05] group active:scale-95"
+                                            title="Obnoviť">
+                                            <RefreshCw className="w-3.5 h-3.5 group-hover:rotate-180 transition-transform duration-700" />
                                         </button>
-
-                                        <button
-                                            onClick={fetchPlannedPosts}
-                                            className="h-12 w-12 flex items-center justify-center bg-white/[0.03] hover:bg-white/[0.08] text-zinc-400 hover:text-white rounded-2xl transition-all border border-white/[0.05] group active:scale-95 shadow-lg"
-                                            title="Obnoviť posty"
-                                        >
-                                            <RefreshCw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-700" />
-                                        </button>
-
-                                        <button
-                                            onClick={handleDeleteAllSocialPosts}
-                                            className="h-12 flex items-center gap-3 px-5 bg-red-500/5 text-red-500 rounded-2xl transition-all border border-red-500/10 hover:bg-red-500/10 hover:border-red-500/30 active:scale-95 shadow-lg"
-                                            title="Vymazať všetko"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Vymazať</span>
+                                        <button onClick={handleDeleteAllSocialPosts}
+                                            className="h-9 flex items-center gap-2 px-4 bg-red-500/5 text-red-500 rounded-xl transition-all border border-red-500/10 hover:bg-red-500/10 active:scale-95 text-[10px] font-black uppercase tracking-widest">
+                                            <Trash2 className="w-3.5 h-3.5" /> Vymazať
                                         </button>
                                     </div>
-                                </div >
+                                </div>
 
-                                {isPlannerOpen && (
-                                    <div className="animate-in fade-in slide-in-from-top-4 duration-500">
-                                        {/* Header Row 2: Category Filters */}
-                                        <div className="mb-10 p-2 bg-muted/30 rounded-[28px] border border-border/50">
-                                            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 md:pb-0 px-2">
-                                                {['all', 'AI', 'Tech', 'Biznis', 'Krypto', 'Svet', 'Politika', 'Veda', 'Gaming', 'Návody & Tipy'].map((cat) => (
+                                {/* Category Filters */}
+                                <div className="px-4 py-3 border-b border-white/[0.03] flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                                    {['all', 'AI', 'Tech', 'Návody & Tipy'].map((cat) => (
+                                        <button key={cat} onClick={() => setPlannedCategoryFilter(cat)}
+                                            className={cn(
+                                                "px-3.5 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap flex-shrink-0",
+                                                plannedCategoryFilter === cat
+                                                    ? "bg-white text-black shadow-lg"
+                                                    : "text-zinc-500 hover:bg-white/5 hover:text-zinc-300"
+                                            )}>
+                                            {cat === 'all' ? 'Všetky' : cat}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Split Panel: List + Detail */}
+                                <div className="flex min-h-[500px]">
+                                    {/* LEFT: Posts List */}
+                                    <div className="flex flex-col transition-all duration-300 w-full overflow-y-auto h-[700px] pr-2">
+                                        {(() => {
+                                            const grouped: Record<string, typeof plannedPosts> = {};
+                                            const filteredPosts = plannedCategoryFilter === 'all'
+                                                ? plannedPosts
+                                                : plannedPosts.filter(p => p.articles?.category === plannedCategoryFilter);
+                                            filteredPosts.forEach(post => {
+                                                const id = post.article_id || 'unknown';
+                                                if (!grouped[id]) grouped[id] = [];
+                                                grouped[id].push(post);
+                                            });
+                                            const groups = Object.entries(grouped);
+
+                                            if (plannedPosts.length === 0) return (
+                                                <div className="flex-1 flex flex-col items-center justify-center py-24 text-center">
+                                                    <Clock className="w-10 h-10 opacity-10 mb-4" />
+                                                    <p className="font-black uppercase text-[10px] tracking-widest opacity-30">Zatiaľ žiadne príspevky</p>
+                                                </div>
+                                            );
+                                            if (groups.length === 0) return (
+                                                <div className="flex-1 flex flex-col items-center justify-center py-24 text-center">
+                                                    <Sparkles className="w-10 h-10 opacity-10 mb-4" />
+                                                    <p className="font-black uppercase text-[10px] tracking-widest opacity-30">Táto kategória je prázdna</p>
+                                                </div>
+                                            );
+
+                                            return groups.map(([articleId, posts]) => {
+                                                const firstPost = posts[0];
+                                                const articleTitle = firstPost.articles?.title || "Neznámy článok";
+                                                const articleCategory = firstPost.articles?.category || "Novinka";
+                                                const articleImage = firstPost.articles?.main_image;
+                                                const allPosted = posts.every(p => p.status === 'posted');
+                                                const somePosted = posts.some(p => p.status === 'posted');
+                                                const isActive = selectedPlannerArticle === articleId;
+
+                                                return (
                                                     <button
-                                                        key={cat}
-                                                        onClick={() => setPlannedCategoryFilter(cat)}
+                                                        key={articleId}
+                                                        onClick={() => setSelectedPlannerArticle(isActive ? null : articleId)}
                                                         className={cn(
-                                                            "px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border-2 border-transparent",
-                                                            plannedCategoryFilter === cat
-                                                                ? "bg-foreground text-background shadow-xl scale-105"
-                                                                : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                                            "w-full flex items-center gap-3 px-4 py-3 border-b border-white/[0.03] text-left transition-all hover:bg-white/[0.02] group",
+                                                            isActive && "bg-white/[0.04] border-l-2 border-l-primary"
                                                         )}
                                                     >
-                                                        {cat === 'all' ? 'Všetky Príspevky' : cat}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
+                                                        {/* Thumbnail */}
+                                                        <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 bg-white/[0.03] ring-1 ring-white/[0.06]">
+                                                            {articleImage
+                                                                ? <img src={articleImage} alt="" className="w-full h-full object-cover" />
+                                                                : <div className="w-full h-full flex items-center justify-center"><ImageIcon className="w-4 h-4 opacity-20" /></div>
+                                                            }
+                                                        </div>
 
-                                        <div className="space-y-6">
-                                            {plannedPosts.length === 0 ? (
-                                                <div className="py-20 text-center border-2 border-dashed rounded-[32px] text-muted-foreground">
-                                                    <Clock className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                                                    <p className="font-bold uppercase text-xs tracking-widest">Zatiaľ žiadne naplánované príspevky</p>
-                                                </div>
-                                            ) : (
-                                                <div className="grid grid-cols-1 gap-6 md:gap-8 lg:gap-10">
-                                                    {(() => {
-                                                        const grouped: Record<string, typeof plannedPosts> = {};
-                                                        const filteredPosts = plannedCategoryFilter === 'all'
-                                                            ? plannedPosts
-                                                            : plannedPosts.filter(p => p.articles?.category === plannedCategoryFilter);
-
-                                                        filteredPosts.forEach(post => {
-                                                            const id = post.article_id || 'unknown';
-                                                            if (!grouped[id]) grouped[id] = [];
-                                                            grouped[id].push(post);
-                                                        });
-
-                                                        const groups = Object.entries(grouped);
-
-                                                        if (groups.length === 0) {
-                                                            return (
-                                                                <div className="py-24 text-center border-2 border-dashed border-white/5 rounded-[40px] bg-white/[0.02]">
-                                                                    <Sparkles className="w-12 h-12 mx-auto mb-4 opacity-10" />
-                                                                    <p className="font-black uppercase text-[10px] tracking-[0.3em] opacity-40">Túto kategóriu ešte boti neobjavili</p>
+                                                        {/* Info */}
+                                                        <div className="flex-grow min-w-0">
+                                                            {/* Status + platforms row */}
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <span className={cn(
+                                                                    "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full",
+                                                                    allPosted ? "bg-green-500/15 text-green-500" :
+                                                                    somePosted ? "bg-yellow-500/15 text-yellow-500" :
+                                                                    "bg-white/5 text-zinc-500"
+                                                                )}>
+                                                                    {allPosted ? "✓ Publikované" : somePosted ? "Čiastočné" : "Koncept"}
+                                                                </span>
+                                                                <div className="flex items-center gap-0.5 ml-auto">
+                                                                    {['Instagram', 'Facebook', 'X'].filter(pf => posts.some(p => p.platform === pf)).map(pf => (
+                                                                        <div key={pf} className={cn(
+                                                                            "w-4 h-4 rounded-full flex items-center justify-center text-white",
+                                                                            pf === 'Instagram' ? "bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600" :
+                                                                            pf === 'Facebook' ? "bg-[#1877F2]" : "bg-zinc-700"
+                                                                        )}>
+                                                                            {pf === 'Instagram' && <Instagram size={7} />}
+                                                                            {pf === 'Facebook' && <Facebook size={7} />}
+                                                                            {pf === 'X' && <XIcon size={7} />}
+                                                                        </div>
+                                                                    ))}
                                                                 </div>
-                                                            );
-                                                        }
+                                                            </div>
+                                                            {/* Title */}
+                                                            <p className={cn("text-xs font-bold leading-tight line-clamp-2 transition-colors", isActive ? "text-white" : "text-zinc-400 group-hover:text-zinc-200")}>
+                                                                {articleTitle}
+                                                            </p>
+                                                            {/* Caption preview */}
+                                                            <p className="text-[10px] text-zinc-700 mt-0.5 line-clamp-1 font-medium">
+                                                                {firstPost.content?.slice(0, 80)}...
+                                                            </p>
+                                                        </div>
 
-                                                        return groups.map(([articleId, posts]) => {
-                                                            const firstPost = posts[0];
-                                                            const articleTitle = firstPost.articles?.title || "Neznámy článok";
-                                                            const articleCategory = firstPost.articles?.category || "Novinka";
-                                                            const articleImage = firstPost.articles?.main_image;
+                                                        <ChevronRight className={cn("w-4 h-4 flex-shrink-0 text-zinc-700 transition-all", isActive && "text-primary rotate-90")} />
+                                                    </button>
+                                                );
+                                            });
+                                        })()}
+                                        {/* RIGHT: Detail Drawer */}
+                                        {selectedPlannerArticle && typeof document !== "undefined" && (() => {
+                                            const posts = plannedPosts.filter(p => p.article_id === selectedPlannerArticle);
+                                            if (!posts.length) return null;
+                                            const articleTitle = posts[0].articles?.title || "Neznámy článok";
+                                            const allPosted = posts.every(p => p.status === 'posted');
 
-                                                            return (
-                                                                <div key={articleId} className="group relative bg-[#121212] border border-white/[0.03] rounded-[32px] md:rounded-[40px] overflow-hidden transition-all duration-500 hover:bg-[#151515] hover:border-primary/20 flex flex-col md:flex-row shadow-2xl">
-                                                                    {/* Thumbnail Section */}
-                                                                    <div className="w-full h-56 md:w-64 lg:w-72 md:h-auto relative overflow-hidden bg-muted/10 flex-shrink-0">
-                                                                        {articleImage ? (
-                                                                            <img
-                                                                                src={articleImage}
-                                                                                alt={articleTitle}
-                                                                                className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
-                                                                            />
-                                                                        ) : (
-                                                                            <div className="w-full h-full flex items-center justify-center bg-white/[0.02]">
-                                                                                <ImageIcon className="w-10 h-10 opacity-5" />
+                                            return createPortal(
+                                                <div className="fixed inset-0 z-[200] flex justify-end">
+                                                    {/* Backdrop */}
+                                                    <div 
+                                                        className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in" 
+                                                        onClick={() => setSelectedPlannerArticle(null)}
+                                                    />
+                                                    
+                                                    {/* Drawer Panel */}
+                                                    <div className="relative w-full max-w-[640px] h-full bg-[#0a0a0a] border-l border-white/[0.08] shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+                                                        {/* Detail Header */}
+                                                        <div className="flex items-center justify-between p-5 border-b border-white/[0.06] flex-shrink-0 bg-black/40 backdrop-blur-xl z-10 sticky top-0">
+                                                            <div className="flex items-center gap-3 min-w-0">
+                                                                <span className={cn(
+                                                                    "text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full flex-shrink-0",
+                                                                    allPosted ? "bg-green-500/15 text-green-500" : "bg-white/5 text-zinc-400"
+                                                                )}>
+                                                                    {allPosted ? "✓ Publikované" : "Koncept"}
+                                                                </span>
+                                                                <span className="text-[10px] text-zinc-500 font-bold truncate">
+                                                                    {posts[0].created_at ? new Date(posts[0].created_at).toLocaleDateString('sk-SK') : 'Dnes'}
+                                                                </span>
+                                                            </div>
+                                                            <button onClick={() => setSelectedPlannerArticle(null)}
+                                                                className="p-2 hover:bg-white/10 rounded-xl transition-all text-zinc-400 hover:text-white flex-shrink-0 ring-1 ring-white/5">
+                                                                <XCircle className="w-5 h-5" />
+                                                            </button>
+                                                        </div>
+
+                                                        {/* Posts content */}
+                                                        <div className="flex-grow p-5 space-y-5 overflow-y-auto custom-scrollbar pb-24">
+                                                            {posts.map((post) => (
+                                                                <div key={post.id} className={cn(
+                                                                    "rounded-3xl border overflow-hidden transition-colors shadow-lg",
+                                                                    post.status === 'posted' ? "border-green-500/20 bg-green-500/[0.02]" : "border-white/[0.08] bg-black/20"
+                                                                )}>
+                                                                    {/* Platform header */}
+                                                                    <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.04] bg-white/[0.02]">
+                                                                        <div className="flex items-center gap-3">
+                                                                            <div className={cn("w-7 h-7 rounded-xl flex items-center justify-center text-white shadow-sm",
+                                                                                post.platform === 'Instagram' ? "bg-gradient-to-br from-indigo-500 via-purple-500 to-orange-400" :
+                                                                                post.platform === 'Facebook' ? "bg-[#1877F2]" : "bg-zinc-800 text-white")}>
+                                                                                {post.platform === 'Instagram' && <Instagram size={14} />}
+                                                                                {post.platform === 'Facebook' && <Facebook size={14} />}
+                                                                                {post.platform === 'X' && <XIcon size={14} />}
                                                                             </div>
-                                                                        )}
-                                                                        <div className="absolute top-5 left-5 z-10">
-                                                                            <span className="px-3 py-1.5 bg-black/60 backdrop-blur-xl border border-white/10 rounded-xl text-[9px] font-black uppercase tracking-widest text-primary shadow-2xl">
-                                                                                {articleCategory}
-                                                                            </span>
+                                                                            <span className="text-[11px] font-black uppercase tracking-wider text-zinc-200">{post.platform}</span>
+                                                                            {post.status === 'posted' && (
+                                                                                <span className="text-[9px] font-black text-green-500 bg-green-500/10 px-2.5 py-1 rounded-full uppercase tracking-widest ml-2">✓ Zverejnený</span>
+                                                                            )}
                                                                         </div>
-                                                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                                                                    </div>
-
-                                                                    {/* Content Area Section */}
-                                                                    <div className="p-6 md:p-8 lg:p-10 flex flex-col justify-center flex-grow min-w-0">
-                                                                        <div className="flex items-center gap-3 mb-4">
-                                                                            <div className="flex -space-x-1.5 overflow-hidden">
-                                                                                {['Instagram', 'Facebook', 'X'].filter(pform => posts.some(p => p.platform === pform)).map((pform, idx) => (
-                                                                                    <div key={pform} className={cn(
-                                                                                        "w-7 h-7 rounded-full border-2 border-[#121212] flex items-center justify-center text-white shadow-lg",
-                                                                                        pform === 'Instagram' ? "bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600" :
-                                                                                            pform === 'Facebook' ? "bg-[#1877F2]" : "bg-black border border-white/10"
-                                                                                    )} style={{ zIndex: 10 - idx }}>
-                                                                                        {pform === 'Instagram' && <Instagram size={11} />}
-                                                                                        {pform === 'Facebook' && <Facebook size={11} />}
-                                                                                        {pform === 'X' && <XIcon size={11} />}
-                                                                                    </div>
-                                                                                ))}
-                                                                            </div>
-                                                                            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest opacity-60">
-                                                                                {posts.length} sociálne formáty
-                                                                            </span>
-                                                                        </div>
-
-                                                                        <h4 className="text-xl md:text-2xl lg:text-3xl font-black text-white leading-tight mb-5 group-hover:text-primary transition-colors line-clamp-2 md:line-clamp-3">
-                                                                            {articleTitle}
-                                                                        </h4>
-
-                                                                        <div className="flex flex-wrap gap-2 mb-8">
-                                                                            {posts.map(p => (
-                                                                                <div key={p.id} className={cn(
-                                                                                    "flex items-center gap-2 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all",
-                                                                                    p.status === 'posted'
-                                                                                        ? "bg-green-500/10 text-green-500 border border-green-500/20"
-                                                                                        : "bg-white/[0.03] text-zinc-500 border border-white/[0.05]"
-                                                                                )}>
-                                                                                    {p.platform === 'Instagram' && <Instagram size={10} />}
-                                                                                    {p.platform === 'Facebook' && <Facebook size={10} />}
-                                                                                    {p.platform === 'X' && <XIcon size={10} />}
-                                                                                    <span>{p.platform}</span>
-                                                                                    {p.status === 'posted' && <CheckCircle2 size={10} className="ml-1" />}
-                                                                                </div>
-                                                                            ))}
-                                                                        </div>
-
-                                                                        <div className="flex flex-col sm:flex-row items-center justify-between gap-6 pt-8 border-t border-white/[0.03] mt-auto">
-                                                                            <div className="flex items-center gap-4 w-full sm:w-auto">
-                                                                                <div className="flex items-center gap-3 px-4 py-2 bg-white/[0.02] rounded-2xl border border-white/[0.03]">
-                                                                                    <Clock className="w-3.5 h-3.5 text-primary opacity-50" />
-                                                                                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
-                                                                                        {firstPost.created_at ? new Date(firstPost.created_at).toLocaleDateString('sk-SK') : 'Dnes'}
-                                                                                    </span>
-                                                                                </div>
-                                                                            </div>
-                                                                            <button
-                                                                                onClick={() => setSelectedPlannerArticle(articleId)}
-                                                                                className="w-full sm:w-auto bg-white text-black px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-primary hover:text-white transition-all flex items-center justify-center gap-3 active:scale-95 group/btn"
-                                                                            >
-                                                                                Rozbaliť možnosti
-                                                                                <ChevronRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
+                                                                        <div className="flex items-center gap-1.5">
+                                                                            {post.status !== 'posted' && (post.platform === 'Facebook' || post.platform === 'Instagram') && (
+                                                                                <button onClick={() => handlePublishSocialPost(post.id)} disabled={status === "loading"}
+                                                                                    className="h-8 px-4 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-xl transition-all border border-primary/20 text-[9px] font-black uppercase tracking-widest disabled:opacity-50 flex items-center gap-1.5 shadow-[0_0_15px_-3px_rgba(var(--primary),0.3)]">
+                                                                                    <Zap size={12} /> Pub.
+                                                                                </button>
+                                                                            )}
+                                                                            <button onClick={() => handleToggleSocialPosted(post)}
+                                                                                className={cn("w-8 h-8 rounded-xl flex items-center justify-center transition-all",
+                                                                                    post.status === 'posted' ? "bg-green-500 text-white shadow-md shadow-green-500/20" : "bg-white/5 text-zinc-500 hover:text-green-400 hover:bg-white/10 border border-white/5")}
+                                                                                title={post.status === 'posted' ? "Zrušiť publikovanie" : "Označiť ako publikované"}>
+                                                                                <CheckCircle2 size={14} />
+                                                                            </button>
+                                                                            <button onClick={() => { if (confirm('Zmazať?')) { handleDeleteSocialPost(post.id); if (posts.length <= 1) setSelectedPlannerArticle(null); } }}
+                                                                                className="w-8 h-8 bg-red-500/10 border border-red-500/10 text-red-500/60 hover:bg-red-500 hover:text-white rounded-xl transition-all flex items-center justify-center ml-1">
+                                                                                <Trash2 size={13} />
                                                                             </button>
                                                                         </div>
                                                                     </div>
+                                                                    {/* Post Editor Component */}
+                                                                    <SocialPostEditorItem 
+                                                                        post={post} 
+                                                                        articleTitle={articleTitle} 
+                                                                        articleSummary={posts[0].articles?.ai_summary}
+                                                                        onUpdate={(updated: Partial<SocialPost>) => setPlannedPosts(prev => prev.map(p => p.id === updated.id ? { ...p, ...updated } : p))}
+                                                                    />
                                                                 </div>
-                                                            );
-                                                        });
-                                                    })()}
-                                                </div>
-                                            )}
-                                        </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </div>,
+                                                document.body
+                                            );
+                                        })()}
                                     </div>
-                                )
-                                }
-                            </div >
-                        </div >
+
+
+                                </div>
+                            </div>
+                        </div>
                     )
                 }
-                {/* MODALS - Simplified & High Z-Index */}
+            </div>
+
+            {/* MODALS - Simplified & High Z-Index */}
                 {
                     isDiscoveringModalOpen && typeof document !== "undefined" && createPortal(
                         <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4">
@@ -3857,200 +4092,6 @@ export default function AdminPage() {
                     )
                 }
 
-                {
-                    selectedPlannerArticle && typeof document !== "undefined" && (() => {
-                        const posts = plannedPosts.filter(p => p.article_id === selectedPlannerArticle);
-                        if (posts.length === 0) return null;
-                        const articleTitle = posts[0].articles?.title || "Neznámy článok";
-
-                        return createPortal(
-                            <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 md:p-8">
-                                <div
-                                    className="absolute inset-0 bg-black/80 backdrop-blur-xl cursor-pointer"
-                                    onClick={() => setSelectedPlannerArticle(null)}
-                                ></div>
-                                <div className="relative bg-[#121212] w-full max-w-5xl rounded-[40px] border border-white/10 flex flex-col max-h-[90vh] shadow-[0_0_100px_rgba(0,0,0,0.8)] overflow-hidden">
-                                    {/* Header */}
-                                    <div className="px-6 py-5 md:px-10 md:py-6 border-b border-white/5 flex items-center justify-between bg-[#1a1a1a] text-white">
-                                        <div className="flex items-center gap-4">
-                                            <div className="bg-primary/20 p-2.5 rounded-xl hidden xs:block">
-                                                <Sparkles className="w-5 h-5 text-primary" />
-                                            </div>
-                                            <div>
-                                                <h3 className="text-base md:text-xl font-black uppercase tracking-widest leading-none mb-1 text-white line-clamp-1 max-w-[200px] xs:max-w-[400px] md:max-w-[500px]">{articleTitle}</h3>
-                                                <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">Detail sociálnych postov</p>
-                                            </div>
-                                        </div>
-                                        <button
-                                            onClick={() => setSelectedPlannerArticle(null)}
-                                            className="p-2.5 bg-white/5 hover:bg-red-500/10 hover:text-red-500 rounded-xl transition-all"
-                                        >
-                                            <XCircle className="w-6 h-6" />
-                                        </button>
-                                    </div>
-
-                                    {/* Scrollable Content */}
-                                    <div className="flex-grow overflow-y-auto w-full relative">
-                                        {/* Bulk Actions Bar */}
-                                        {selectedPostsForPublishing.length > 0 && (
-                                            <div className="sticky top-0 z-[100] bg-primary text-primary-foreground px-6 py-3 flex items-center justify-between shadow-2xl animate-in slide-in-from-top-full duration-300 rounded-b-2xl">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-lg bg-black/20 flex items-center justify-center">
-                                                        <Zap className="w-4 h-4" />
-                                                    </div>
-                                                    <span className="text-[10px] font-black uppercase tracking-[0.1em]">
-                                                        Vybrané: {selectedPostsForPublishing.length} príspevkov
-                                                    </span>
-                                                </div>
-                                                <div className="flex gap-2">
-                                                    <button
-                                                        onClick={() => setSelectedPostsForPublishing([])}
-                                                        className="text-[9px] font-black uppercase tracking-widest px-4 py-2 bg-black/10 hover:bg-black/20 rounded-lg transition-all"
-                                                    >
-                                                        Zrušiť
-                                                    </button>
-                                                    <button
-                                                        onClick={handlePublishMultiplePosts}
-                                                        disabled={status === "loading"}
-                                                        className="text-[9px] font-black uppercase tracking-widest px-5 py-2 bg-white text-primary rounded-lg transition-all hover:scale-105 active:scale-95 flex items-center gap-2 disabled:opacity-50 disabled:scale-100"
-                                                    >
-                                                        {status === "loading" ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
-                                                        {status === "loading" ? "Odosielam..." : "Publikovať"}
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        <div className="grid grid-cols-1 lg:grid-cols-2 min-h-full">
-                                            {/* Posts Column */}
-                                            <div className="p-5 md:p-8 space-y-6 bg-muted/[0.02] border-r border-white/5">
-                                                {posts.map((post) => (
-                                                    <div key={post.id} className={cn(
-                                                        "rounded-3xl border transition-all",
-                                                        post.status === 'posted'
-                                                            ? "bg-muted/5 border-green-500/20"
-                                                            : "bg-[#151515] border-white/[0.03] shadow-2xl shadow-black/50"
-                                                    )}>
-                                                        {/* Header: Platform & Actions */}
-                                                        <div className="flex items-center justify-between p-4 md:p-5 border-b border-white/[0.02]">
-                                                            <div className="flex items-center gap-3">
-                                                                {/* Checkbox for selection */}
-                                                                {post.status !== 'posted' && (
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            setSelectedPostsForPublishing(prev =>
-                                                                                prev.includes(post.id) ? prev.filter(id => id !== post.id) : [...prev, post.id]
-                                                                            );
-                                                                        }}
-                                                                        className={cn(
-                                                                            "w-5 h-5 rounded-md border flex items-center justify-center transition-all shrink-0",
-                                                                            selectedPostsForPublishing.includes(post.id)
-                                                                                ? "bg-primary border-primary text-white"
-                                                                                : "border-white/10 hover:border-white/20 bg-white/5"
-                                                                        )}
-                                                                    >
-                                                                        {selectedPostsForPublishing.includes(post.id) && <Check className="w-3 h-3" strokeWidth={3} />}
-                                                                    </button>
-                                                                )}
-                                                                <div className="flex items-center gap-3">
-                                                                    <div className={cn(
-                                                                        "w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-lg shrink-0",
-                                                                        post.platform === 'Instagram' ? "bg-gradient-to-br from-indigo-500 via-purple-500 via-pink-500 to-orange-400" :
-                                                                            post.platform === 'Facebook' ? "bg-[#1877F2]" : "bg-white text-black"
-                                                                    )}>
-                                                                        {post.platform === 'Instagram' && <Instagram size={18} />}
-                                                                        {post.platform === 'Facebook' && <Facebook size={18} />}
-                                                                        {post.platform === 'X' && <XIcon size={18} />}
-                                                                    </div>
-                                                                    <span className="text-sm font-black uppercase tracking-widest opacity-90">{post.platform}</span>
-                                                                </div>
-                                                            </div>
-
-                                                            <div className="flex items-center gap-1.5">
-                                                                {post.status !== 'posted' && (post.platform === 'Facebook' || post.platform === 'Instagram') && (
-                                                                    <button
-                                                                        onClick={() => handlePublishSocialPost(post.id)}
-                                                                        disabled={status === "loading"}
-                                                                        className="h-8 px-3 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-lg transition-all flex items-center gap-2 group border border-primary/20 disabled:opacity-50"
-                                                                        title="Publikovať teraz cez API"
-                                                                    >
-                                                                        {status === "loading" ? (
-                                                                            <RefreshCw size={14} className="animate-spin" />
-                                                                        ) : (
-                                                                            <Zap size={14} className="group-hover:fill-current transition-all" />
-                                                                        )}
-                                                                        <span className="text-[10px] font-black uppercase tracking-tighter hidden xs:inline">
-                                                                            {status === "loading" ? "Odosielam..." : "Publikovať"}
-                                                                        </span>
-                                                                    </button>
-                                                                )}
-                                                                <button
-                                                                    onClick={() => handleToggleSocialPosted(post)}
-                                                                    className={cn(
-                                                                        "w-8 h-8 rounded-lg transition-all flex items-center justify-center",
-                                                                        post.status === 'posted' ? "bg-green-500 text-white" : "bg-white/5 text-zinc-500 hover:bg-white/10 hover:text-white"
-                                                                    )}
-                                                                    title={post.status === 'posted' ? "Už publikované" : "Označiť ako publikované"}
-                                                                >
-                                                                    <CheckCircle2 size={16} />
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => {
-                                                                        if (confirm('Naozaj zmazať príspevok?')) {
-                                                                            handleDeleteSocialPost(post.id);
-                                                                            if (posts.length <= 1) setSelectedPlannerArticle(null);
-                                                                        }
-                                                                    }}
-                                                                    className="w-8 h-8 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg transition-all flex items-center justify-center"
-                                                                >
-                                                                    <Trash2 size={16} />
-                                                                </button>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Content Area */}
-                                                        <div className="p-4 md:p-5 space-y-3">
-                                                            <div className="flex items-center justify-between px-1">
-                                                                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500">Obsah príspevku</span>
-                                                                <button
-                                                                    onClick={() => { copyToClipboard(post.content); alert(`Text pre ${post.platform} bol skopírovaný.`); }}
-                                                                    className="text-[9px] font-black uppercase tracking-widest text-primary/70 hover:text-primary flex items-center gap-1.5 transition-colors"
-                                                                >
-                                                                    <Copy size={11} /> Skopírovať
-                                                                </button>
-                                                            </div>
-                                                            <div className="bg-black/20 border border-white/[0.03] rounded-2xl p-4 text-[13px] font-medium leading-relaxed max-h-[200px] overflow-y-auto whitespace-pre-wrap text-zinc-400 scrollbar-hide">
-                                                                {post.content}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-
-                                            {/* Preview Column */}
-                                            <div className="p-6 md:p-10 bg-black/40 border-t lg:border-t-0 border-white/5 flex flex-col items-center justify-center lg:sticky lg:top-0 h-fit lg:h-[calc(90vh-80px)] min-h-[400px]">
-                                                <div className="w-full max-w-[420px] scale-90 md:scale-100 flex flex-col items-center">
-                                                    <InstagramPreview
-                                                        title={articleTitle}
-                                                        articleImage={posts[0].articles?.main_image}
-                                                        category={posts[0].articles?.category}
-                                                        summary={posts[0].articles?.ai_summary}
-                                                        date={posts[0].articles?.published_at}
-                                                    />
-                                                    <div className="mt-8 flex flex-col items-center animate-pulse">
-                                                        <span className="text-[9px] font-black uppercase tracking-[0.4em] text-zinc-600">Live Preview</span>
-                                                        <div className="w-8 h-[1px] bg-primary/30 mt-2"></div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>,
-                            document.body
-                        );
-                    })()
-                }
 
                 {/* ===== IMAGE SELECTOR MODAL ===== */}
                 {isImageSelectorModalOpen && imageSelectorData && createPortal(
@@ -4155,7 +4196,205 @@ export default function AdminPage() {
                         </div>
                     )
                 }
-            </div >
+                {/* DISCOVERY SOURCES DRAWER */}
+                {showSourcesDrawer && typeof document !== "undefined" && createPortal(
+                    <div className="fixed inset-0 z-[2147483647] flex justify-end">
+                        <div 
+                            className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"
+                            onClick={() => setShowSourcesDrawer(false)}
+                        ></div>
+                        <div className="relative w-full max-w-xl bg-card border-l border-border h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-500 ring-1 ring-white/10">
+                            {/* Header */}
+                            <div className="p-8 border-b border-border/50 flex items-center justify-between bg-muted/30">
+                                <div>
+                                    <h3 className="text-2xl font-black uppercase tracking-tight flex items-center gap-3">
+                                        <div className="p-2 bg-primary/20 rounded-xl text-primary">
+                                            <Globe className="w-5 h-5" />
+                                        </div>
+                                        Zdroje správ
+                                    </h3>
+                                    <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest mt-1">Správa RSS feedov a portálov</p>
+                                </div>
+                                <button
+                                    onClick={() => setShowSourcesDrawer(false)}
+                                    className="p-3 hover:bg-muted rounded-2xl transition-all"
+                                >
+                                    <XCircle className="w-6 h-6 text-muted-foreground hover:text-foreground" />
+                                </button>
+                            </div>
+
+                            {/* Content */}
+                            <div className="flex-1 overflow-y-auto p-8 space-y-10 custom-scrollbar">
+                                {/* Migration Guidance */}
+                                {needsMigration && (
+                                    <div className="p-6 bg-red-500/10 border border-red-500/20 rounded-[32px] space-y-4">
+                                        <div className="flex items-center gap-3 text-red-500 font-black uppercase tracking-widest text-[10px]">
+                                            <XCircle className="w-4 h-4" />
+                                            Chýba databázová tabuľka
+                                        </div>
+                                        <p className="text-xs text-muted-foreground leading-relaxed">
+                                            Pre fungovanie správy zdrojov je potrebné vytvoriť tabuľku v Supabase SQL Editori:
+                                        </p>
+                                        <pre className="bg-black/40 p-4 rounded-xl text-[10px] font-mono text-zinc-400 overflow-x-auto whitespace-pre-wrap">
+{`CREATE TABLE public.discovery_sources (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    url TEXT NOT NULL UNIQUE,
+    category TEXT NOT NULL,
+    active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT now()
+);`}
+                                        </pre>
+                                        <button 
+                                            onClick={() => fetchDiscoverySources()}
+                                            className="w-full bg-red-500 text-white font-black py-3 rounded-xl text-[10px] uppercase tracking-widest hover:bg-red-600 transition-all"
+                                        >
+                                            Skúsiť znova načitať
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Add / Edit Form */}
+                                {!needsMigration && (
+                                    <div className="p-6 bg-muted/20 border border-border/50 rounded-[32px] space-y-6">
+                                        <h4 className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                                            {editingSourceId ? <Edit size={16} /> : <Plus size={16} />}
+                                            {editingSourceId ? "Upraviť zdroj" : "Pridať nový zdroj"}
+                                        </h4>
+                                        <form onSubmit={handleSaveSource} className="space-y-4">
+                                            <div>
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2 block ml-1">Názov zdroja</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={sourceForm.name}
+                                                    onChange={e => setSourceForm({...sourceForm, name: e.target.value})}
+                                                    placeholder="Napr. The Verge AI"
+                                                    className="w-full bg-background border border-border/50 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 font-bold"
+                                                    required
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2 block ml-1">RSS URL adresa</label>
+                                                <input 
+                                                    type="url" 
+                                                    value={sourceForm.url}
+                                                    onChange={e => setSourceForm({...sourceForm, url: e.target.value})}
+                                                    placeholder="https://domain.com/feed"
+                                                    className="w-full bg-background border border-border/50 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 font-mono text-xs"
+                                                    required
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2 block ml-1">Predvolená kategória</label>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {["AI", "Tech", "Návody & Tipy"].map(cat => (
+                                                        <button
+                                                            key={cat}
+                                                            type="button"
+                                                            onClick={() => setSourceForm({...sourceForm, category: cat})}
+                                                            className={cn(
+                                                                "px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all",
+                                                                sourceForm.category === cat 
+                                                                    ? "bg-primary text-primary-foreground border-primary" 
+                                                                    : "bg-background border-border hover:border-primary/50"
+                                                            )}
+                                                        >
+                                                            {cat}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <div className="pt-2 flex gap-3">
+                                                <button 
+                                                    type="submit"
+                                                    disabled={isSavingSource}
+                                                    className="flex-1 bg-foreground text-background font-black py-4 rounded-xl text-xs uppercase tracking-widest hover:opacity-90 transition-all flex items-center justify-center gap-2"
+                                                >
+                                                    {isSavingSource ? <RefreshCw className="w-4 h-4 animate-spin" /> : (editingSourceId ? "Uložiť zmeny" : "Vytvoriť zdroj")}
+                                                </button>
+                                                {editingSourceId && (
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setEditingSourceId(null);
+                                                            setSourceForm({ name: "", url: "", category: "AI", active: true });
+                                                        }}
+                                                        className="px-6 bg-muted text-muted-foreground font-black rounded-xl text-xs uppercase tracking-widest hover:bg-muted/80 transition-all"
+                                                    >
+                                                        Zrušiť
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </form>
+                                    </div>
+                                )}
+
+                                {/* List of Sources */}
+                                {!needsMigration && (
+                                    <div className="space-y-4">
+                                        <h4 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center justify-between px-2">
+                                            <span>Aktívne zdroje ({discoverySources.length})</span>
+                                            {isLoadingSources && <RefreshCw className="w-4 h-4 animate-spin" />}
+                                        </h4>
+                                        <div className="grid gap-3">
+                                            {[...discoverySources].sort((a,b) => a.name.localeCompare(b.name)).map((source) => (
+                                                <div key={source.id} className="p-5 bg-muted/10 border border-border/50 rounded-3xl hover:bg-muted/20 transition-all group relative">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className={cn(
+                                                                "px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border",
+                                                                source.category === "AI" ? "bg-blue-500/10 text-blue-500 border-blue-500/20" :
+                                                                source.category === "Tech" ? "bg-purple-500/10 text-purple-500 border-purple-500/20" :
+                                                                "bg-green-500/10 text-green-500 border-green-500/20"
+                                                            )}>
+                                                                {source.category}
+                                                            </span>
+                                                            {!source.active && (
+                                                                <span className="px-2 py-0.5 rounded-md bg-red-500/10 text-red-500 text-[9px] font-black uppercase tracking-widest border border-red-500/20">
+                                                                    Neaktívny
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <button 
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setEditingSourceId(source.id);
+                                                                    setSourceForm({ name: source.name, url: source.url, category: source.category, active: source.active });
+                                                                }}
+                                                                className="p-2 hover:bg-blue-500/10 text-blue-500 rounded-lg transition-colors"
+                                                            >
+                                                                <Edit size={16} />
+                                                            </button>
+                                                            <button 
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleDeleteSource(source.id);
+                                                                }}
+                                                                className="p-2 hover:bg-red-500/10 text-red-500 rounded-lg transition-colors"
+                                                            >
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <h5 className="font-bold text-base leading-tight mb-1">{source.name}</h5>
+                                                    <p className="text-[10px] text-zinc-500 font-mono truncate max-w-xs">{source.url}</p>
+                                                </div>
+                                            ))}
+                                            {discoverySources.length === 0 && !isLoadingSources && (
+                                                <div className="text-center py-10 text-muted-foreground text-xs font-bold uppercase tracking-widest border-2 border-dashed border-border rounded-3xl">
+                                                    Žiadne zdroje, používajú sa predvolené.
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>,
+                    document.body
+                )}
         </>
     );
 }
+
