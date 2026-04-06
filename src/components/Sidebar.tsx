@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { sk } from "date-fns/locale";
 import { type Article } from "@/lib/data";
 import Image from "next/image";
 import { AppPromo } from "@/components/AppPromo";
 import { AdBanner } from "@/components/AdBanner";
+import { useUser } from "@/contexts/UserContext";
 
 interface SidebarProps {
     articles: Article[];
@@ -15,6 +16,25 @@ interface SidebarProps {
 }
 
 export function Sidebar({ articles, title = "Najnovšie správy" }: SidebarProps) {
+    const { user } = useUser();
+    const [newsletterEmail, setNewsletterEmail] = useState("");
+    const [newsletterStatus, setNewsletterStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+
+    const handleNewsletter = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newsletterEmail) return;
+        setNewsletterStatus("loading");
+        try {
+            const res = await fetch("/api/newsletter", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: newsletterEmail, source: "website" }),
+            });
+            if (res.ok) { setNewsletterStatus("success"); setNewsletterEmail(""); }
+            else setNewsletterStatus("error");
+        } catch { setNewsletterStatus("error"); }
+    };
+
     return (
         <aside className="w-full flex flex-col gap-6">
             <div className="flex flex-col items-center gap-2 pb-4 border-b-2 border-primary/20 text-center opacity-70">
@@ -71,8 +91,8 @@ export function Sidebar({ articles, title = "Najnovšie správy" }: SidebarProps
                                 </div>
                             </div>
 
-                            {/* Reklama za 2. článkom — štýl ako article karta */}
-                            {index === 1 && (
+                            {/* Reklama za 2. článkom — skrytá pre prihlásených */}
+                            {index === 1 && !user && (
                                 <div className="relative overflow-hidden rounded-2xl bg-zinc-900 border border-white/5 shadow-xl flex items-center justify-center" style={{ minHeight: 260 }}>
                                     <div className="absolute top-3 left-4 z-10 pointer-events-none">
                                         <span className="inline-flex items-center rounded-full bg-black/60 backdrop-blur-md border border-white/20 px-3 py-1 text-[8px] font-black uppercase tracking-[0.2em] text-white/40">
@@ -97,17 +117,30 @@ export function Sidebar({ articles, title = "Najnovšie správy" }: SidebarProps
                 <p className="text-sm font-bold text-foreground mb-4">
                     Týždenné AI novinky priamo do vášho emailu.
                 </p>
-                <form className="flex flex-col gap-2 relative z-10" onSubmit={(e) => e.preventDefault()}>
-                    <input
-                        type="email"
-                        placeholder="Váš email"
-                        className="bg-background/50 border border-border/50 rounded-xl px-4 py-2.5 text-xs focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                        required
-                    />
-                    <button className="bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest py-3 rounded-xl hover:opacity-90 transition-all shadow-lg shadow-primary/20">
-                        Odoberať
-                    </button>
-                </form>
+                {newsletterStatus === "success" ? (
+                    <p className="text-sm font-bold text-green-400 relative z-10">✓ Úspešne prihlásený na odber!</p>
+                ) : (
+                    <form className="flex flex-col gap-2 relative z-10" onSubmit={handleNewsletter}>
+                        <input
+                            type="email"
+                            placeholder="Váš email"
+                            value={newsletterEmail}
+                            onChange={(e) => setNewsletterEmail(e.target.value)}
+                            className="bg-background/50 border border-border/50 rounded-xl px-4 py-2.5 text-xs focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                            required
+                        />
+                        {newsletterStatus === "error" && (
+                            <p className="text-xs text-red-400">Chyba. Skúste znova.</p>
+                        )}
+                        <button
+                            type="submit"
+                            disabled={newsletterStatus === "loading"}
+                            className="bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest py-3 rounded-xl hover:opacity-90 transition-all shadow-lg shadow-primary/20 disabled:opacity-60"
+                        >
+                            {newsletterStatus === "loading" ? "Prihlasujem..." : "Odoberať"}
+                        </button>
+                    </form>
+                )}
             </div>
         </aside>
     );

@@ -14,6 +14,7 @@ export default function RegisterPage() {
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
+  const [newsletter, setNewsletter] = useState(true);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,8 +55,16 @@ export default function RegisterPage() {
         } else {
           setError(error.message);
         }
-      } else if (needsConfirmation) {
-        setSuccess(true);
+      } else {
+        // Subscribe to newsletter if checked
+        if (newsletter) {
+          await fetch("/api/newsletter", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, source: "registration" }),
+          });
+        }
+        if (needsConfirmation) setSuccess(true);
       }
     } finally {
       setLoading(false);
@@ -236,6 +245,34 @@ export default function RegisterPage() {
             </div>
           </div>
         </div>
+
+        {/* Newsletter checkbox */}
+        <label className="flex items-start gap-3 cursor-pointer group mt-1">
+          <div className="relative flex-shrink-0 mt-0.5">
+            <input
+              type="checkbox"
+              checked={newsletter}
+              onChange={(e) => setNewsletter(e.target.checked)}
+              className="sr-only"
+            />
+            <div
+              className="w-4 h-4 rounded flex items-center justify-center transition-all"
+              style={{
+                background: newsletter ? "hsl(var(--primary))" : "transparent",
+                border: newsletter ? "1px solid hsl(var(--primary))" : "1px solid hsl(var(--border))",
+              }}
+            >
+              {newsletter && (
+                <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
+                  <path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+            </div>
+          </div>
+          <span className="text-xs text-muted-foreground leading-snug group-hover:text-foreground transition-colors">
+            Chcem dostávať newsletter s najnovšími AI správami a novinkami
+          </span>
+        </label>
 
         {/* Submit */}
         <button

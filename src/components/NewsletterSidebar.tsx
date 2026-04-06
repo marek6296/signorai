@@ -13,10 +13,10 @@ export function NewsletterSidebar() {
 
         setStatus("loading");
         try {
-            const res = await fetch("/api/newsletter/subscribe", {
+            const res = await fetch("/api/newsletter", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email })
+                body: JSON.stringify({ email, source: "website" })
             });
 
             if (!res.ok) throw new Error("Chyba");

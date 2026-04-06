@@ -79,11 +79,11 @@ function UserAuthButton() {
     }
 
     return (
-        <div className="hidden md:flex items-center gap-2">
+        <div className="flex items-center gap-2">
             {/* Registrovať sa — ghost outline */}
             <Link
                 href="/registracia"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all duration-200 border border-border/60 text-muted-foreground hover:text-foreground hover:border-border"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all duration-200 border border-border/60 text-muted-foreground hover:text-foreground hover:border-border"
             >
                 Registrovať
             </Link>
@@ -93,7 +93,8 @@ function UserAuthButton() {
                 className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all duration-200 bg-primary text-primary-foreground hover:opacity-85 active:scale-95"
             >
                 <LogIn size={11} />
-                Prihlásiť sa
+                <span className="hidden sm:inline">Prihlásiť sa</span>
+                <span className="sm:hidden">Login</span>
             </Link>
         </div>
     );

@@ -13,6 +13,8 @@ import {
   X,
   ExternalLink,
   GitBranch,
+  Users,
+  Mail,
 } from "lucide-react";
 import { useAdmin } from "@/app/admin/_context/AdminContext";
 import { cn } from "@/lib/utils";
@@ -100,6 +102,26 @@ const navItems: NavItem[] = [
     iconBg: "bg-orange-500/20",
     iconColor: "text-orange-400",
     glowColor: "shadow-orange-500/20",
+  },
+  {
+    href: "/admin/pouzivatelia",
+    label: "Používatelia",
+    icon: Users,
+    description: "Správa účtov & rolí",
+    gradient: "from-cyan-500/10",
+    iconBg: "bg-cyan-500/20",
+    iconColor: "text-cyan-400",
+    glowColor: "shadow-cyan-500/20",
+  },
+  {
+    href: "/admin/newsletter",
+    label: "Newsletter",
+    icon: Mail,
+    description: "Odberatelia",
+    gradient: "from-violet-500/10",
+    iconBg: "bg-violet-500/20",
+    iconColor: "text-violet-400",
+    glowColor: "shadow-violet-500/20",
   },
   {
     href: "/admin/zdroje",

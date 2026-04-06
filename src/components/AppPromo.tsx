@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowUpRight } from "lucide-react";
+import { useUser } from "@/contexts/UserContext";
 
 // Dot pattern matching aiwai.app background
 function DotPattern() {
@@ -22,6 +23,9 @@ function DotPattern() {
 }
 
 export function AppPromo() {
+    const { user } = useUser();
+    if (user) return null;
+
     return (
         <div className="relative overflow-hidden rounded-[1.75rem] flex flex-col"
             style={{
