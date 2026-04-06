@@ -265,17 +265,24 @@ export default function BotsPage() {
 
       // Step 1: generate article
       setStep(1, "running");
+      // generate-article expects a URL to fetch & process
+      const topicUrl = typeof topic === "string"
+        ? `https://www.google.com/search?q=${encodeURIComponent(topic)}`
+        : (topic.url && topic.url.startsWith("http") ? topic.url : `https://www.google.com/search?q=${encodeURIComponent(topic.title || topic.topic || "AI news")}`);
       const articleRes = await fetch("/api/admin/generate-article", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           secret: "make-com-webhook-secret",
-          topic: typeof topic === "string" ? topic : topic.title || topic.topic,
-          category: bot.categories[0] || "AI",
+          url: topicUrl,
           status: "draft",
+          model: "gemini",
         }),
       });
-      if (!articleRes.ok) throw new Error("Chyba pri generovaní článku");
+      if (!articleRes.ok) {
+        const errData = await articleRes.json().catch(() => ({}));
+        throw new Error(errData.message || "Chyba pri generovaní článku");
+      }
       const articleData = await articleRes.json();
       const articleId = articleData.article?.id || articleData.id;
       setStep(1, "done");
