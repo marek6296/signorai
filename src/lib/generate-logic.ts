@@ -244,6 +244,114 @@ export async function searchWeb(query: string) {
     }
 }
 
+// ── Image suitability check via GPT-4o mini vision ───────────────────────────
+// Returns false when the image is a UI screenshot, presentation slide,
+// app mockup, diagram, or any graphic with heavy text overlay.
+async function isPhotoSuitable(imageUrl: string): Promise<boolean> {
+    if (!imageUrl || !imageUrl.startsWith('http')) return false;
+    try {
+        const res = await getOpenAIClient().chat.completions.create({
+            model: "gpt-4o-mini",
+            max_tokens: 5,
+            messages: [{
+                role: "user",
+                content: [
+                    { type: "image_url", image_url: { url: imageUrl, detail: "low" } },
+                    {
+                        type: "text",
+                        text: "Is this image a real photograph suitable as a news website article header? Answer only YES or NO. Answer NO if it is: a UI screenshot, app mockup, presentation slide, marketing slide, screen recording, diagram, chart, infographic, or any image where text or computer interfaces dominate the frame."
+                    }
+                ]
+            }]
+        });
+        const answer = (res.choices[0]?.message?.content || "").trim().toUpperCase();
+        const ok = answer.startsWith("YES");
+        console.log(`>>> [ImgCheck] ${ok ? "✅ suitable" : "❌ rejected"}: ${imageUrl.substring(0, 70)}... (AI: ${answer})`);
+        return ok;
+    } catch (e) {
+        console.warn(">>> [ImgCheck] Vision check failed (non-fatal, assuming suitable):", e);
+        return true; // fail open — don't block article generation
+    }
+}
+
+// ── Generate a hero image with Gemini when no suitable photo found ────────────
+async function generateHeroImage(title: string, excerpt: string, category: string): Promise<string | null> {
+    console.log(`>>> [ImgCheck] Generating AI hero image for: "${title}"`);
+    try {
+        const ai = getGeminiClient();
+        const prompt = `Generate a photorealistic, ultra-high quality, cinematic wide-angle photograph for a technology news article header image.
+Title: ${title}
+Summary: ${excerpt || title}
+Category: ${category}
+
+Requirements:
+- Real-world photo style, dramatic professional lighting
+- NO text overlays, NO UI elements, NO app screenshots, NO logos, NO diagrams
+- Suitable as a full-width newspaper/news-website hero image
+- 16:9 landscape orientation, high resolution`;
+
+        const result = await ai.models.generateContent({
+            model: "gemini-2.0-flash-preview-image-generation",
+            contents: prompt,
+            config: { responseModalities: ["IMAGE", "TEXT"] }
+        });
+
+        const parts = result.candidates?.[0]?.content?.parts || [];
+        for (const part of parts) {
+            const inlineData = (part as any).inlineData;
+            if (inlineData?.mimeType?.startsWith('image/') && inlineData.data) {
+                const buffer = Buffer.from(inlineData.data, 'base64');
+                const adminSupabase = createClient(
+                    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                    process.env.SUPABASE_SERVICE_ROLE_KEY!
+                );
+                const filename = `hero-${Date.now()}-${Math.random().toString(36).substring(2, 7)}.jpg`;
+                const { data: uploadData, error: uploadError } = await adminSupabase.storage
+                    .from('social-images')
+                    .upload(filename, buffer, { contentType: 'image/jpeg', upsert: false });
+                if (!uploadError && uploadData) {
+                    const { data: urlData } = adminSupabase.storage.from('social-images').getPublicUrl(filename);
+                    console.log(`>>> [ImgCheck] ✅ AI hero image generated: ${urlData.publicUrl}`);
+                    return urlData.publicUrl;
+                }
+            }
+        }
+        console.warn(">>> [ImgCheck] Gemini returned no image parts");
+    } catch (e) {
+        console.error(">>> [ImgCheck] Hero image generation failed:", e);
+    }
+    return null;
+}
+
+// ── Pick the best suitable main image: scraped → search → generate → fallback ─
+async function resolveSuitableMainImage(
+    candidates: string[],            // already-extracted URLs to try first
+    title: string,
+    excerpt: string,
+    category: string,
+    fallbackUrl: string
+): Promise<string> {
+    // 1. Check each scraped candidate
+    for (const candidate of candidates) {
+        if (!candidate || !candidate.startsWith('http')) continue;
+        if (await isPhotoSuitable(candidate)) return candidate;
+    }
+
+    // 2. Try image search with article title
+    console.log(">>> [ImgCheck] No suitable scraped image — searching Google Images...");
+    const searched = await searchImage(title);
+    if (searched && await isPhotoSuitable(searched)) return searched;
+
+    // 3. Generate with Gemini
+    console.log(">>> [ImgCheck] Search yielded no suitable photo — generating with Gemini...");
+    const generated = await generateHeroImage(title, excerpt, category);
+    if (generated) return generated;
+
+    // 4. Ultimate fallback
+    console.log(">>> [ImgCheck] All options exhausted — using fallback placeholder");
+    return fallbackUrl;
+}
+
 export async function searchImage(query: string): Promise<string | null> {
     const apiKey = process.env.SERPER_API_KEY;
     if (!apiKey) return null;
@@ -461,46 +569,36 @@ DÔLEŽITÉ: Odpovedaj VÝHRADNE v čistom JSON formáte. Žiadny markdown, žia
             console.log("OpenAI JSON parsed successfully, article title:", articleData.title);
         }
 
-        // ── Image extraction & validation ──────────────────────────────────────
+        // ── Image extraction & suitability check ──────────────────────────────
         const AI_FALLBACK_IMAGE = `https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=1200`;
-        let mainImage = AI_FALLBACK_IMAGE;
 
-        // Helper: check if image URL responds with 2xx
-        const isImageAlive = async (imgUrl: string): Promise<boolean> => {
-            if (!imgUrl || !imgUrl.startsWith('http')) return false;
-            try {
-                const ctrl = new AbortController();
-                const tid = setTimeout(() => ctrl.abort(), 5000);
-                const res = await fetch(imgUrl, { method: 'HEAD', signal: ctrl.signal });
-                clearTimeout(tid);
-                return res.ok;
-            } catch {
-                return false;
-            }
-        };
-
+        // Collect raw candidate URLs from the scraped page
+        const rawImageCandidates: string[] = [];
         try {
             const document = doc?.window.document;
-            if (!document) throw new Error("No document (scraping was skipped)");
-            const ogImage = document.querySelector('meta[property="og:image"]')?.getAttribute('content');
-            const twitterImage = document.querySelector('meta[name="twitter:image"]')?.getAttribute('content');
-            const firstImg = document.querySelector('article img')?.getAttribute('src') || document.querySelector('img')?.getAttribute('src');
-
-            const candidates = [ogImage, twitterImage, firstImg].filter(Boolean) as string[];
-            for (const candidate of candidates) {
-                const absolute = candidate.startsWith('http')
-                    ? candidate
-                    : candidate.startsWith('/')
-                        ? `${new URL(url).origin}${candidate}`
-                        : null;
-                if (absolute && await isImageAlive(absolute)) {
-                    mainImage = absolute;
-                    break;
+            if (document) {
+                const ogImage = document.querySelector('meta[property="og:image"]')?.getAttribute('content');
+                const twitterImage = document.querySelector('meta[name="twitter:image"]')?.getAttribute('content');
+                const firstImg = document.querySelector('article img')?.getAttribute('src') || document.querySelector('img')?.getAttribute('src');
+                const origin = (() => { try { return new URL(url).origin; } catch { return ''; } })();
+                for (const src of [ogImage, twitterImage, firstImg]) {
+                    if (!src) continue;
+                    const absolute = src.startsWith('http') ? src : src.startsWith('/') ? `${origin}${src}` : null;
+                    if (absolute) rawImageCandidates.push(absolute);
                 }
             }
         } catch (e) {
-            console.error("Failed to extract/validate main image:", e);
+            console.warn(">>> [Logic] Image candidate extraction failed:", e);
         }
+
+        // Pick best suitable image: scraped candidates → search → generate → fallback
+        const mainImage = await resolveSuitableMainImage(
+            rawImageCandidates,
+            articleData.title || effectiveTitle,
+            articleData.excerpt || "",
+            forcedCategory || "AI",
+            AI_FALLBACK_IMAGE
+        );
 
         // ── Strip all original inline images unconditionally ────────────────────
         let cleanContent: string = articleData.content || '';
@@ -793,14 +891,16 @@ Výstup VŽDY EXAKTNE VO FORMÁTE JSON:
             finalCategory = "AI";
         }
 
-        // 6. PHASE: Find a relevant image
+        // 6. PHASE: Find a relevant image (with suitability check)
         const searchQuery = articleData.image_search_query || articleData.title;
         console.log(`>>> [Logic] Searching for a relevant image using query: "${searchQuery}"...`);
-        let mainImage = await searchImage(searchQuery);
-        if (!mainImage) {
-            console.log(">>> [Logic] Relevant image not found, using generic placeholder.");
-            mainImage = getPlaceholderImage(finalCategory);
-        }
+        const mainImage = await resolveSuitableMainImage(
+            [], // no scraped candidates for topic-based articles
+            searchQuery,
+            articleData.excerpt || "",
+            finalCategory,
+            getPlaceholderImage(finalCategory)
+        );
 
         const dbData = {
             title: articleData.title,
