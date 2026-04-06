@@ -38,6 +38,7 @@ export interface BotConfig {
   type: "article_only" | "full";
   enabled: boolean;
   interval_hours: number;       // run every N hours since last_run
+  schedule_hours?: number[];    // specific hours of day to run (0-23, UTC)
   run_times?: string[];         // legacy — ignored, kept for backward compat
   categories: string[];
   post_instagram?: boolean;
@@ -1056,25 +1057,42 @@ ${topic.url ? `ZDROJ: ${topic.url}` : ""}`;
 export function shouldBotRunNow(bot: BotConfig): boolean {
   if (!bot.enabled) return false;
 
-  const intervalHours = bot.interval_hours ?? 4; // default: every 4 hours
+  const now = new Date();
+  const currentHour = now.getUTCHours(); // Vercel runs in UTC
 
-  // Never ran before → run immediately
+  // ── schedule_hours mode: run at specific hours of day ──
+  if (bot.schedule_hours && bot.schedule_hours.length > 0) {
+    if (!bot.schedule_hours.includes(currentHour)) {
+      console.log(`[BotCycle] Bot "${bot.name}" — current hour ${currentHour}h not in schedule [${bot.schedule_hours.join(",")}]`);
+      return false;
+    }
+    // Check we haven't already run in this hour
+    if (bot.last_run) {
+      const lastRun = new Date(bot.last_run);
+      const sameHour = lastRun.getUTCHours() === currentHour
+        && (now.getTime() - lastRun.getTime()) < 55 * 60 * 1000; // within 55 min
+      if (sameHour) {
+        console.log(`[BotCycle] Bot "${bot.name}" — already ran this hour (${currentHour}h)`);
+        return false;
+      }
+    }
+    console.log(`[BotCycle] Bot "${bot.name}" — scheduled for hour ${currentHour}h ✓`);
+    return true;
+  }
+
+  // ── Fallback: interval_hours mode (legacy) ──
+  const intervalHours = bot.interval_hours ?? 4;
   if (!bot.last_run) {
     console.log(`[BotCycle] Bot "${bot.name}" has never run — triggering now`);
     return true;
   }
-
   const lastRunMs = new Date(bot.last_run).getTime();
   const intervalMs = intervalHours * 60 * 60 * 1000;
   const elapsedMs = Date.now() - lastRunMs;
-
   if (elapsedMs >= intervalMs) {
     const elapsedH = (elapsedMs / 3600000).toFixed(1);
     console.log(`[BotCycle] Bot "${bot.name}" due — ${elapsedH}h since last run (interval: ${intervalHours}h)`);
     return true;
   }
-
-  const minsLeft = Math.round((intervalMs - elapsedMs) / 60000);
-  console.log(`[BotCycle] Bot "${bot.name}" not due — ${minsLeft}min remaining until next run`);
   return false;
 }

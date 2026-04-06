@@ -18,7 +18,7 @@ const MIN_ZOOM = 0.15;
 const MAX_ZOOM = 2.0;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type MType = "trigger"|"topic-scout"|"article-writer"|"image-sourcer"|"ai-image-gen"|"publisher"|"social-poster"|"filter"|"delay";
+type MType = "topic-scout"|"article-writer"|"image-sourcer"|"ai-image-gen"|"publisher"|"social-poster"|"filter"|"delay";
 interface WModule { id:string; type:MType; x:number; y:number; settings:Record<string,unknown>; }
 interface WConn   { id:string; fromId:string; toId:string; }
 interface BotWorkflow { modules:WModule[]; connections:WConn[]; }
@@ -56,9 +56,6 @@ interface MDef {
 }
 
 const DEFS: Record<MType, MDef> = {
-  trigger:{label:"Spúšťač",desc:"Kedy sa workflow spustí",emoji:"⚡",icon:Zap,color:"#22c55e",bg:"rgba(34,197,94,0.15)",border:"rgba(34,197,94,0.3)",hasIn:false,hasOut:true,
-    defaults:{schedule:"0 * * * *",enabled:true},
-    fields:[{key:"schedule",label:"Cron plán",type:"text",default:"0 * * * *"},{key:"enabled",label:"Aktívny",type:"toggle",default:true}]},
   "topic-scout":{label:"Prieskum Tém",desc:"Hľadá aktuálne témy cez Gemini",emoji:"🔍",icon:Search,color:"#3b82f6",bg:"rgba(59,130,246,0.15)",border:"rgba(59,130,246,0.3)",hasIn:true,hasOut:true,
     defaults:{categories:["AI"],timeRange:"48h",googleSearch:true,dedup:true},
     fields:[
@@ -123,7 +120,7 @@ const DEFS: Record<MType, MDef> = {
       {key:"cacheExpiry",label:"Cache platný (hodiny)",type:"number",default:24,min:1,max:168}]},
 };
 
-const PALETTE: MType[] = ["trigger","topic-scout","article-writer","image-sourcer","ai-image-gen","publisher","social-poster","conditional-check","rate-limiter","content-quality","content-cache"];
+const PALETTE: MType[] = ["topic-scout","article-writer","image-sourcer","ai-image-gen","publisher","social-poster","conditional-check","rate-limiter","content-quality","content-cache"];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function uid() { return `m_${Date.now()}_${Math.random().toString(36).slice(2,7)}`; }
@@ -137,17 +134,15 @@ function outPt(m:WModule){return{x:m.x+MOD_SIZE,y:m.y+MOD_SIZE/2};}
 function inPt(m:WModule) {return{x:m.x,   y:m.y+MOD_SIZE/2};}
 
 function defaultWF(): BotWorkflow {
-  const t  = {id:uid(),type:"trigger"        as MType,x:200, y:300,settings:{...DEFS["trigger"].defaults}};
-  const s  = {id:uid(),type:"topic-scout"    as MType,x:400, y:300,settings:{...DEFS["topic-scout"].defaults}};
-  const a  = {id:uid(),type:"article-writer" as MType,x:600, y:200,settings:{...DEFS["article-writer"].defaults}};
-  const im = {id:uid(),type:"image-sourcer"  as MType,x:600, y:400,settings:{...DEFS["image-sourcer"].defaults}};
-  const g  = {id:uid(),type:"ai-image-gen"   as MType,x:800,y:300,settings:{...DEFS["ai-image-gen"].defaults}};
-  const p  = {id:uid(),type:"publisher"      as MType,x:1000,y:300,settings:{...DEFS["publisher"].defaults}};
-  const so = {id:uid(),type:"social-poster"  as MType,x:1200,y:300,settings:{...DEFS["social-poster"].defaults}};
+  const s  = {id:uid(),type:"topic-scout"    as MType,x:200, y:300,settings:{...DEFS["topic-scout"].defaults}};
+  const a  = {id:uid(),type:"article-writer" as MType,x:400, y:200,settings:{...DEFS["article-writer"].defaults}};
+  const im = {id:uid(),type:"image-sourcer"  as MType,x:400, y:400,settings:{...DEFS["image-sourcer"].defaults}};
+  const g  = {id:uid(),type:"ai-image-gen"   as MType,x:600,y:300,settings:{...DEFS["ai-image-gen"].defaults}};
+  const p  = {id:uid(),type:"publisher"      as MType,x:800,y:300,settings:{...DEFS["publisher"].defaults}};
+  const so = {id:uid(),type:"social-poster"  as MType,x:1000,y:300,settings:{...DEFS["social-poster"].defaults}};
   return {
-    modules:[t,s,a,im,g,p,so],
+    modules:[s,a,im,g,p,so],
     connections:[
-      {id:cuid(),fromId:t.id, toId:s.id},
       {id:cuid(),fromId:s.id, toId:a.id},
       {id:cuid(),fromId:s.id, toId:im.id},
       {id:cuid(),fromId:a.id, toId:g.id},
@@ -178,16 +173,14 @@ function deriveConfigFromWorkflow(wf: BotWorkflow) {
 }
 
 function generateWorkflowFromLegacyConfig(bot: BotEntry): BotWorkflow {
-  const t  = {id:uid(),type:"trigger"        as MType,x:200, y:300,settings:{...DEFS["trigger"].defaults}};
-  const s  = {id:uid(),type:"topic-scout"    as MType,x:400, y:300,settings:{...DEFS["topic-scout"].defaults,categories:bot.categories}};
-  const a  = {id:uid(),type:"article-writer" as MType,x:600, y:200,settings:{...DEFS["article-writer"].defaults}};
-  const im = {id:uid(),type:"image-sourcer"  as MType,x:600, y:400,settings:{...DEFS["image-sourcer"].defaults}};
-  const g  = {id:uid(),type:"ai-image-gen"   as MType,x:800,y:300,settings:{...DEFS["ai-image-gen"].defaults}};
-  const p  = {id:uid(),type:"publisher"      as MType,x:1000,y:300,settings:{...DEFS["publisher"].defaults}};
+  const s  = {id:uid(),type:"topic-scout"    as MType,x:200, y:300,settings:{...DEFS["topic-scout"].defaults,categories:bot.categories}};
+  const a  = {id:uid(),type:"article-writer" as MType,x:400, y:200,settings:{...DEFS["article-writer"].defaults}};
+  const im = {id:uid(),type:"image-sourcer"  as MType,x:400, y:400,settings:{...DEFS["image-sourcer"].defaults}};
+  const g  = {id:uid(),type:"ai-image-gen"   as MType,x:600,y:300,settings:{...DEFS["ai-image-gen"].defaults}};
+  const p  = {id:uid(),type:"publisher"      as MType,x:800,y:300,settings:{...DEFS["publisher"].defaults}};
 
-  const modules: WModule[] = [t,s,a,im,g,p];
+  const modules: WModule[] = [s,a,im,g,p];
   const connections: WConn[] = [
-    {id:cuid(),fromId:t.id, toId:s.id},
     {id:cuid(),fromId:s.id, toId:a.id},
     {id:cuid(),fromId:s.id, toId:im.id},
     {id:cuid(),fromId:a.id, toId:g.id},

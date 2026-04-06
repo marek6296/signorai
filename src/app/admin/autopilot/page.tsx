@@ -30,7 +30,8 @@ interface Bot {
   name: string;
   type: BotType;
   enabled: boolean;
-  interval_hours: number;       // run every N hours since last_run
+  schedule_hours?: number[];    // specific hours of day to run (0-23, UTC+1)
+  interval_hours?: number;      // legacy fallback
   run_times?: string[];         // legacy — ignored
   categories: string[];
   post_instagram?: boolean;
@@ -46,15 +47,6 @@ type RunStep = { label: string; status: "pending" | "running" | "done" | "error"
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const CATEGORIES = ["AI", "Tech", "Návody & Tipy"];
-const INTERVAL_OPTIONS = [
-  { value: 1,  label: "Každú hodinu" },
-  { value: 2,  label: "Každé 2 hodiny" },
-  { value: 4,  label: "Každé 4 hodiny" },
-  { value: 6,  label: "Každých 6 hodín" },
-  { value: 8,  label: "Každých 8 hodín" },
-  { value: 12, label: "Každých 12 hodín" },
-  { value: 24, label: "Raz za deň" },
-];
 const INSTAGRAM_FORMATS: { id: InstagramFormat; label: string; desc: string; icon: string }[] = [
   { id: "studio", label: "Studio", desc: "Brandovaná šablóna", icon: "⬛" },
   { id: "photo", label: "Photo", desc: "Foto z článku", icon: "🖼" },
@@ -81,7 +73,7 @@ function defaultBot(type: BotType): Bot {
     name: type === "article_only" ? "Článkový Bot" : "Sociálny Bot",
     type,
     enabled: false,
-    interval_hours: 4,
+    schedule_hours: [8, 14, 20],
     run_times: [], // Initialize legacy field
     categories: ["AI"],
     post_instagram: true,
@@ -106,23 +98,44 @@ function timeAgo(dateStr: string | null | undefined): string {
 
 function timeUntilNextRun(bot: Bot): { label: string; isReady: boolean } {
   if (!bot.enabled) return { label: "—", isReady: false };
+
+  if (bot.schedule_hours && bot.schedule_hours.length > 0) {
+    const now = new Date();
+    const currentHour = now.getHours();
+    const sorted = [...bot.schedule_hours].sort((a, b) => a - b);
+    // Find next scheduled hour today or tomorrow
+    const nextHour = sorted.find(h => h > currentHour) ?? sorted[0];
+    const isToday = nextHour > currentHour;
+    const nextRun = new Date(now);
+    nextRun.setHours(nextHour, 0, 0, 0);
+    if (!isToday) nextRun.setDate(nextRun.getDate() + 1);
+
+    // Already ran this hour?
+    if (bot.last_run) {
+      const last = new Date(bot.last_run);
+      if (last.getHours() === currentHour && (now.getTime() - last.getTime()) < 55 * 60 * 1000) {
+        const diff = nextRun.getTime() - now.getTime();
+        const hrs = Math.floor(diff / 3600000);
+        const mins = Math.floor((diff % 3600000) / 60000);
+        return { label: `${hrs}h ${String(mins).padStart(2,"0")}m`, isReady: false };
+      }
+    }
+
+    if (sorted.includes(currentHour)) return { label: "PRIPRAVENÝ", isReady: true };
+    const diff = nextRun.getTime() - now.getTime();
+    const hrs = Math.floor(diff / 3600000);
+    const mins = Math.floor((diff % 3600000) / 60000);
+    return { label: `${hrs}h ${String(mins).padStart(2,"0")}m`, isReady: false };
+  }
+
+  // Legacy interval fallback
   if (!bot.last_run) return { label: "PRIPRAVENÝ", isReady: true };
   const intervalMs = (bot.interval_hours ?? 4) * 60 * 60 * 1000;
-  const nextRunMs = new Date(bot.last_run).getTime() + intervalMs;
-  const diff = nextRunMs - Date.now();
-  
+  const diff = new Date(bot.last_run).getTime() + intervalMs - Date.now();
   if (diff <= 0) return { label: "PRIPRAVENÝ", isReady: true };
-  
-  const totalSecs = Math.floor(diff / 1000);
-  const hrs = Math.floor(totalSecs / 3600);
-  const mins = Math.floor((totalSecs % 3600) / 60);
-  const secs = totalSecs % 60;
-  
-  const h = hrs > 0 ? `${hrs}h ` : "";
-  const m = String(mins).padStart(2, "0");
-  const s = String(secs).padStart(2, "0");
-  
-  return { label: `${h}${m}:${s}`, isReady: false };
+  const hrs = Math.floor(diff / 3600000);
+  const mins = Math.floor((diff % 3600000) / 60000);
+  return { label: `${hrs}h ${String(mins).padStart(2,"0")}m`, isReady: false };
 }
 
 // ─── Mini Toggle ──────────────────────────────────────────────────────────────
@@ -212,7 +225,7 @@ export default function BotsPage() {
         // Migrate legacy bots that have run_times but no interval_hours
         const parsed = raw.map((b) => ({
           ...b,
-          interval_hours: b.interval_hours ?? 4,
+          schedule_hours: b.schedule_hours ?? (b.interval_hours ? undefined : [8, 14, 20]),
         }));
         setBots(parsed);
       } else {
@@ -1010,34 +1023,38 @@ function BotModal({
                 )}
               </div>
 
-              {/* Schedule — interval-based */}
+              {/* Schedule — specific hours picker */}
               <div>
                 <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: "rgba(255,255,255,0.4)", textTransform: "uppercase", display: "block", marginBottom: 10 }}>
-                  Frekvencia spustenia
+                  Hodiny spustenia (CET)
                 </label>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {INTERVAL_OPTIONS.map((opt) => {
-                    const active = (form.interval_hours ?? 4) === opt.value;
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 6 }}>
+                  {Array.from({ length: 24 }, (_, h) => {
+                    const active = (form.schedule_hours ?? []).includes(h);
                     return (
                       <button
-                        key={opt.value}
+                        key={h}
                         type="button"
-                        onClick={() => setForm((f) => ({ ...f, interval_hours: opt.value }))}
+                        onClick={() => setForm((f) => {
+                          const cur = f.schedule_hours ?? [];
+                          return { ...f, schedule_hours: active ? cur.filter(x => x !== h) : [...cur, h].sort((a,b) => a-b) };
+                        })}
                         style={{
-                          padding: "7px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                          padding: "8px 4px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer",
                           background: active ? C.dim : "rgba(255,255,255,0.03)",
                           border: `1px solid ${active ? C.border : "rgba(255,255,255,0.07)"}`,
-                          color: active ? C.primary : "rgba(255,255,255,0.35)",
+                          color: active ? C.primary : "rgba(255,255,255,0.25)",
                           transition: "all 0.12s",
+                          textAlign: "center",
                         }}
                       >
-                        {opt.label}
+                        {String(h).padStart(2,"0")}:00
                       </button>
                     );
                   })}
                 </div>
                 <p style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", marginTop: 8 }}>
-                  Vercel cron sa spúšťa každú hodinu a skontroluje či uplynul nastavený čas od posledného behu.
+                  Vyber hodiny kedy sa má bot spustiť. Vercel cron beží každú hodinu a skontroluje plán. Časy sú v CET (UTC+1).
                 </p>
               </div>
 
