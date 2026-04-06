@@ -144,7 +144,7 @@ ODPOVEDAJ LEN VO FORMÁTE JSON:
                 const alreadyPosted = allExistingPosts?.some((p: SocialPost) => p.article_id === article.id && p.platform === platform);
                 if (alreadyPosted) continue;
 
-                const url = `https://aiwai.news/clanky/${article.slug}`;
+                const url = `https://aiwai.news/article/${article.slug}`;
 
                 const promptSystem = `Si špičkový social media manažér pre seriózny technologický a AI portál AIWai. Tvojou úlohou je napísať profesionálny, úderný a stručný príspevok.
 

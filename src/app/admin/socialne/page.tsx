@@ -250,7 +250,7 @@ export default function SocialnePage() {
             body: JSON.stringify({
               title: article.title,
               excerpt: article.excerpt,
-              url: `https://aiwai.news/clanky/${article.slug}`,
+              url: `https://aiwai.news/article/${article.slug}`,
               platform,
             }),
           });
@@ -799,7 +799,7 @@ export default function SocialnePage() {
                                 <div className="flex gap-2">
                                     {isIg && post.articles?.slug && (
                                     <a
-                                        href={`https://aiwai.news/clanky/${post.articles.slug}`}
+                                        href={`https://aiwai.news/article/${post.articles.slug}`}
                                         target="_blank"
                                         rel="noreferrer"
                                         className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[10px] font-bold transition-all"

@@ -103,36 +103,8 @@ export async function POST(req: Request) {
 
         let result;
         if (post.platform === 'Facebook') {
-            try {
-                // Pre Facebook chceme čistý Link Post (aby si FB sám stiahol obrázok z webu)
-                result = await publishToFacebook(post.content, articleUrl);
-            } catch (fbError: unknown) {
-                const fbErrorMsg = fbError instanceof Error ? fbError.message : String(fbError);
-                console.warn("[Facebook] Link scrape failed:", fbErrorMsg);
-                console.log("[Facebook] Falling back to Photo Post with generated AI Vizuál...");
-
-                // Fallback to Satori image if Meta cannot scrape the original site's article image
-                const headerHost = req.headers.get("x-forwarded-host") || req.headers.get("host") || "aiwai.news";
-                const protocol = headerHost.includes("localhost") ? "http" : "https";
-                const preRenderEndpoint = `${protocol}://${headerHost}/api/admin/pre-render-social-image`;
-
-                const res = await fetch(preRenderEndpoint, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ id: post.id })
-                });
-
-                let fallbackImg = post.image_url;
-                if (res.ok) {
-                    const dat = await res.json();
-                    if (dat.url) fallbackImg = dat.url;
-                }
-
-                if (!fallbackImg) throw fbError;
-
-                // Post as Photo (no explicit link param, link text remains in the message)
-                result = await publishToFacebook(post.content, undefined, fallbackImg);
-            }
+            // Pre Facebook chceme VŽDY a LEN čistý Link Post (aby si FB sám stiahol obrázok z webu)
+            result = await publishToFacebook(post.content || "", articleUrl);
         } else if (post.platform === 'Instagram') {
             // Instagram MUST have our generated 1:1 image to avoid aspect ratio errors
             if (!finalImageUrl || (finalImageUrl === article?.main_image)) {
