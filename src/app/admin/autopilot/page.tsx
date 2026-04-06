@@ -716,6 +716,21 @@ export default function BotsPage() {
 
                     <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 8 }}>
                       <button
+                        onClick={() => { setEditingBot(bot); setModalOpen(true); }}
+                        style={{
+                          width: 48, height: 48, borderRadius: "50%", background: "rgba(245,158,11,0.15)",
+                          color: "#f59e0b", border: "1px solid rgba(245,158,11,0.25)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                          backdropFilter: "blur(10px)", transition: "all 0.2s"
+                        }}
+                        title="Nastavenia bota (hodiny, kategórie...)"
+                      >
+                        <Clock size={20} />
+                      </button>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.6)", whiteSpace: "nowrap", opacity: 0, transition: "opacity 0.3s", pointerEvents: "none" }} className="btn-label">NASTAVENIA</span>
+                    </div>
+
+                    <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 8 }}>
+                      <button
                         onClick={() => router.push(`/admin/bot-layout?botId=${bot.id}`)}
                         style={{
                           width: 48, height: 48, borderRadius: "50%", background: "rgba(139,92,246,0.15)",
@@ -724,9 +739,9 @@ export default function BotsPage() {
                         }}
                         title="Upraviť workflow v Bot Layout editore"
                       >
-                        <Edit2 size={20} />
+                        <Layers size={20} />
                       </button>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.6)", whiteSpace: "nowrap", opacity: 0, transition: "opacity 0.3s", pointerEvents: "none" }} className="btn-label">UPRAVIŤ</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.6)", whiteSpace: "nowrap", opacity: 0, transition: "opacity 0.3s", pointerEvents: "none" }} className="btn-label">WORKFLOW</span>
                     </div>
 
                     <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 8 }}>
