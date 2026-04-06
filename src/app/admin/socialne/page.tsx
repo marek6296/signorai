@@ -234,7 +234,7 @@ export default function SocialnePage() {
 
   const saveBotSettings = async () => {
     setSavingSettings(true);
-    const { error } = await supabase.from("site_settings").upsert({ key: "social_bot", value: botSettings });
+    const { error } = await supabase.from("site_settings").upsert({ key: "social_bot", value: botSettings }, { onConflict: "key" });
     setSavingSettings(false);
     if (error) showToast("Chyba pri ukladaní", "error");
     else showToast("Nastavenia uložené ✓");
@@ -735,7 +735,12 @@ export default function SocialnePage() {
                     background: botSettings.enabled ? "rgba(74,222,128,0.4)" : "rgba(255,255,255,0.1)",
                     border: botSettings.enabled ? "1px solid rgba(74,222,128,0.5)" : "1px solid rgba(255,255,255,0.15)",
                   }}
-                  onClick={() => setBotSettings({ ...botSettings, enabled: !botSettings.enabled })}
+                  onClick={async () => {
+                    const updated = { ...botSettings, enabled: !botSettings.enabled };
+                    setBotSettings(updated);
+                    await supabase.from("site_settings").upsert({ key: "social_bot", value: updated }, { onConflict: "key" });
+                    showToast(updated.enabled ? "Social Bot zapnutý ✓" : "Social Bot vypnutý");
+                  }}
                 >
                   <div
                     className="absolute top-0.5 w-4 h-4 rounded-full transition-all"
