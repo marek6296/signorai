@@ -82,6 +82,20 @@ function timeAgo(dateStr: string | null | undefined): string {
   return `pred ${Math.floor(hrs / 24)}d`;
 }
 
+function timeUntilNextRun(bot: Bot): string {
+  if (!bot.enabled) return "—";
+  if (!bot.last_run) return "teraz";
+  const intervalMs = (bot.interval_hours ?? 4) * 60 * 60 * 1000;
+  const nextRunMs = new Date(bot.last_run).getTime() + intervalMs;
+  const diff = nextRunMs - Date.now();
+  if (diff <= 0) return "teraz";
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `o ${mins} min`;
+  const hrs = Math.floor(mins / 60);
+  const remMins = mins % 60;
+  return remMins > 0 ? `o ${hrs}h ${remMins}min` : `o ${hrs}h`;
+}
+
 // ─── Mini Toggle ──────────────────────────────────────────────────────────────
 function Toggle({ value, onChange, color = "#22c55e" }: { value: boolean; onChange: (v: boolean) => void; color?: string }) {
   return (
@@ -135,6 +149,19 @@ export default function BotsPage() {
   const [runningBotId, setRunningBotId] = useState<string | null>(null);
   const [runSteps, setRunSteps] = useState<RunStep[]>([]);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [cronCountdown, setCronCountdown] = useState<{ mins: number; secs: number }>({ mins: 0, secs: 0 });
+
+  // ── Cron countdown (fires at top of every hour: 0 * * * *) ──
+  useEffect(() => {
+    const tick = () => {
+      const now = new Date();
+      const totalSecsLeft = (59 - now.getMinutes()) * 60 + (60 - now.getSeconds());
+      setCronCountdown({ mins: Math.floor(totalSecsLeft / 60), secs: totalSecsLeft % 60 });
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
 
   const showToast = (msg: string, type: "success" | "error" | "info" = "success") => {
     setToast({ msg, type });
@@ -432,6 +459,27 @@ export default function BotsPage() {
             <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 13 }}>
               Každý bot beží nezávisle podľa vlastného plánu a nastavení
             </p>
+            {/* ── Vercel Cron Countdown ── */}
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 8, marginTop: 14,
+              background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 10, padding: "7px 12px",
+            }}>
+              <div style={{ position: "relative", width: 8, height: 8 }}>
+                <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "#22c55e", animation: "pulse 2s infinite" }} />
+                <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "#22c55e", opacity: 0.3, transform: "scale(1.8)" }} />
+              </div>
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                Ďalší cron o
+              </span>
+              <span style={{
+                fontSize: 13, fontWeight: 800, color: "#fff", fontVariantNumeric: "tabular-nums",
+                letterSpacing: "0.02em", minWidth: 36, textAlign: "center",
+              }}>
+                {String(cronCountdown.mins).padStart(2, "0")}:{String(cronCountdown.secs).padStart(2, "0")}
+              </span>
+              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.25)" }}>min</span>
+            </div>
           </div>
           <button
             onClick={() => { setEditingBot(null); setModalOpen(true); }}
@@ -582,6 +630,15 @@ export default function BotsPage() {
                         </p>
                         <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.15em", color: "rgba(255,255,255,0.25)", textTransform: "uppercase", marginTop: 2 }}>
                           Posledný beh
+                        </p>
+                      </div>
+                      <div style={{ width: 1, background: "rgba(255,255,255,0.05)" }} />
+                      <div>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: bot.enabled ? C.primary : "rgba(255,255,255,0.25)" }}>
+                          {timeUntilNextRun(bot)}
+                        </p>
+                        <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.15em", color: "rgba(255,255,255,0.25)", textTransform: "uppercase", marginTop: 2 }}>
+                          Ďalší beh
                         </p>
                       </div>
                       {bot.enabled && (

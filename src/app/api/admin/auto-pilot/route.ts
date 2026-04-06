@@ -17,13 +17,19 @@ export async function POST(request: NextRequest) {
 }
 
 async function handleAutopilot(request: NextRequest) {
-  const isVercelCron = request.headers.get("x-vercel-cron") === "1";
+  // Vercel Cron sends: Authorization: Bearer <CRON_SECRET>
+  const authHeader = request.headers.get("authorization") || "";
+  const cronSecret = process.env.CRON_SECRET;
+  const isVercelCron =
+    (cronSecret && authHeader === `Bearer ${cronSecret}`) ||
+    request.headers.get("x-vercel-cron") === "1"; // legacy fallback
+
   const secret =
     request.nextUrl.searchParams.get("secret") ||
     request.headers.get("x-api-key") ||
     request.headers.get("x-bot-secret");
 
-  console.log(`>>> [AutoPilot] Triggered (Vercel Cron: ${isVercelCron})`);
+  console.log(`>>> [AutoPilot] Triggered (Vercel Cron: ${isVercelCron}, secret: ${!!secret})`);
 
   // Auth
   if (
