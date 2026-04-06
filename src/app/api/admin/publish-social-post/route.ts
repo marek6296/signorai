@@ -3,9 +3,12 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { publishToFacebook, publishToInstagram } from "@/lib/meta-api";
 
+export const maxDuration = 60;
+export const dynamic = "force-dynamic";
+
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
 
@@ -60,7 +63,9 @@ export async function POST(req: Request) {
         }
 
         const article = post.articles;
-        const articleUrl = `https://aiwai.news/article/${article?.slug}`;
+        const headerHost = req.headers.get("x-forwarded-host") || req.headers.get("host") || "aiwai.news";
+        const protocol = headerHost.includes("localhost") ? "http" : "https";
+        const articleUrl = `${protocol}://${headerHost}/article/${article?.slug}`;
 
         let finalImageUrl = customImageUrl || post.image_url || article?.main_image;
 
@@ -142,12 +147,14 @@ export async function POST(req: Request) {
             throw new Error(`Unsupported platform: ${post.platform}`);
         }
 
-        // 4. Update status in DB
+        // 4. Update status and external ID in DB
+        const externalId = result?.id || result?.post_id;
         const { error: updateError } = await supabase
             .from("social_posts")
             .update({
                 status: 'posted',
-                posted_at: new Date().toISOString()
+                posted_at: new Date().toISOString(),
+                external_id: externalId
             })
             .eq("id", id);
 

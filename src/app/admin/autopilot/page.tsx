@@ -9,7 +9,7 @@ import {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type BotType = "article_only" | "full";
-type InstagramFormat = "image_text" | "text_only" | "article_bg";
+type InstagramFormat = "studio" | "photo" | "article_bg" | "text_only";
 
 interface Bot {
   id: string;
@@ -31,10 +31,11 @@ type RunStep = { label: string; status: "pending" | "running" | "done" | "error"
 // ─── Constants ────────────────────────────────────────────────────────────────
 const CATEGORIES = ["AI", "Tech", "Návody & Tipy"];
 const TIME_OPTIONS = ["06:00","07:00","08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00","18:00","19:00","20:00","21:00","22:00"];
-const INSTAGRAM_FORMATS: { id: InstagramFormat; label: string; desc: string }[] = [
-  { id: "image_text", label: "Obrázok + Text", desc: "AI generovaný obrázok" },
-  { id: "text_only", label: "Iba Text", desc: "Klasický textový post" },
-  { id: "article_bg", label: "Foto článku", desc: "Obrázok z článku ako pozadie" },
+const INSTAGRAM_FORMATS: { id: InstagramFormat; label: string; desc: string; icon: string }[] = [
+  { id: "studio", label: "Studio", desc: "Brandovaná šablóna", icon: "⬛" },
+  { id: "photo", label: "Photo", desc: "Foto z článku", icon: "🖼" },
+  { id: "article_bg", label: "Foto BG", desc: "Foto ako pozadie", icon: "🌅" },
+  { id: "text_only", label: "Iba Text", desc: "Bez obrázku", icon: "✏️" },
 ];
 
 const BOT_COLORS: Record<BotType, { primary: string; dim: string; border: string }> = {
@@ -54,7 +55,7 @@ function defaultBot(type: BotType): Bot {
     categories: ["AI"],
     post_instagram: true,
     post_facebook: false,
-    instagram_format: "image_text",
+    instagram_format: "studio",
     auto_publish_social: true,
     last_run: null,
     processed_count: 0,
@@ -279,20 +280,24 @@ export default function BotsPage() {
       if (bot.type === "full") {
         setStep(3, "running");
         const platforms: string[] = [];
-        if (bot.post_instagram) platforms.push("instagram");
-        if (bot.post_facebook) platforms.push("facebook");
+        if (bot.post_instagram) platforms.push("Instagram");
+        if (bot.post_facebook) platforms.push("Facebook");
         if (platforms.length > 0 && articleId) {
-          await fetch("/api/admin/generate-social-post", {
+          const socialRes = await fetch("/api/admin/social-autopilot", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               secret: "make-com-webhook-secret",
               articleId,
               platforms,
-              instagramFormat: bot.instagram_format || "image_text",
+              instagramVariant: bot.instagram_format || "studio",
               autoPublish: bot.auto_publish_social,
             }),
           });
+          if (!socialRes.ok) {
+            const errData = await socialRes.json().catch(() => ({}));
+            throw new Error(errData.error || "Chyba pri generovaní social postov");
+          }
         }
         setStep(3, "done");
       }
@@ -524,15 +529,20 @@ export default function BotsPage() {
 
                     {/* Social info (full only) */}
                     {bot.type === "full" && (
-                      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+                      <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap", alignItems: "center" }}>
                         {bot.post_instagram && (
                           <span style={{ padding: "4px 10px", background: "rgba(236,72,153,0.08)", border: "1px solid rgba(236,72,153,0.2)", borderRadius: 6, fontSize: 10, fontWeight: 700, color: "#ec4899" }}>
-                            Instagram
+                            IG · {INSTAGRAM_FORMATS.find(f => f.id === bot.instagram_format)?.label || "Studio"}
                           </span>
                         )}
                         {bot.post_facebook && (
                           <span style={{ padding: "4px 10px", background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)", borderRadius: 6, fontSize: 10, fontWeight: 700, color: "#3b82f6" }}>
                             Facebook
+                          </span>
+                        )}
+                        {bot.auto_publish_social && (bot.post_instagram || bot.post_facebook) && (
+                          <span style={{ padding: "4px 8px", background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.15)", borderRadius: 6, fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.05em" }}>
+                            AUTO
                           </span>
                         )}
                         {!bot.post_instagram && !bot.post_facebook && (
@@ -914,8 +924,9 @@ function BotModal({
                       <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: "rgba(255,255,255,0.4)", textTransform: "uppercase", display: "block", marginBottom: 10 }}>
                         Instagram formát
                       </label>
-                      <div style={{ display: "flex", gap: 8 }}>
-                        {INSTAGRAM_FORMATS.map((fmt) => {
+                      {/* First row: Studio / Photo / Foto BG */}
+                      <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                        {INSTAGRAM_FORMATS.filter(f => f.id !== "text_only").map((fmt) => {
                           const active = form.instagram_format === fmt.id;
                           return (
                             <button
@@ -923,18 +934,42 @@ function BotModal({
                               type="button"
                               onClick={() => setForm((f) => ({ ...f, instagram_format: fmt.id }))}
                               style={{
-                                flex: 1, padding: "10px 8px", borderRadius: 10, cursor: "pointer", textAlign: "center",
-                                background: active ? "rgba(236,72,153,0.1)" : "rgba(255,255,255,0.03)",
-                                border: `1px solid ${active ? "rgba(236,72,153,0.3)" : "rgba(255,255,255,0.07)"}`,
+                                flex: 1, padding: "10px 6px", borderRadius: 10, cursor: "pointer", textAlign: "center",
+                                background: active ? "rgba(236,72,153,0.12)" : "rgba(255,255,255,0.03)",
+                                border: `2px solid ${active ? "rgba(236,72,153,0.5)" : "rgba(255,255,255,0.07)"}`,
                                 color: active ? "#ec4899" : "rgba(255,255,255,0.35)",
+                                transition: "all 0.15s",
                               }}
                             >
-                              <p style={{ fontSize: 12, fontWeight: 700, marginBottom: 3 }}>{fmt.label}</p>
-                              <p style={{ fontSize: 10, opacity: 0.7 }}>{fmt.desc}</p>
+                              <p style={{ fontSize: 16, marginBottom: 4 }}>{fmt.icon}</p>
+                              <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.05em", marginBottom: 2 }}>{fmt.label}</p>
+                              <p style={{ fontSize: 10, opacity: 0.6, lineHeight: 1.3 }}>{fmt.desc}</p>
                             </button>
                           );
                         })}
                       </div>
+                      {/* Text only row */}
+                      {(() => {
+                        const fmt = INSTAGRAM_FORMATS.find(f => f.id === "text_only")!;
+                        const active = form.instagram_format === "text_only";
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => setForm((f) => ({ ...f, instagram_format: fmt.id }))}
+                            style={{
+                              width: "100%", padding: "8px 12px", borderRadius: 8, cursor: "pointer", textAlign: "left",
+                              display: "flex", alignItems: "center", gap: 8,
+                              background: active ? "rgba(236,72,153,0.08)" : "rgba(255,255,255,0.02)",
+                              border: `1px solid ${active ? "rgba(236,72,153,0.3)" : "rgba(255,255,255,0.06)"}`,
+                              color: active ? "#ec4899" : "rgba(255,255,255,0.3)",
+                            }}
+                          >
+                            <span style={{ fontSize: 13 }}>{fmt.icon}</span>
+                            <span style={{ fontSize: 11, fontWeight: 700 }}>{fmt.label}</span>
+                            <span style={{ fontSize: 10, opacity: 0.6, marginLeft: 4 }}>{fmt.desc}</span>
+                          </button>
+                        );
+                      })()}
                     </div>
                   )}
 

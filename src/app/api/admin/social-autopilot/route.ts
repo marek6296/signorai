@@ -27,7 +27,10 @@ export async function POST(req: Request) {
 
     try {
         const body = await req.json();
-        const { platforms, autoPublish, articleId, secret } = body;
+        const { platforms, autoPublish, articleId, secret, instagramVariant } = body;
+        // instagramVariant: 'studio' | 'photo' | 'article_bg' | 'text_only'
+        // Maps to satori render variant: studio → 'studio', photo → 'photo', article_bg → 'photo' (uses article image as bg)
+        const igVariant = (instagramVariant === "photo" || instagramVariant === "article_bg") ? "photo" : "studio";
 
         if (secret !== process.env.ADMIN_SECRET && secret !== LEGACY_SECRET) {
             return NextResponse.json({ message: "Invalid secret" }, { status: 401 });
@@ -141,7 +144,7 @@ ODPOVEDAJ LEN VO FORMÁTE JSON:
                 const alreadyPosted = allExistingPosts?.some((p: SocialPost) => p.article_id === article.id && p.platform === platform);
                 if (alreadyPosted) continue;
 
-                const url = `https://aiwai.news/article/${article.slug}`;
+                const url = `https://aiwai.news/clanky/${article.slug}`;
 
                 const promptSystem = `Si špičkový social media manažér pre seriózny technologický a AI portál AIWai. Tvojou úlohou je napísať profesionálny, úderný a stručný príspevok.
 
@@ -207,7 +210,7 @@ Perex: ${article.excerpt}`;
                     const res = await fetch(preRenderEndpoint, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ id: savedPost.id })
+                        body: JSON.stringify({ id: savedPost.id, variant: igVariant })
                     });
                     if (res.ok) {
                         const dat = await res.json();

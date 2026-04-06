@@ -18,8 +18,8 @@ interface InstagramPreviewProps {
     articleId?: string;
     onImageUpdate?: (url: string) => void;
     /** If provided, clicking Save calls this (server-side render) instead of html-to-image.
-     *  Receives the current variant ('studio'|'photo'), returns the public PNG URL or null. */
-    onSaveAndRender?: (variant: 'studio' | 'photo') => Promise<string | null>;
+     *  Receives current variant and currentImageUrl, returns a URL (absolute or relative) to download or null. */
+    onSaveAndRender?: (variant: 'studio' | 'photo', currentImageUrl: string) => Promise<string | null>;
 }
 
 export function InstagramPreview({
@@ -108,11 +108,14 @@ export function InstagramPreview({
         try {
             if (onSaveAndRender) {
                 // Server-side render (preserves backgrounds perfectly)
-                const url = await onSaveAndRender(variant);
-                if (url) {
-                    // Fetch the PNG via proxy to force download (avoids open-in-tab)
+                const renderUrl = await onSaveAndRender(variant, currentImg);
+                if (renderUrl) {
+                    // Local API route or external URL — fetch and force-download as blob
+                    const fetchUrl = renderUrl.startsWith('/')
+                        ? renderUrl  // local route, fetch directly
+                        : `/api/proxy-image?url=${encodeURIComponent(renderUrl)}&t=${Date.now()}`; // external URL via proxy
                     try {
-                        const res = await fetch(`/api/proxy-image?url=${encodeURIComponent(url)}&t=${Date.now()}`);
+                        const res = await fetch(fetchUrl);
                         if (res.ok) {
                             const blob = await res.blob();
                             const blobUrl = URL.createObjectURL(blob);
@@ -123,14 +126,13 @@ export function InstagramPreview({
                             setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
                             return;
                         }
-                    } catch { /* fallthrough to direct link */ }
-                    const a = document.createElement('a');
-                    a.download = `aiwai-${variant}-${Date.now()}.png`;
-                    a.href = url; a.click();
+                    } catch { /* fallthrough */ }
+                    // Last-resort: open URL directly
+                    window.open(renderUrl, '_blank');
                     return;
                 }
             }
-            // Fallback: html-to-image (may miss some backgrounds)
+            // Fallback: html-to-image
             if (!previewRef.current) return;
             const url = await toPng(previewRef.current, captureOpts);
             const a = document.createElement('a');

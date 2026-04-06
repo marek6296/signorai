@@ -33,6 +33,7 @@ type SocialPost = {
   image_url: string | null;
   created_at: string;
   posted_at: string | null;
+  external_id: string | null;
   articles?: { title: string; slug: string; category: string; main_image?: string };
 };
 
@@ -90,6 +91,8 @@ export default function SocialnePage() {
   const [pendingIgContent, setPendingIgContent] = useState("");
   const [pendingFbContent, setPendingFbContent] = useState("");
   const [confirming, setConfirming] = useState(false);
+  const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [publishingPlatform, setPublishingPlatform] = useState<string | null>(null);
 
   // Bot settings
   const [showSettings, setShowSettings] = useState(false);
@@ -115,7 +118,7 @@ export default function SocialnePage() {
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
-    setTimeout(() => setToast(null), 3500);
+    setTimeout(() => setToast(null), type === "error" ? 7000 : 3500);
   };
 
   const fetchPosts = async () => {
@@ -167,17 +170,51 @@ export default function SocialnePage() {
     showToast(`Vymazaných ${count} draftov`, "success");
   };
 
-  const publishPost = async (id: string) => {
-    const res = await fetch("/api/admin/publish-social-post", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, secret: "make-com-webhook-secret" }),
-    });
-    if (res.ok) {
-      await fetchPosts();
-      showToast("Príspevok publikovaný ✓");
-    } else {
-      showToast("Chyba pri publikovaní", "error");
+  const publishPost = async (id: string, platform?: string) => {
+    setPublishingId(id);
+    setPublishingPlatform(platform || null);
+    const imageVariant = platform === "Instagram" ? "photo" : "studio";
+    try {
+      const res = await fetch("/api/admin/publish-social-post", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, secret: "make-com-webhook-secret", variant: imageVariant }),
+      });
+      if (res.ok) {
+        await fetchPosts();
+        showToast(`${platform || "Príspevok"} publikovaný ✓`);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        const errMsg = data?.error || "Chyba pri publikovaní";
+        showToast(errMsg.slice(0, 120), "error");
+      }
+    } catch (e: unknown) {
+      showToast(e instanceof Error ? e.message : "Sieťová chyba", "error");
+    } finally {
+      setPublishingId(null);
+      setPublishingPlatform(null);
+    }
+  };
+
+  const socialAction = async (action: string, postId: string, platform: string, message?: string) => {
+    try {
+      setLoading(true);
+      const res = await fetch("/api/admin/social-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, postId, platform, message, secret: "make-com-webhook-secret" }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast("Akcia úspešná ✓");
+        await fetchPosts();
+      } else {
+        showToast(data.error || "Chyba pri akcii", "error");
+      }
+    } catch (e: unknown) {
+      showToast("Chyba pripojenia", "error");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -285,16 +322,30 @@ export default function SocialnePage() {
         }
       }
 
-      // Pre-render Instagram image server-side
+      // Render Instagram image directly (no self-referencing HTTP call — just use the preview route)
       const igSaved = savedIds.find((s) => s.platform === "Instagram");
       if (igSaved) {
         try {
-          await fetch("/api/admin/pre-render-social-image", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id: igSaved.id, variant: "photo" }),
-          });
-        } catch { /* non-fatal */ }
+          const articleImageUrl = previewArticle?.main_image || "";
+          const previewParams = new URLSearchParams({ title: previewArticle!.title, variant: "photo", date: new Date().toISOString() });
+          if (articleImageUrl) previewParams.set("imageUrl", articleImageUrl);
+
+          const pngRes = await fetch(`/api/social-image/preview?${previewParams.toString()}`);
+          if (pngRes.ok) {
+            const pngBlob = await pngRes.blob();
+            const pngBuffer = await pngBlob.arrayBuffer();
+            const fileName = `pre-render-${igSaved.id}-${Date.now()}.png`;
+
+            const { error: uploadError } = await supabase.storage
+              .from("social-images")
+              .upload(fileName, pngBuffer, { contentType: "image/png", upsert: true });
+
+            if (!uploadError) {
+              const { data: { publicUrl } } = supabase.storage.from("social-images").getPublicUrl(fileName);
+              await supabase.from("social_posts").update({ image_url: publicUrl }).eq("id", igSaved.id);
+            }
+          }
+        } catch { /* non-fatal — post saved, image can be regenerated */ }
       }
 
       await fetchPosts();
@@ -312,45 +363,18 @@ export default function SocialnePage() {
     }
   };
 
-  // ── Save+render for InstagramPreview download button ──
-  // Saves the Instagram post to DB, pre-renders server-side, returns the PNG URL for download
-  const handlePreviewSaveAndRender = async (variant: "studio" | "photo"): Promise<string | null> => {
+  // ── Save button in preview → server-render to local route (no DB save) ──
+  const handlePreviewSaveRender = async (variant: "studio" | "photo", currentImageUrl: string): Promise<string | null> => {
     if (!previewArticle) return null;
-    try {
-      // Save Instagram post
-      const content = pendingIgContent || pendingPosts.find((p) => p.platform === "Instagram" && p.article.id === previewArticle.id)?.content || "";
-      const saveRes = await fetch("/api/admin/social-posts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify([{
-          article_id: previewArticle.id,
-          platform: "Instagram",
-          content,
-          status: "draft",
-        }]),
-      });
-      if (!saveRes.ok) return null;
-      const savedArr = await saveRes.json();
-      const savedPost = savedArr?.[0];
-      if (!savedPost?.id) return null;
-
-      // Pre-render
-      const prRes = await fetch("/api/admin/pre-render-social-image", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: savedPost.id, variant }),
-      });
-      if (!prRes.ok) return null;
-      const prData = await prRes.json();
-
-      // Remove the saved IG post from pending so confirmAndSave skips it
-      setPendingPosts((prev) => prev.filter((p) => !(p.platform === "Instagram" && p.article.id === previewArticle.id)));
-
-      await fetchPosts();
-      return prData.url || null;
-    } catch {
-      return null;
+    const params = new URLSearchParams({ title: previewArticle.title, variant });
+    if (currentImageUrl && !currentImageUrl.startsWith('data:')) {
+      params.set('imageUrl', currentImageUrl);
+    } else if (previewArticle.main_image) {
+      // currentImg is base64 (proxy'd), fall back to the raw article image URL
+      params.set('imageUrl', previewArticle.main_image);
     }
+    params.set('date', new Date().toISOString());
+    return `/api/social-image/preview?${params.toString()}`;
   };
 
   const runAutopilot = async () => {
@@ -465,15 +489,87 @@ export default function SocialnePage() {
         </div>
       )}
 
+      {/* ── Publishing overlay ── */}
+      {publishingId && (
+        <div className="fixed inset-x-0 top-0 z-50 flex justify-center pt-5" style={{ pointerEvents: "none" }}>
+          <div
+            className="rounded-2xl px-5 py-4 flex items-center gap-4"
+            style={{
+              background: "linear-gradient(145deg, #141414 0%, #0f0f0f 100%)",
+              border: publishingPlatform === "Instagram"
+                ? "1px solid rgba(244,114,182,0.45)"
+                : "1px solid rgba(59,130,246,0.45)",
+              boxShadow: publishingPlatform === "Instagram"
+                ? "0 8px 40px rgba(0,0,0,0.8), 0 0 24px rgba(244,114,182,0.15)"
+                : "0 8px 40px rgba(0,0,0,0.8), 0 0 24px rgba(59,130,246,0.15)",
+              minWidth: 320,
+              animation: "slideDownGen 0.3s ease",
+            }}
+          >
+            {/* Platform icon spinner */}
+            <div className="relative w-9 h-9 shrink-0">
+              <div className="absolute inset-0 rounded-full" style={{ border: "2px solid rgba(255,255,255,0.06)" }} />
+              <div
+                className="absolute inset-0 rounded-full animate-spin"
+                style={{
+                  border: "2px solid transparent",
+                  borderTopColor: publishingPlatform === "Instagram" ? "#f472b6" : "#60a5fa",
+                  borderRightColor: publishingPlatform === "Instagram" ? "rgba(244,114,182,0.3)" : "rgba(96,165,250,0.3)",
+                }}
+              />
+              <div className="absolute inset-0 flex items-center justify-center">
+                {publishingPlatform === "Instagram"
+                  ? <Instagram className="w-4 h-4" style={{ color: "#f472b6" }} />
+                  : <Facebook className="w-4 h-4" style={{ color: "#60a5fa" }} />
+                }
+              </div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-sm font-black text-white">
+                  Publikujem na {publishingPlatform || "sociálnu sieť"}...
+                </span>
+              </div>
+              <p className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
+                {publishingPlatform === "Instagram"
+                  ? "Renderujem obrázok → nahrávam na Meta API"
+                  : "Odosielam link post → Meta Graph API"}
+              </p>
+              {/* Indeterminate progress bar */}
+              <div className="mt-2 h-1 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: "40%",
+                    background: publishingPlatform === "Instagram"
+                      ? "linear-gradient(to right, #f472b6, #e879f9)"
+                      : "linear-gradient(to right, #60a5fa, #818cf8)",
+                    animation: "publishSlide 1.4s ease-in-out infinite",
+                  }}
+                />
+              </div>
+              <style>{`
+                @keyframes publishSlide {
+                  0%   { margin-left: 0;   width: 35%; }
+                  50%  { margin-left: 55%; width: 45%; }
+                  100% { margin-left: 0;   width: 35%; }
+                }
+              `}</style>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Toast */}
       {toast && (
         <div
-          className="fixed top-5 right-5 z-50 px-5 py-3 rounded-xl text-sm font-semibold"
+          className="fixed top-5 right-5 z-50 px-5 py-3 rounded-xl text-sm font-semibold cursor-pointer"
           style={
             toast.type === "success"
-              ? { background: "rgba(74,222,128,0.12)", border: "1px solid rgba(74,222,128,0.3)", color: "#4ade80", boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }
-              : { background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171", boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }
+              ? { background: "rgba(74,222,128,0.15)", border: "1px solid rgba(74,222,128,0.35)", color: "#4ade80", boxShadow: "0 8px 32px rgba(0,0,0,0.6)", maxWidth: 380 }
+              : { background: "rgba(239,68,68,0.18)", border: "1px solid rgba(239,68,68,0.45)", color: "#fca5a5", boxShadow: "0 8px 32px rgba(0,0,0,0.6)", maxWidth: 380 }
           }
+          onClick={() => setToast(null)}
         >
           {toast.msg}
         </div>
@@ -641,34 +737,105 @@ export default function SocialnePage() {
                       </div>
 
                       {/* Actions */}
-                      <div className="flex gap-2 px-4 py-3" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-                        {post.status === "draft" && (
-                          <button
-                            onClick={() => publishPost(post.id)}
-                            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all"
-                            style={{ background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,0.25)", color: "#60a5fa" }}
-                          >
-                            <Send className="w-3 h-3" /> Publikovať
-                          </button>
+                      <div className="flex flex-col gap-2 px-4 py-3" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                        {post.status === "draft" ? (() => {
+                          const isPublishing = publishingId === post.id;
+                          return (
+                            <div className="flex gap-2">
+                                <button
+                                onClick={() => !isPublishing && publishPost(post.id, post.platform)}
+                                disabled={isPublishing || !!publishingId}
+                                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all disabled:opacity-60"
+                                style={{ background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,0.25)", color: "#60a5fa" }}
+                                >
+                                {isPublishing
+                                    ? <><RefreshCw className="w-3 h-3 animate-spin" /> Publikujem...</>
+                                    : <><Send className="w-3 h-3" /> Publikovať</>
+                                }
+                                </button>
+                                <button
+                                onClick={() => deletePost(post.id)}
+                                className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition-all"
+                                style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.18)", color: "#f87171" }}
+                                >
+                                <Trash2 className="w-3 h-3" />
+                                </button>
+                            </div>
+                          );
+                        })() : (
+                            <div className="space-y-3">
+                                {/* Comment Section for Posted Items */}
+                                <div className="flex gap-1.5">
+                                    <input 
+                                        type="text" 
+                                        id={`comment-${post.id}`}
+                                        placeholder="Nový komentár..."
+                                        className="flex-1 rounded-lg px-2.5 py-1.5 text-xs outline-none"
+                                        style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#fff" }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                const val = (e.target as HTMLInputElement).value;
+                                                if (val) {
+                                                    socialAction('comment', post.id, post.platform, val);
+                                                    (e.target as HTMLInputElement).value = '';
+                                                }
+                                            }
+                                        }}
+                                    />
+                                    <button 
+                                        onClick={() => {
+                                            const el = document.getElementById(`comment-${post.id}`) as HTMLInputElement;
+                                            if (el.value) {
+                                                socialAction('comment', post.id, post.platform, el.value);
+                                                el.value = '';
+                                            }
+                                        }}
+                                        className="px-2.5 py-1.5 rounded-lg text-xs font-bold"
+                                        style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}
+                                    >
+                                        OK
+                                    </button>
+                                </div>
+                                <div className="flex gap-2">
+                                    {isIg && post.articles?.slug && (
+                                    <a
+                                        href={`https://aiwai.news/clanky/${post.articles.slug}`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[10px] font-bold transition-all"
+                                        style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.4)" }}
+                                    >
+                                        <ExternalLink className="w-3 h-3" /> Web
+                                    </a>
+                                    )}
+                                    {post.platform === 'Facebook' ? (
+                                        <button
+                                            onClick={() => {
+                                                if (confirm("Naozaj vymazať príspevok z Facebooku?")) {
+                                                    socialAction('delete_social', post.id, post.platform);
+                                                }
+                                            }}
+                                            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[10px] font-bold transition-all"
+                                            style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.18)", color: "#f87171" }}
+                                        >
+                                            <Trash2 className="w-3 h-3" /> Zmazať FB
+                                        </button>
+                                    ) : (
+                                        <div className="flex-1 text-[9px] text-center opacity-30 px-2 py-2 border border-white/5 rounded-lg flex items-center justify-center leading-tight">
+                                            IG mazanie len v appke
+                                        </div>
+                                    )}
+                                    <button
+                                        onClick={() => deletePost(post.id)}
+                                        className="p-2 rounded-lg transition-all"
+                                        style={{ background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.2)" }}
+                                        title="Zmazať len z Admina"
+                                    >
+                                        <X className="w-3 h-3" />
+                                    </button>
+                                </div>
+                            </div>
                         )}
-                        {isIg && post.articles?.slug && (
-                          <a
-                            href={`https://aiwai.news/clanky/${post.articles.slug}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition-all"
-                            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.4)" }}
-                          >
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
-                        )}
-                        <button
-                          onClick={() => deletePost(post.id)}
-                          className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition-all"
-                          style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.18)", color: "#f87171" }}
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
                       </div>
                     </div>
                   );
@@ -884,8 +1051,14 @@ export default function SocialnePage() {
                       title={previewArticle!.title}
                       articleImage={previewArticle!.main_image}
                       category={previewArticle!.category}
+                      articleId={previewArticle!.id}
                       id="socialne-preview"
-                      onSaveAndRender={handlePreviewSaveAndRender}
+                      onImageUpdate={(url) => {
+                        // Keep previewArticle in sync so pre-render picks up the new image
+                        setPreviewArticle((prev) => prev ? { ...prev, main_image: url } : prev);
+                      }}
+                      // Server-render Save: calls /api/social-image/preview (no DB save, just downloads)
+                      onSaveAndRender={handlePreviewSaveRender}
                     />
                   )}
 

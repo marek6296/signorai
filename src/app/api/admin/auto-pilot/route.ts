@@ -102,30 +102,32 @@ async function handleAutopilot(request: NextRequest) {
         error: result.error,
       });
 
-      // ── For 'full' bots: also generate social post ────────────────────────
+      // ── For 'full' bots: generate + publish social posts ─────────────────
       if (bot.type === "full" && result.success && result.articleId) {
         const platforms: string[] = [];
-        if (bot.post_instagram) platforms.push("instagram");
-        if (bot.post_facebook) platforms.push("facebook");
+        if (bot.post_instagram) platforms.push("Instagram");
+        if (bot.post_facebook) platforms.push("Facebook");
 
         if (platforms.length > 0) {
           try {
-            const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://postovinky.news";
-            const socialRes = await fetch(`${siteUrl}/api/admin/generate-social-post`, {
+            const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://aiwai.news";
+            const socialRes = await fetch(`${siteUrl}/api/admin/social-autopilot`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 secret: process.env.ADMIN_SECRET || LEGACY_SECRET,
                 articleId: result.articleId,
                 platforms,
-                instagramFormat: bot.instagram_format || "image_text",
+                instagramVariant: bot.instagram_format || "studio",
                 autoPublish: bot.auto_publish_social ?? true,
               }),
             });
             if (socialRes.ok) {
-              console.log(`>>> [AutoPilot] Social post generated for bot "${bot.name}"`);
+              const socialData = await socialRes.json();
+              console.log(`>>> [AutoPilot] Social posts done for bot "${bot.name}":`, socialData.message);
             } else {
-              console.warn(`>>> [AutoPilot] Social post failed for bot "${bot.name}": ${socialRes.status}`);
+              const errText = await socialRes.text().catch(() => "unknown");
+              console.warn(`>>> [AutoPilot] Social post failed for bot "${bot.name}": ${socialRes.status} ${errText.substring(0, 100)}`);
             }
           } catch (e) {
             console.warn(`>>> [AutoPilot] Social post error for bot "${bot.name}":`, e);
