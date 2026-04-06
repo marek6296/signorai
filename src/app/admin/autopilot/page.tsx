@@ -340,7 +340,66 @@ export default function BotsPage() {
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
         @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes slideDown { from { opacity:0; transform:translateX(-50%) translateY(-16px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
       `}</style>
+
+      {/* ── FIXED TOP RUNNING OVERLAY ── */}
+      {runningBotId && runSteps.length > 0 && (() => {
+        const runningBot = bots.find(b => b.id === runningBotId);
+        const C = runningBot?.type === "full"
+          ? { primary: "#a78bfa", border: "rgba(167,139,250,0.3)", dim: "rgba(167,139,250,0.08)" }
+          : { primary: "#f59e0b", border: "rgba(245,158,11,0.3)", dim: "rgba(245,158,11,0.08)" };
+        const currentStep = runSteps.find(s => s.status === "running");
+        const doneCount = runSteps.filter(s => s.status === "done").length;
+        return (
+          <div style={{
+            position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)",
+            zIndex: 9999, animation: "slideDown 0.3s ease",
+            background: "linear-gradient(145deg, #141414 0%, #0f0f0f 100%)",
+            border: `1px solid ${C.border}`,
+            borderRadius: 16, padding: "14px 20px", minWidth: 320, maxWidth: 480,
+            boxShadow: `0 8px 40px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.04), 0 0 24px ${C.primary}18`,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              {/* Spinner */}
+              <div style={{ position: "relative", width: 32, height: 32, flexShrink: 0 }}>
+                <div style={{ position: "absolute", inset: 0, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.06)" }} />
+                <div style={{ position: "absolute", inset: 0, borderRadius: "50%", border: `2px solid transparent`, borderTopColor: C.primary, borderRightColor: `${C.primary}40`, animation: "spin 0.8s linear infinite" }} />
+                <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: C.primary, animation: "pulse 1.5s infinite" }} />
+                </div>
+              </div>
+              {/* Info */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: "#fff" }}>
+                    {runningBot?.name || "Bot"} beží...
+                  </span>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: C.primary, background: C.dim, border: `1px solid ${C.border}`, borderRadius: 6, padding: "1px 6px" }}>
+                    {doneCount}/{runSteps.length}
+                  </span>
+                </div>
+                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {currentStep?.label || "Spracúvam..."}
+                </p>
+              </div>
+            </div>
+            {/* Step progress bar */}
+            <div style={{ marginTop: 12, display: "flex", gap: 4 }}>
+              {runSteps.map((step, i) => (
+                <div key={i} style={{
+                  flex: 1, height: 3, borderRadius: 99,
+                  background: step.status === "done" ? "#22c55e"
+                    : step.status === "running" ? C.primary
+                    : step.status === "error" ? "#ef4444"
+                    : "rgba(255,255,255,0.08)",
+                  transition: "background 0.3s",
+                }} />
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       <div style={{ maxWidth: 1400, margin: "0 auto", padding: "32px 32px 64px" }}>
 

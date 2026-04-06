@@ -96,31 +96,31 @@ function Section({ icon: Icon, title, color, children }: {
 function LoadingOverlay({ stage }: { stage: string }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: "rgba(0,0,0,0.85)", backdropFilter: "blur(8px)" }}
+      className="fixed inset-x-0 top-0 z-50 flex justify-center pt-5"
+      style={{ pointerEvents: "none" }}
     >
       <div
-        className="rounded-2xl p-8 max-w-xs w-full mx-4 text-center"
+        className="rounded-2xl px-6 py-4 flex items-center gap-4"
         style={{
-          background: "linear-gradient(145deg, #111111 0%, #0c0c0c 100%)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          boxShadow: "0 32px 80px rgba(0,0,0,0.7)",
+          background: "linear-gradient(145deg, #141414 0%, #0f0f0f 100%)",
+          border: "1px solid rgba(96,165,250,0.3)",
+          boxShadow: "0 8px 40px rgba(0,0,0,0.8), 0 0 24px rgba(96,165,250,0.12)",
+          minWidth: 300, maxWidth: 440,
+          animation: "slideDown 0.3s ease",
         }}
       >
-        <div className="relative w-12 h-12 mx-auto mb-5">
-          <div
-            className="absolute inset-0 rounded-full"
-            style={{ border: "2px solid rgba(255,255,255,0.06)" }}
-          />
-          <div
-            className="absolute inset-0 rounded-full border-2 border-transparent border-t-blue-500 border-r-blue-500/30 animate-spin"
-          />
+        <style>{`@keyframes slideDown { from { opacity:0; transform:translateY(-16px); } to { opacity:1; transform:translateY(0); } }`}</style>
+        <div className="relative w-9 h-9 shrink-0">
+          <div className="absolute inset-0 rounded-full" style={{ border: "2px solid rgba(255,255,255,0.06)" }} />
+          <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-blue-500 border-r-blue-500/30 animate-spin" />
           <div className="absolute inset-0 flex items-center justify-center">
-            <Sparkles className="w-5 h-5 text-blue-400" />
+            <Sparkles className="w-4 h-4 text-blue-400" />
           </div>
         </div>
-        <p className="text-white font-semibold text-sm mb-1">AI pracuje...</p>
-        <p className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>{stage}</p>
+        <div>
+          <p className="text-white font-bold text-sm mb-0.5">AI pracuje...</p>
+          <p className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>{stage}</p>
+        </div>
       </div>
     </div>
   );
@@ -135,17 +135,18 @@ function ConfirmModal({ item, onConfirm, onCancel, isLoading }: {
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(0,0,0,0.85)", backdropFilter: "blur(8px)" }}
+      className="fixed inset-x-0 top-0 z-50 flex justify-center pt-5 px-4"
     >
       <div
         className="rounded-2xl p-6 max-w-md w-full"
         style={{
           background: "linear-gradient(145deg, #111111 0%, #0c0c0c 100%)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          boxShadow: "0 32px 80px rgba(0,0,0,0.7)",
+          border: "1px solid rgba(96,165,250,0.25)",
+          boxShadow: "0 8px 40px rgba(0,0,0,0.8), 0 0 24px rgba(96,165,250,0.10)",
+          animation: "slideDownModal 0.3s ease",
         }}
       >
+        <style>{`@keyframes slideDownModal { from { opacity:0; transform:translateY(-16px); } to { opacity:1; transform:translateY(0); } }`}</style>
         <div className="flex items-start gap-3 mb-4">
           <div
             className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
