@@ -197,11 +197,13 @@ export async function POST(req: Request) {
                 console.warn("[Facebook] No post_id recovered — cannot add comment");
             }
         } else if (post.platform === 'Instagram') {
-            // Instagram MUST have our generated 1:1 image to avoid aspect ratio errors
-            if (!finalImageUrl || (finalImageUrl === article?.main_image)) {
-                console.warn(`[Instagram] Warning: Aspect ratio might be rejected due to original image usage.`);
-                throw new Error("Instagram requires a 1:1 image. Generator fallback failed.");
+            // Instagram ideally needs a 1:1 image, but let's allow the publish attempt even if pre-render failed
+            // Meta API will validate aspect ratio and reject if too far off
+            if (!finalImageUrl) {
+                finalImageUrl = article?.main_image || "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=1200";
+                console.warn(`[Instagram] ⚠️ Using fallback image: ${finalImageUrl.substring(0, 60)}...`);
             }
+            console.log(`[Instagram] Publishing with image: ${finalImageUrl.substring(0, 60)}...`);
             result = await publishToInstagram(finalImageUrl, post.content);
         } else if (post.platform === 'X') {
             console.log("X (Twitter) publishing not implemented yet.");

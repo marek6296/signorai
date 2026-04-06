@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import {
   Plus, X, Zap, FileText, Layers, Play, Edit2, Trash2,
@@ -10,6 +11,19 @@ import {
 // ─── Types ────────────────────────────────────────────────────────────────────
 type BotType = "article_only" | "full";
 type InstagramFormat = "studio" | "photo" | "article_bg" | "text_only";
+
+interface BotWorkflowModule {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  settings: Record<string, unknown>;
+}
+
+interface BotWorkflow {
+  modules: BotWorkflowModule[];
+  connections: { id: string; fromId: string; toId: string }[];
+}
 
 interface Bot {
   id: string;
@@ -25,6 +39,7 @@ interface Bot {
   auto_publish_social?: boolean;
   last_run?: string | null;
   processed_count?: number;
+  workflow?: BotWorkflow;
 }
 
 type RunStep = { label: string; status: "pending" | "running" | "done" | "error" };
@@ -47,6 +62,12 @@ const INSTAGRAM_FORMATS: { id: InstagramFormat; label: string; desc: string; ico
   { id: "text_only", label: "Iba Text", desc: "Bez obrázku", icon: "✏️" },
 ];
 
+// Unified colors - same for all bots regardless of type
+const BOT_COLORS_UNIFIED = {
+  enabled: { primary: "#f59e0b", dim: "rgba(245,158,11,0.08)", border: "rgba(245,158,11,0.2)" },
+  disabled: { primary: "rgba(255,255,255,0.15)", dim: "rgba(255,255,255,0.03)", border: "rgba(255,255,255,0.08)" },
+};
+
 const BOT_COLORS: Record<BotType, { primary: string; dim: string; border: string }> = {
   article_only: { primary: "#f59e0b", dim: "rgba(245,158,11,0.08)", border: "rgba(245,158,11,0.2)" },
   full: { primary: "#8b5cf6", dim: "rgba(139,92,246,0.08)", border: "rgba(139,92,246,0.2)" },
@@ -61,6 +82,7 @@ function defaultBot(type: BotType): Bot {
     type,
     enabled: false,
     interval_hours: 4,
+    run_times: [], // Initialize legacy field
     categories: ["AI"],
     post_instagram: true,
     post_facebook: false,
@@ -148,6 +170,7 @@ function Toast({ msg, type }: { msg: string; type: "success" | "error" | "info" 
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function BotsPage() {
+  const router = useRouter();
   const [bots, setBots] = useState<Bot[]>([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" | "info" } | null>(null);
@@ -207,6 +230,7 @@ export default function BotsPage() {
             type: "full",
             enabled: old.enabled ?? false,
             run_times: old.run_times ?? ["09:00"],
+            interval_hours: 4, // Default for migrated bots
             categories: old.categories ?? ["AI"],
             post_instagram: old.post_instagram ?? true,
             post_facebook: old.post_facebook ?? false,
@@ -352,20 +376,31 @@ export default function BotsPage() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#080808", color: "#fff" }}>
-      <style>{`
+    <div style={{ 
+      minHeight: "100vh", 
+      background: "#050505", 
+      color: "#fff",
+      backgroundImage: `
+        radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+        radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px)
+      `,
+      backgroundSize: "32px 32px",
+      backgroundPosition: "0 0, 16px 16px"
+    }}>
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
-        @keyframes fadeIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
-        @keyframes fadeInCenter { from { opacity:0; transform:translate(-50%,-50%) scale(0.96); } to { opacity:1; transform:translate(-50%,-50%) scale(1); } }
-      `}</style>
+        @keyframes pulse { 0%,100% { opacity:1; transform: scale(1); } 50% { opacity:0.4; transform: scale(1.05); } }
+        @keyframes flow { 0% { stroke-dashoffset: 20; } 100% { stroke-dashoffset: 0; } }
+        @keyframes packet { 0% { offset-distance: 0%; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { offset-distance: 100%; opacity: 0; } }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        @keyframes glowPulse { 0%, 100% { filter: drop-shadow(0 0 15px var(--glow-color)); } 50% { filter: drop-shadow(0 0 35px var(--glow-color)); } }
+      ` }} />
 
       {/* ── CENTERED RUNNING OVERLAY ── */}
       {runningBotId && runSteps.length > 0 && (() => {
         const runningBot = bots.find(b => b.id === runningBotId);
-        const C = runningBot?.type === "full"
-          ? { primary: "#a78bfa", border: "rgba(167,139,250,0.3)", dim: "rgba(167,139,250,0.08)", glow: "rgba(167,139,250,0.12)" }
-          : { primary: "#f59e0b", border: "rgba(245,158,11,0.3)", dim: "rgba(245,158,11,0.08)", glow: "rgba(245,158,11,0.12)" };
+        const C = { primary: "#f59e0b", border: "rgba(245,158,11,0.3)", dim: "rgba(245,158,11,0.08)", glow: "rgba(245,158,11,0.12)" };
         const currentStep = runSteps.find(s => s.status === "running");
         const doneCount = runSteps.filter(s => s.status === "done").length;
         return (
@@ -503,293 +538,287 @@ export default function BotsPage() {
             </div>
           </div>
           <button
-            onClick={() => { setEditingBot(null); setModalOpen(true); }}
+            onClick={() => router.push("/admin/bot-layout")}
             style={{
               display: "flex", alignItems: "center", gap: 8,
               padding: "11px 20px", borderRadius: 10,
-              background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.25)",
-              color: "#f59e0b", fontSize: 13, fontWeight: 700, cursor: "pointer",
+              background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.25)",
+              color: "#a78bfa", fontSize: 13, fontWeight: 700, cursor: "pointer",
             }}
           >
             <Plus size={15} />
-            Nový Bot
+            Nový Bot (Workflow)
           </button>
         </div>
 
         {/* ── BOTS GRID ── */}
+        <style dangerouslySetInnerHTML={{ __html: `
+          @keyframes spin { to { transform: rotate(360deg); } }
+          @keyframes pulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.4; transform:scale(1.05); } }
+          @keyframes fadeIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+          @keyframes flowLine { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+          @keyframes glowArc { 0% { transform: rotate(0deg); opacity: 0.3; } 50% { opacity: 0.8; } 100% { transform: rotate(360deg); opacity: 0.3; } }
+          @keyframes floating { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+        ` }} />
+
         {bots.length === 0 ? (
           <div style={{
-            textAlign: "center", padding: "80px 0",
-            border: "1px dashed rgba(255,255,255,0.08)", borderRadius: 16,
+            textAlign: "center", padding: "120px 0",
+            border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 40,
+            background: "rgba(255,255,255,0.01)",
+            animation: "fadeIn 0.8s ease"
           }}>
-            <div style={{ width: 56, height: 56, borderRadius: 14, background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.15)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
-              <Zap size={24} style={{ color: "#f59e0b" }} />
+            <div style={{ 
+              width: 80, height: 80, borderRadius: "50%", background: "rgba(245,158,11,0.03)", 
+              display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 32px",
+              border: "1px solid rgba(245,158,11,0.1)",
+              boxShadow: "0 0 30px rgba(245,158,11,0.05)"
+            }}>
+              <Zap size={32} color="#f59e0b" />
             </div>
-            <p style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Žiadne boty</p>
-            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", marginBottom: 24 }}>Vytvor prvého bota pre automatizáciu obsahu</p>
+            <h3 style={{ fontSize: 24, fontWeight: 900, marginBottom: 12, letterSpacing: "-0.02em" }}>Prázdny Workspace</h3>
+            <p style={{ fontSize: 15, color: "rgba(255,255,255,0.3)", marginBottom: 40, maxWidth: 300, margin: "0 auto 40px" }}>
+              Tvoja doska je prázdna. Začni tým, že pridáš nového inteligentného bota.
+            </p>
             <button
-              onClick={() => { setEditingBot(null); setModalOpen(true); }}
-              style={{ padding: "10px 24px", background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.25)", borderRadius: 10, color: "#f59e0b", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+              onClick={() => router.push("/admin/bot-layout")}
+              style={{
+                padding: "16px 40px", background: "#8b5cf6", border: "none",
+                borderRadius: 20, color: "#fff", fontWeight: 900, cursor: "pointer",
+                boxShadow: "0 10px 30px rgba(139,92,246,0.3)",
+                fontSize: 15
+              }}
             >
-              Vytvoriť prvého bota
+              + Vytvoriť bota vo Workflow Builderi
             </button>
           </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(420px, 1fr))", gap: 32 }}>
+          <div style={{ 
+            display: "grid", 
+            gridTemplateColumns: "repeat(auto-fill, minmax(500px, 1fr))", 
+            gap: 48,
+            padding: "20px 0"
+          }}>
             {bots.map((bot) => {
-              const C = BOT_COLORS[bot.type];
+              const C = BOT_COLORS_UNIFIED[bot.enabled ? 'enabled' : 'disabled'];
               const isRunning = runningBotId === bot.id;
               const { label: nextRunLabel, isReady } = timeUntilNextRun(bot);
               
               return (
                 <div
                   key={bot.id}
+                  className="bot-molecule"
                   style={{
                     position: "relative",
-                    background: "rgba(255,255,255,0.012)",
-                    border: "1px solid rgba(255,255,255,0.04)",
-                    borderRadius: 28,
-                    padding: "32px 28px",
-                    animation: "fadeIn 0.5s ease",
+                    minHeight: 340,
+                    borderRadius: 40,
+                    padding: 40,
+                    animation: "fadeIn 0.7s cubic-bezier(0.23, 1, 0.32, 1)",
                     display: "flex",
-                    flexDirection: "column",
-                    gap: 24,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: "rgba(255,255,255,0.005)",
+                    transition: "all 0.5s ease",
                     overflow: "visible",
-                    transition: "transform 0.2s ease, border-color 0.3s",
-                    boxShadow: bot.enabled ? `0 10px 40px -10px ${C.primary}15` : "none",
-                  }}
+                    cursor: "default"
+                  } as any}
                 >
-                  {/* --- MAKE.COM STYLE MODULE CORE --- */}
-                  <div style={{ display: "flex", gap: 24, alignItems: "center" }}>
-                    <div style={{ position: "relative", flexShrink: 0 }}>
-                       {/* Connection Line background effect */}
-                       <div style={{ 
-                         position: "absolute", top: "50%", left: "50%", 
-                         width: 120, height: 1, 
-                         background: `linear-gradient(90deg, ${bot.enabled ? C.primary : "rgba(255,255,255,0.1)"}, transparent)`, 
-                         zIndex: 0,
-                         opacity: 0.4
-                       }} />
-                       
-                       {/* The Main Module Circle */}
-                       <div style={{
-                         width: 88, height: 88, borderRadius: "50%",
-                         background: bot.enabled ? `linear-gradient(135deg, ${C.primary}, ${C.primary}bb)` : "rgba(255,255,255,0.03)",
-                         display: "flex", alignItems: "center", justifyContent: "center",
-                         boxShadow: bot.enabled ? `0 12px 30px ${C.primary}40, 0 0 0 7px ${C.dim}` : "0 0 0 7px rgba(255,255,255,0.02)",
-                         border: `2.5px solid ${bot.enabled ? "#fff" : "rgba(255,255,255,0.08)"}`,
-                         position: "relative", zIndex: 2,
-                         transition: "all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
-                         transform: isRunning ? "scale(1.05)" : "scale(1)",
-                       }}>
-                         {bot.type === "article_only" 
-                           ? <FileText size={32} color={bot.enabled ? "#fff" : "rgba(255,255,255,0.15)"} /> 
-                           : <Zap size={32} color={bot.enabled ? "#fff" : "rgba(255,255,255,0.15)"} />
-                         }
-                         
-                         {/* Running Orbit Pulse */}
-                         {bot.enabled && (
-                           <div style={{
-                             position: "absolute", inset: -12, borderRadius: "50%",
-                             border: `1.5px solid ${C.primary}35`,
-                             animation: "pulse 2s infinite ease-in-out"
-                           }} />
-                         )}
+                  {/* --- MOLECULE CONNECTION SVG (The Tubes) --- */}
+                  <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 1 }}>
+                    <defs>
+                      <filter id={`glow-${bot.id}`}>
+                        <feGaussianBlur stdDeviation="2.5" result="coloredBlur" />
+                        <feMerge>
+                          <feMergeNode in="coloredBlur" />
+                          <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                      </filter>
+                    </defs>
+                    
+                    {/* Connection lines hidden */}
 
-                         {/* Status Indicator Bubble */}
-                         <div style={{
-                           position: "absolute", top: 2, right: 2,
-                           width: 20, height: 20, borderRadius: "50%",
-                           background: bot.enabled ? "#22c55e" : "#333",
-                           border: "4px solid #080808",
-                           display: "flex", alignItems: "center", justifyContent: "center",
-                           boxShadow: bot.enabled ? "0 0 10px #22c55e40" : "none"
-                         }}>
-                            {bot.enabled && <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#fff", animation: "pulse 1s infinite" }} />}
-                         </div>
-                       </div>
-                    </div>
+                    {/* Social media paths hidden */}
+                  </svg>
 
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                        <h3 style={{ fontSize: 19, fontWeight: 900, margin: 0, letterSpacing: "-0.02em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                          {bot.name}
-                        </h3>
-                        <Toggle value={bot.enabled} onChange={() => toggleBot(bot.id)} color={C.primary} />
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                         <span style={{ 
-                            fontSize: 9, fontWeight: 800, color: bot.enabled ? C.primary : "rgba(255,255,255,0.25)", 
-                            textTransform: "uppercase", letterSpacing: "0.18em", padding: "3px 8px",
-                            background: bot.enabled ? C.dim : "rgba(255,255,255,0.03)", borderRadius: 6,
-                            border: `1px solid ${bot.enabled ? C.border : "transparent"}`
-                          }}>
-                            {bot.type === "article_only" ? "Content Engine" : "Hybrid Hub"}
-                          </span>
+                  {/* --- CORE NODE (AI ENGINE) --- */}
+                  <div style={{
+                    position: "absolute", left: "190px", top: "50px", zIndex: 10,
+                    width: 120, height: 120, borderRadius: "50%",
+                    background: bot.enabled 
+                      ? `linear-gradient(135deg, ${C.primary}, ${C.primary}dd)` 
+                      : "rgba(255,255,255,0.03)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    boxShadow: bot.enabled 
+                      ? `0 20px 40px ${C.primary}40, inset 0 0 25px rgba(255,255,255,0.4)` 
+                      : "inset 0 0 15px rgba(255,255,255,0.05)",
+                    border: `4px solid ${bot.enabled ? "#fff" : "rgba(255,255,255,0.1)"}`,
+                    transition: "all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+                    "--glow-color": `${C.primary}40`
+                  } as any}>
+                    {bot.type === "article_only" 
+                      ? <FileText size={48} color={bot.enabled ? "#fff" : "rgba(255,255,255,0.1)"} style={{ animation: isRunning ? "pulse 1.5s infinite" : "none" }} /> 
+                      : <Zap size={48} color={bot.enabled ? "#fff" : "rgba(255,255,255,0.1)"} style={{ animation: isRunning ? "pulse 1s infinite" : "none" }} />
+                    }
+                    
+                    {/* Bot Name Badge (Floating) */}
+                    <div style={{
+                      position: "absolute", bottom: -80, width: 220, textAlign: "center",
+                      left: "50%", transform: "translateX(-50%)"
+                    }}>
+                      <div style={{ fontSize: 20, fontWeight: 900, color: "#fff", letterSpacing: "-0.02em", marginBottom: 4 }}>{bot.name}</div>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                          <span style={{ 
+                            fontSize: 10, fontWeight: 900, color: bot.enabled ? C.primary : "rgba(255,255,255,0.2)", 
+                            textTransform: "uppercase", letterSpacing: "0.15em"
+                          }}>{bot.type === "article_only" ? "Content Engine" : "Hybrid Hub"}</span>
+                          <div style={{ width: 4, height: 4, borderRadius: "50%", background: "rgba(255,255,255,0.2)" }} />
+                          <span style={{ fontSize: 10, fontWeight: 900, color: isReady ? "#22c55e" : "rgba(255,255,255,0.3)" }}>{nextRunLabel}</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* --- LOGIC CHAIN NODES (Visual Flow) --- */}
-                  <div style={{ 
-                    display: "flex", gap: 10, alignItems: "center", 
-                    background: "rgba(255,255,255,0.02)", padding: "14px 18px", borderRadius: 18,
-                    border: "1px solid rgba(255,255,255,0.04)"
+                  {/* --- SATELLITE NODES HIDDEN --- */}
+
+                  {/* --- HOVER ACTION CONTROLS --- */}
+                  <div className="molecule-controls" style={{
+                    position: "absolute", right: 20, top: "50%", transform: "translateY(-50%)",
+                    display: "flex", flexDirection: "column", gap: 12, zIndex: 20,
+                    opacity: 0, transition: "all 0.3s ease"
                   }}>
-                    {/* Node 1: AI */}
-                    <div title="AI Engine" style={{ width: 28, height: 28, borderRadius: "50%", background: "#f59e0b", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 900, color: "#000", boxShadow: "0 0 15px #f59e0b30" }}>AI</div>
-                    <div style={{ width: 20, height: 1.5, background: "rgba(255,255,255,0.08)" }} />
-                    
-                    {/* Node 2: Website */}
-                    <div title="Blog Post" style={{ 
-                      width: 28, height: 28, borderRadius: "50%", 
-                      background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)",
-                      display: "flex", alignItems: "center", justifyContent: "center" 
-                    }}>
-                      <FileText size={13} color="rgba(255,255,255,0.5)" />
-                    </div>
-
-                    {bot.type === "full" && (
-                      <>
-                        <div style={{ width: 20, height: 1.5, background: "rgba(255,255,255,0.08)" }} />
-                        <div title="Instagram" style={{ 
-                          width: 28, height: 28, borderRadius: "50%", 
-                          background: bot.post_instagram ? "linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)" : "rgba(255,255,255,0.03)", 
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          opacity: bot.post_instagram ? 1 : 0.2,
-                          boxShadow: bot.post_instagram ? "0 4px 12px rgba(220, 39, 67, 0.3)" : "none"
-                        }}>
-                          <Layers size={13} color="#fff" />
-                        </div>
-                        <div style={{ width: 20, height: 1.5, background: "rgba(255,255,255,0.08)" }} />
-                        <div title="Facebook" style={{ 
-                          width: 28, height: 28, borderRadius: "50%", 
-                          background: bot.post_facebook ? "#1877F2" : "rgba(255,255,255,0.03)", 
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          opacity: bot.post_facebook ? 1 : 0.2,
-                          boxShadow: bot.post_facebook ? "0 4px 12px rgba(24, 119, 242, 0.3)" : "none"
-                        }}>
-                          <Plus size={13} color="#fff" />
-                        </div>
-                      </>
-                    )}
-                    
-                    <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
-                       <Clock size={11} color="rgba(255,255,255,0.2)" />
-                       <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontWeight: 700 }}>
-                          {INTERVAL_OPTIONS.find(o => o.value === bot.interval_hours)?.label}
-                       </span>
-                    </div>
-                  </div>
-
-                  {/* --- STATS PILLS (Glass Effects) --- */}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-                    <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 18, padding: "14px 12px", textAlign: "center", border: "1px solid rgba(255,255,255,0.02)" }}>
-                      <p style={{ margin: 0, fontSize: 18, fontWeight: 950, color: "#fff", fontVariantNumeric: "tabular-nums" }}>{bot.processed_count || 0}</p>
-                      <p style={{ margin: "4px 0 0", fontSize: 9, fontWeight: 800, color: "rgba(255,255,255,0.2)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Spracované</p>
-                    </div>
-                    <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 18, padding: "14px 12px", textAlign: "center" }}>
-                      <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.5)" }}>{timeAgo(bot.last_run)}</p>
-                      <p style={{ margin: "4px 0 0", fontSize: 9, fontWeight: 800, color: "rgba(255,255,255,0.2)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Naposledy</p>
-                    </div>
-                    <div style={{ 
-                      background: isReady ? `${C.primary}12` : "rgba(255,255,255,0.03)", 
-                      borderRadius: 18, padding: "14px 12px", textAlign: "center",
-                      border: "1px solid",
-                      borderColor: isReady ? `${C.primary}40` : "rgba(255,255,255,0.02)"
-                    }}>
-                      <p style={{ 
-                        margin: 0, fontSize: 13, fontWeight: 950, 
-                        color: isReady ? "#22c55e" : (bot.enabled ? "#fff" : "rgba(255,255,255,0.2)"),
-                        fontVariantNumeric: "tabular-nums"
-                      }}>{nextRunLabel}</p>
-                      <p style={{ margin: "4px 0 0", fontSize: 9, fontWeight: 800, color: isReady ? "#22c55e90" : "rgba(255,255,255,0.2)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                        {isReady ? "Pripravený" : "Ďalší beh"}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* --- ACTIVE RUNNING UI --- */}
-                  {isRunning && (
-                    <div style={{ 
-                      padding: 18, background: "rgba(255,255,255,0.03)", border: `1px solid ${C.border}`, borderRadius: 20,
-                      boxShadow: `inset 0 0 20px ${C.primary}10`,
-                      animation: "fadeIn 0.3s ease" 
-                    }}>
-                      {runSteps.map((step, i) => (
-                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 0" }}>
-                          {step.status === "done" ? <CheckCircle size={15} color="#22c55e" /> : 
-                           step.status === "running" ? <div style={{ width: 14, height: 14, border: "2.5px solid transparent", borderTopColor: C.primary, borderRadius: "50%", animation: "spin 0.6s linear infinite" }} /> :
-                           <div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.1)" }} />}
-                          <span style={{ fontSize: 12, fontWeight: 600, color: step.status === "running" ? "#fff" : "rgba(255,255,255,0.3)" }}>{step.label}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* --- PRIMARY ACTIONS --- */}
-                  <div style={{ display: "flex", gap: 14, marginTop: "auto" }}>
-                    <button
-                      onClick={() => runBot(bot)}
-                      disabled={isRunning || !bot.enabled}
-                      style={{
-                        flex: 1, height: 50, borderRadius: 16,
-                        background: isRunning ? "rgba(255,255,255,0.05)" : (bot.enabled ? "#fff" : "rgba(255,255,255,0.03)"),
-                        color: isRunning ? C.primary : (bot.enabled ? "#000" : "rgba(255,255,255,0.15)"),
-                        border: "none", fontSize: 14, fontWeight: 900, cursor: (isRunning || !bot.enabled) ? "not-allowed" : "pointer",
-                        display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-                        transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-                        boxShadow: (bot.enabled && !isRunning) ? "0 4px 15px rgba(255,255,255,0.15)" : "none"
-                      }}
-                    >
-                      {isRunning ? "Pracujem..." : <><Play size={18} fill="currentColor" /> Spustiť bota</>}
-                    </button>
-                    
-                    <div style={{ display: "flex", gap: 10 }}>
-                       <button
-                        onClick={() => { setEditingBot(bot); setModalOpen(true); }}
-                        style={{ 
-                          width: 50, height: 50, borderRadius: 16, 
-                          background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)",
-                          color: "rgba(255,255,255,0.5)", cursor: "pointer",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          transition: "background 0.2s"
+                    <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 8 }}>
+                      <button
+                        onClick={() => runBot(bot)}
+                        disabled={isRunning || !bot.enabled}
+                        style={{
+                          width: 48, height: 48, borderRadius: "50%", background: bot.enabled ? "#fff" : "rgba(255,255,255,0.1)",
+                          color: "#000", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                          boxShadow: "0 10px 20px rgba(0,0,0,0.3)", transition: "all 0.2s"
                         }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.08)")}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
+                        title="Spustiť bot - vykonať workflow"
                       >
-                        <Edit2 size={18} />
+                        {isRunning ? <div style={{ width: 14, height: 14, border: "2px solid transparent", borderTopColor: "#000", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} /> : <Play size={20} fill="currentColor" />}
                       </button>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.6)", whiteSpace: "nowrap", opacity: 0, transition: "opacity 0.3s", pointerEvents: "none" }} className="btn-label">SPUSTIŤ</span>
+                    </div>
+
+                    <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 8 }}>
+                      <button
+                        onClick={() => router.push(`/admin/bot-layout?botId=${bot.id}`)}
+                        style={{
+                          width: 48, height: 48, borderRadius: "50%", background: "rgba(139,92,246,0.15)",
+                          color: "#a78bfa", border: "1px solid rgba(139,92,246,0.2)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                          backdropFilter: "blur(10px)", transition: "all 0.2s"
+                        }}
+                        title="Upraviť workflow v Bot Layout editore"
+                      >
+                        <Edit2 size={20} />
+                      </button>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.6)", whiteSpace: "nowrap", opacity: 0, transition: "opacity 0.3s", pointerEvents: "none" }} className="btn-label">UPRAVIŤ</span>
+                    </div>
+
+                    <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 8 }}>
+                      <button
+                        onClick={() => toggleBot(bot.id)}
+                        style={{
+                          width: 48, height: 48, borderRadius: "50%", background: bot.enabled ? `${C.primary}40` : "rgba(255,255,255,0.05)",
+                          color: bot.enabled ? C.primary : "#fff", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                          backdropFilter: "blur(10px)", transition: "all 0.2s"
+                        }}
+                        title={bot.enabled ? "Deaktivovať bot" : "Aktivovať bot"}
+                      >
+                        <Zap size={20} fill={bot.enabled ? "currentColor" : "none"} />
+                      </button>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.6)", whiteSpace: "nowrap", opacity: 0, transition: "opacity 0.3s", pointerEvents: "none" }} className="btn-label">{bot.enabled ? "VYPNÚŤ" : "ZAPNÚŤ"}</span>
+                    </div>
+
+                    <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 8 }}>
                       <button
                         onClick={() => setDeleteConfirmId(bot.id)}
-                        style={{ 
-                          width: 50, height: 50, borderRadius: 16, 
-                          background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)",
-                          color: "rgba(255,255,255,0.3)", cursor: "pointer",
-                          display: "flex", alignItems: "center", justifyContent: "center"
+                        style={{
+                          width: 48, height: 48, borderRadius: "50%", background: "rgba(239,68,68,0.1)",
+                          color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                          backdropFilter: "blur(10px)", transition: "all 0.2s"
                         }}
+                        title="Odstrániť bot"
                       >
-                        <Trash2 size={18} />
+                        <Trash2 size={20} />
                       </button>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.6)", whiteSpace: "nowrap", opacity: 0, transition: "opacity 0.3s", pointerEvents: "none" }} className="btn-label">ODSTRÁNIŤ</span>
                     </div>
                   </div>
+
+                  <style>{`
+                    .bot-molecule:hover {
+                      background: rgba(255,255,255,0.02) !important;
+                      transform: scale(1.02);
+                      box-shadow: 0 40px 100px -20px rgba(0,0,0,0.5);
+                    }
+                    .bot-molecule:hover .molecule-controls {
+                      opacity: 1 !important;
+                      transform: translateY(-50%) translateX(-10px) !important;
+                    }
+                    .bot-molecule:hover .btn-label {
+                      opacity: 1 !important;
+                    }
+                    .bot-molecule:hover path {
+                      stroke-opacity: 0.8;
+                    }
+                  `}</style>
+
+                  {/* Stats Bubbles (Floating) */}
+                  <div style={{ position: "absolute", left: 40, top: 40, background: "rgba(255,255,255,0.03)", padding: "10px 16px", borderRadius: 20, border: "1px solid rgba(255,255,255,0.05)", backdropFilter: "blur(5px)" }}>
+                    <div style={{ fontSize: 18, fontWeight: 950, color: "#fff" }}>{bot.processed_count || 0}</div>
+                    <div style={{ fontSize: 9, fontWeight: 800, color: "rgba(255,255,255,0.2)", textTransform: "uppercase" }}>Článkov</div>
+                  </div>
+
+                  {/* Workflow info badge - improved layout */}
+                  {bot.workflow && bot.workflow.modules.length > 0 && (
+                    <div style={{ position: "absolute", left: 40, top: 100, display: "flex", flexDirection: "column", gap: 6, background: "rgba(139,92,246,0.12)", padding: "8px 12px", borderRadius: 14, border: "1px solid rgba(139,92,246,0.25)", backdropFilter: "blur(8px)" }}>
+                      <span style={{ fontSize: 9, color: "#a78bfa", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                        {bot.workflow.modules.length} modulov
+                      </span>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                        {bot.workflow.modules.map((m, idx) => {
+                          const emojis: Record<string, string> = {
+                            trigger: "⚡", "topic-scout": "🔍", "article-writer": "✍️",
+                            "image-sourcer": "🔗", "ai-image-gen": "✨", publisher: "🚀",
+                            "social-poster": "📢", filter: "🔀", delay: "⏳",
+                            "conditional-check": "🔀", "rate-limiter": "⏳",
+                            "content-quality": "✓", "content-cache": "💾"
+                          };
+                          const names: Record<string, string> = {
+                            trigger: "Trigger", "topic-scout": "Scout", "article-writer": "Zápis",
+                            "image-sourcer": "Obrázok", "ai-image-gen": "AI Obr", publisher: "Publikuj",
+                            "social-poster": "Social", filter: "Filter", delay: "Čakaj",
+                            "conditional-check": "Check", "rate-limiter": "Limit",
+                            "content-quality": "Kvalita", "content-cache": "Cache"
+                          };
+                          return (
+                            <div key={idx} style={{ display: "flex", alignItems: "center", gap: 3, padding: "3px 7px", background: "rgba(255,255,255,0.08)", borderRadius: 8, fontSize: 12, fontWeight: 600 }}>
+                              <span style={{ fontSize: 14 }}>{emojis[m.type] || "?"}</span>
+                              <span style={{ fontSize: 8, color: "rgba(255,255,255,0.7)" }}>{names[m.type] || m.type}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Secure Delete Overlay */}
                   {deleteConfirmId === bot.id && (
                     <div style={{
-                      position: "absolute", inset: 0, background: "rgba(0,0,0,0.92)", backdropFilter: "blur(6px)",
-                      borderRadius: 28, zIndex: 10, display: "flex", flexDirection: "column",
-                      alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center",
-                      animation: "fadeIn 0.2s ease"
+                      position: "absolute", inset: 0, background: "rgba(0,0,0,0.94)", backdropFilter: "blur(12px)",
+                      borderRadius: 40, zIndex: 100, display: "flex", flexDirection: "column",
+                      alignItems: "center", justifyContent: "center", padding: 32, textAlign: "center",
+                      animation: "fadeIn 0.25s ease"
                     }}>
-                      <div style={{ width: 48, height: 48, borderRadius: "50%", background: "rgba(239,68,68,0.1)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
-                        <Trash2 size={24} color="#ef4444" />
+                      <div style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(239,68,68,0.1)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20, border: "2px solid rgba(239,68,68,0.2)" }}>
+                        <Trash2 size={32} color="#ef4444" />
                       </div>
-                      <p style={{ fontSize: 16, fontWeight: 800, marginBottom: 8 }}>Úplne zmazať bota?</p>
-                      <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 24 }}>Túto akciu nie je možné vrátiť späť.</p>
-                      <div style={{ display: "flex", gap: 12, width: "100%" }}>
-                        <button onClick={() => deleteBot(bot.id)} style={{ flex: 1, padding: "12px 0", background: "#ef4444", border: "none", borderRadius: 12, color: "#fff", fontWeight: 800, cursor: "pointer" }}>Zmazať</button>
-                        <button onClick={() => setDeleteConfirmId(null)} style={{ flex: 1, padding: "12px 0", background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 12, color: "#fff", fontWeight: 800, cursor: "pointer" }}>Zrušiť</button>
+                      <p style={{ fontSize: 18, fontWeight: 900, marginBottom: 8, color: "#fff" }}>Zmazať bota?</p>
+                      <div style={{ display: "flex", gap: 16, width: "100%", maxWidth: 280 }}>
+                        <button onClick={() => deleteBot(bot.id)} style={{ flex: 1, padding: "14px", background: "#ef4444", border: "none", borderRadius: 14, color: "#fff", fontWeight: 800, cursor: "pointer" }}>Áno</button>
+                        <button onClick={() => setDeleteConfirmId(null)} style={{ flex: 1, padding: "14px", background: "rgba(255,255,255,0.1)", border: "none", borderRadius: 14, color: "#fff", fontWeight: 800, cursor: "pointer" }}>Nie</button>
                       </div>
                     </div>
                   )}
@@ -797,20 +826,23 @@ export default function BotsPage() {
               );
             })}
 
-            {/* Add Bot card */}
-            <button
-              onClick={() => { setEditingBot(null); setModalOpen(true); }}
+            {/* Add Bot Molecule — links to Bot Layout */}
+            <div
+              onClick={() => router.push("/admin/bot-layout")}
               style={{
-                minHeight: 200, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12,
-                background: "rgba(255,255,255,0.01)", border: "1px dashed rgba(255,255,255,0.1)",
-                borderRadius: 16, cursor: "pointer", color: "rgba(255,255,255,0.3)", transition: "all 0.2s",
+                minHeight: 340, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                background: "rgba(255,255,255,0.01)", border: "2px dashed rgba(255,255,255,0.05)",
+                borderRadius: 40, cursor: "pointer", color: "rgba(255,255,255,0.15)", transition: "all 0.3s",
+                gap: 20
               }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(245,158,11,0.3)"; (e.currentTarget as HTMLButtonElement).style.color = "#f59e0b"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,0.1)"; (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.3)"; }}
+              onMouseEnter={(e) => { (e.currentTarget.style.background = "rgba(255,255,255,0.02)"); (e.currentTarget.style.borderColor = "rgba(139,92,246,0.2)"); (e.currentTarget.style.color = "#a78bfa"); }}
+              onMouseLeave={(e) => { (e.currentTarget.style.background = "rgba(255,255,255,0.01)"); (e.currentTarget.style.borderColor = "rgba(255,255,255,0.05)"); (e.currentTarget.style.color = "rgba(255,255,255,0.15)"); }}
             >
-              <Plus size={24} />
-              <span style={{ fontSize: 13, fontWeight: 600 }}>Pridať nového bota</span>
-            </button>
+              <div style={{ width: 80, height: 80, borderRadius: "50%", border: "2px dashed currentColor", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Plus size={32} />
+              </div>
+              <span style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.01em" }}>Vytvoriť bota vo Workflow Builderi</span>
+            </div>
           </div>
         )}
       </div>
@@ -842,7 +874,7 @@ function BotModal({
   const [step, setStep] = useState<"type" | "config">(bot ? "config" : "type");
   const [form, setForm] = useState<Bot>(bot ?? defaultBot("article_only"));
 
-  const C = BOT_COLORS[form.type];
+  const C = bot ? BOT_COLORS_UNIFIED[bot.enabled ? 'enabled' : 'disabled'] : BOT_COLORS[form.type];
 
   const toggleCategory = (cat: string) => {
     setForm((f) => ({
@@ -1129,12 +1161,12 @@ function BotModal({
               <div style={{ display: "flex", gap: 10, paddingTop: 8 }}>
                 <button
                   onClick={() => onSave(form)}
-                  disabled={!form.name || form.categories.length === 0 || form.run_times.length === 0}
+                  disabled={!form.name || form.categories.length === 0}
                   style={{
                     flex: 1, padding: "12px", borderRadius: 10,
                     background: C.dim, border: `1px solid ${C.border}`,
                     color: C.primary, fontSize: 13, fontWeight: 700, cursor: "pointer",
-                    opacity: (!form.name || form.categories.length === 0 || form.run_times.length === 0) ? 0.4 : 1,
+                    opacity: (!form.name || form.categories.length === 0) ? 0.4 : 1,
                   }}
                 >
                   {bot ? "Uložiť zmeny" : "Vytvoriť bota"}

@@ -13,31 +13,44 @@ const syne = Syne({ subsets: ["latin"], weight: ["400", "700", "800"], variable:
 export const metadata: Metadata = {
   metadataBase: new URL("https://aiwai.news"),
   title: {
-    default: "AIWai - Správy o Umelej Inteligencii a Technológiách",
+    default: "AIWai – AI Správy, Technológie & Návody | Slovensko",
     template: "%s | AIWai"
   },
-  description: "Váš prémiový zdroj správ o umelej inteligencii, AI modeloch, technológiách a digitálnych trendoch. Denný prehľad sveta AI.",
-  keywords: ["umelá inteligencia", "AI", "GPT", "Claude", "Gemini", "technológie", "AI výskum", "startupy", "AIWai", "AI správy", "Slovensko"],
-  authors: [{ name: "AIWai", url: "https://aiwai.news" }],
+  description: "Najnovšie správy o umelej inteligencii, technológiách, AI modeloch a digitálnych trendoch. Denný prehľad AI noviniek, návody a tipy pre Slovensko.",
+  keywords: [
+    "umelá inteligencia", "AI správy", "AI novinky", "technologické správy",
+    "technológie novinky", "ChatGPT", "Claude", "Gemini", "GPT-4",
+    "AI modely", "AI výskum", "startupy", "AIWai", "správy Slovensko",
+    "návody technológie", "AI návody", "tipy a triky", "digitálne novinky",
+    "artificial intelligence news", "tech news Slovakia", "AI trends",
+    "machine learning", "deep learning", "robotika", "automácia",
+  ],
+  authors: [{ name: "Redakcia AIWai", url: "https://aiwai.news" }],
   creator: "AIWai",
   publisher: "AIWai",
   formatDetection: { email: false, address: false, telephone: false },
   alternates: {
-    canonical: "/",
+    canonical: "https://aiwai.news",
     languages: { "sk-SK": "https://aiwai.news" },
   },
   robots: {
     index: true,
     follow: true,
-    googleBot: { index: true, follow: true },
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-snippet": -1,
+      "max-image-preview": "large",
+      "max-video-preview": -1,
+    },
   },
   icons: {
     icon: "/logo/black.png",
     apple: "/logo/black.png",
   },
   openGraph: {
-    title: "AIWai - AI & Tech Spravodajstvo",
-    description: "Váš denný prehľad zo sveta umelej inteligencie, technológií a digitálnych inovácií.",
+    title: "AIWai – AI Správy, Technológie & Návody",
+    description: "Najnovšie správy o umelej inteligencii, technológiách a digitálnych trendoch. Denný prehľad AI noviniek pre Slovensko.",
     url: "https://aiwai.news",
     siteName: "AIWai",
     images: [
@@ -45,7 +58,7 @@ export const metadata: Metadata = {
         url: "/logo/black.png",
         width: 512,
         height: 512,
-        alt: "AIWai – logo",
+        alt: "AIWai – AI správy a technológie",
       },
     ],
     locale: "sk_SK",
@@ -53,8 +66,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "AIWai - AI & Tech Spravodajstvo",
-    description: "Správy o umelej inteligencii, technológiách a digitálnych trendoch.",
+    title: "AIWai – AI Správy & Technológie",
+    description: "Najnovšie správy o umelej inteligencii, technológiách a digitálnych trendoch.",
     images: ["/logo/black.png"],
   },
   ...(process.env.GOOGLE_SITE_VERIFICATION && {
@@ -102,9 +115,10 @@ export default function RootLayout({
             dangerouslySetInnerHTML={{
               __html: JSON.stringify({
                 "@context": "https://schema.org",
-                "@type": "Organization",
+                "@type": "NewsMediaOrganization",
                 "@id": "https://aiwai.news/#organization",
                 "name": "AIWai",
+                "alternateName": "AIWai News",
                 "url": "https://aiwai.news",
                 "logo": {
                   "@type": "ImageObject",
@@ -112,9 +126,14 @@ export default function RootLayout({
                   "width": 512,
                   "height": 512
                 },
-                "description": "Váš prémiový digitálny magazín o novinkách a trendoch.",
+                "description": "Slovenský online magazín o umelej inteligencii, technológiách a digitálnych trendoch. Denné správy, návody a analýzy.",
                 "address": { "@type": "PostalAddress", "addressCountry": "SK" },
-                "foundingDate": "2026"
+                "foundingDate": "2026",
+                "inLanguage": "sk-SK",
+                "sameAs": [
+                  "https://instagram.com/aiwai.news",
+                  "https://x.com/aiwainews"
+                ]
               })
             }}
           />
@@ -124,9 +143,10 @@ export default function RootLayout({
               __html: JSON.stringify({
                 "@context": "https://schema.org",
                 "@type": "WebSite",
-                "name": "AIWai",
+                "@id": "https://aiwai.news/#website",
+                "name": "AIWai – AI Správy & Technológie",
                 "url": "https://aiwai.news",
-                "description": "Váš prémiový digitálny magazín o novinkách, technológiách a svetových trendoch.",
+                "description": "Najnovšie správy o umelej inteligencii, technológiách, návody a tipy pre Slovensko.",
                 "inLanguage": "sk-SK",
                 "publisher": { "@id": "https://aiwai.news/#organization" },
                 "potentialAction": {

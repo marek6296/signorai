@@ -108,15 +108,36 @@ async function handleAutopilot(request: NextRequest) {
         error: result.error,
       });
 
-      // ── For 'full' bots: generate + publish social posts ─────────────────
-      if (bot.type === "full" && result.success && result.articleId) {
-        const platforms: string[] = [];
-        if (bot.post_instagram) platforms.push("Instagram");
-        if (bot.post_facebook) platforms.push("Facebook");
+      // ── Social media posting ──────────────────────────────────────────────
+      if (result.success && result.articleId) {
+        let platforms: string[] = [];
+        let imageFormat = "studio";
+        let autoPublish = true;
 
+        // Check workflow for social-poster module (new way)
+        if (bot.workflow?.modules) {
+          const socialModule = bot.workflow.modules.find(m => m.type === "social-poster");
+          if (socialModule?.settings) {
+            platforms = (socialModule.settings.platforms as string[]) || [];
+            imageFormat = (socialModule.settings.imageFormat as string) || "studio";
+            autoPublish = (socialModule.settings.autoPublish as boolean) ?? true;
+          }
+        }
+
+        // Fallback to legacy config (old way) if no workflow module
+        if (platforms.length === 0) {
+          if (bot.post_instagram) platforms.push("Instagram");
+          if (bot.post_facebook) platforms.push("Facebook");
+          imageFormat = bot.instagram_format || "studio";
+          autoPublish = bot.auto_publish_social ?? true;
+        }
+
+        // Post to social media if platforms configured
         if (platforms.length > 0) {
           try {
             const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://aiwai.news";
+            console.log(`>>> [AutoPilot] Posting to: ${platforms.join(", ")} for bot "${bot.name}"`);
+
             const socialRes = await fetch(`${siteUrl}/api/admin/social-autopilot`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -124,20 +145,27 @@ async function handleAutopilot(request: NextRequest) {
                 secret: process.env.ADMIN_SECRET || LEGACY_SECRET,
                 articleId: result.articleId,
                 platforms,
-                instagramVariant: bot.instagram_format || "studio",
-                autoPublish: bot.auto_publish_social ?? true,
+                instagramVariant: imageFormat,
+                autoPublish,
               }),
             });
+
             if (socialRes.ok) {
               const socialData = await socialRes.json();
-              console.log(`>>> [AutoPilot] Social posts done for bot "${bot.name}":`, socialData.message);
+              console.log(`>>> [AutoPilot] ✅ Social posts successful for bot "${bot.name}":`, socialData.message);
+              console.log(`>>> [AutoPilot] Posts saved:`, socialData.posts?.length || 0, `| Published:`, socialData.publishResults?.filter((r: any) => r.success).length || 0);
             } else {
               const errText = await socialRes.text().catch(() => "unknown");
-              console.warn(`>>> [AutoPilot] Social post failed for bot "${bot.name}": ${socialRes.status} ${errText.substring(0, 100)}`);
+              console.error(`>>> [AutoPilot] ❌ Social post failed for bot "${bot.name}": ${socialRes.status}`);
+              console.error(`>>> [AutoPilot] Error details:`, errText.substring(0, 300));
             }
           } catch (e) {
-            console.warn(`>>> [AutoPilot] Social post error for bot "${bot.name}":`, e);
+            const errorMsg = e instanceof Error ? e.message : String(e);
+            console.error(`>>> [AutoPilot] ❌ Social post error for bot "${bot.name}":`, errorMsg);
+            console.error(`>>> [AutoPilot] Stack:`, e instanceof Error ? e.stack?.substring(0, 200) : "N/A");
           }
+        } else {
+          console.log(`>>> [AutoPilot] ℹ️ No social platforms configured for bot "${bot.name}"`);
         }
       }
     }

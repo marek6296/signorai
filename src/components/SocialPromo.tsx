@@ -25,10 +25,7 @@ export function SocialPromo() {
         setMounted(true);
     }, []);
 
-    // black.png for dark/colorful, white.png for light as requested
-    const logoSrc = mounted && (resolvedTheme === "dark" || resolvedTheme === "colorful")
-        ? "/logo/black.png"
-        : "/logo/white.png";
+    const logoSrc = "/aiwai-logo.png";
 
     return (
         <div className={`group relative overflow-hidden rounded-[2.5rem] transition-all duration-500 hover:shadow-primary/30 border flex flex-col h-[300px] md:h-[350px] ${mounted && resolvedTheme === "light"
@@ -55,7 +52,7 @@ export function SocialPromo() {
             </div>
 
             {/* Header - Top Center */}
-            <div className="absolute top-2 left-0 w-full z-20 flex flex-col items-center">
+            <div className="absolute top-7 left-0 w-full z-20 flex flex-col items-center">
                 <h2 className={`font-syne font-extrabold tracking-tighter leading-none text-2xl md:text-3xl uppercase opacity-90 group-hover:opacity-100 transition-opacity ${mounted && resolvedTheme === "light" ? "text-zinc-900" : "text-white"
                     }`}>
                     PRIDAJ SA

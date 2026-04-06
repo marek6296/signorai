@@ -19,12 +19,12 @@ export function Footer() {
         : "/logo/logo-dark-text.png";
 
     return (
-        <footer className="relative border-t bg-background pt-20 pb-12 mt-20 overflow-hidden">
+        <footer className="relative border-t bg-background pt-10 pb-8 mt-10 overflow-hidden">
             {/* Subtle background element */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
 
             <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 pb-16">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 pb-8">
 
                     {/* Brand Identity Section */}
                     <div className="lg:col-span-5 space-y-4">
@@ -44,7 +44,7 @@ export function Footer() {
                             </div>
                         </Link>
 
-                        <p className="text-lg text-muted-foreground leading-relaxed font-medium max-w-md">
+                        <p className="text-sm text-muted-foreground leading-relaxed font-medium max-w-md">
                             Váš prémiový zdroj správ o umelej inteligencii a technológiách. Každý deň prinášame to najdôležitejšie zo sveta AI.
                         </p>
 
@@ -65,19 +65,19 @@ export function Footer() {
                     </div>
 
                     {/* Navigation Links Section */}
-                    <div className="lg:col-span-7 grid grid-cols-2 md:grid-cols-3 gap-12">
-                        <div className="space-y-6">
+                    <div className="lg:col-span-7 grid grid-cols-2 md:grid-cols-3 gap-8">
+                        <div className="space-y-3">
                             <h3 className="font-bold uppercase tracking-widest text-[11px] text-foreground/50">Kategórie</h3>
-                            <ul className="space-y-4 text-[15px] font-medium text-muted-foreground">
+                            <ul className="space-y-2 text-[14px] font-medium text-muted-foreground">
                                 <li><Link href="/" className="hover:text-primary transition-colors">Najnovšie</Link></li>
                                 <li><Link href="/kategoria/ai" className="hover:text-primary transition-colors">AI</Link></li>
                                 <li><Link href="/kategoria/tech" className="hover:text-primary transition-colors">Tech</Link></li>
                             </ul>
                         </div>
 
-                        <div className="space-y-6">
+                        <div className="space-y-3">
                             <h3 className="font-bold uppercase tracking-widest text-[11px] text-foreground/50">Redakcia</h3>
-                            <ul className="space-y-4 text-[15px] font-medium text-muted-foreground">
+                            <ul className="space-y-2 text-[14px] font-medium text-muted-foreground">
                                 <li><Link href="/o-nas" className="hover:text-primary transition-colors">Náš príbeh</Link></li>
                                 <li><Link href="/kontakt" className="hover:text-primary transition-colors">Kontakt</Link></li>
                                 <li><Link href="/ochrana-sukromia" className="hover:text-primary transition-colors">Ochrana súkromia</Link></li>
@@ -85,9 +85,9 @@ export function Footer() {
                             </ul>
                         </div>
 
-                        <div className="space-y-6">
+                        <div className="space-y-3">
                             <h3 className="font-bold uppercase tracking-widest text-[11px] text-foreground/50">Ostatné</h3>
-                            <ul className="space-y-4 text-[15px] font-medium text-muted-foreground">
+                            <ul className="space-y-2 text-[14px] font-medium text-muted-foreground">
                                 <li><Link href="/newsletter" className="hover:text-primary transition-colors">Newsletter</Link></li>
                                 <li><Link href="/kategoria/navody" className="hover:text-primary transition-colors">Návody & Tipy</Link></li>
                             </ul>

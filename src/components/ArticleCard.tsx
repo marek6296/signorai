@@ -5,10 +5,14 @@ import Image from "next/image";
 import { format, parseISO } from "date-fns";
 import { sk } from "date-fns/locale";
 import { type Article } from "@/lib/data";
-import { Edit, Trash2 } from "lucide-react";
+import { Edit, Trash2, ArrowRight } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+
+function stripHtml(html: string): string {
+    return html.replace(/<[^>]*>/g, '');
+}
 
 interface ArticleCardProps {
     article: Article;
@@ -85,27 +89,23 @@ export function ArticleCard({ article, featured = false, priority = false }: Art
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-80 pointer-events-none" />
             </div>
 
-            {/* Category Badge - Top Left */}
-            <div className="absolute top-4 left-6 z-20 pointer-events-none">
-                <span className="inline-flex items-center rounded-full bg-black/60 backdrop-blur-md border border-white/20 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-2xl">
-                    {article.category}
-                </span>
-            </div>
-
             {/* Content Overlay - Glassmorphism at Bottom */}
             <div className="mt-auto relative z-20 w-full p-2 pointer-events-none">
-                <div className="bg-black/40 backdrop-blur-2xl border border-white/10 rounded-[1.5rem] p-4 md:p-5 transition-transform duration-500 group-hover:-translate-y-2 flex flex-col items-start text-left">
-                    <div className="flex flex-col gap-1.5 md:gap-2 items-start">
-                        <time className="text-[9px] md:text-[10px] font-bold text-white/50 uppercase tracking-widest">
+                <div className="bg-black/40 backdrop-blur-2xl border border-white/10 rounded-[1.2rem] p-3 md:p-3.5 transition-transform duration-500 group-hover:-translate-y-2 flex flex-col items-start text-left">
+                    <div className="flex flex-col gap-1 items-start w-full">
+                        <time className="text-[9px] font-bold text-white/50 tracking-widest">
                             {publishDate}
                         </time>
-                        <h2 className={`font-black tracking-tight text-white leading-tight transition-all duration-300 ${featured ? 'text-xl md:text-3xl' : 'text-lg md:text-xl'
+                        <h2 className={`font-black tracking-tight text-white leading-tight transition-all duration-300 ${featured ? 'text-base md:text-2xl' : 'text-sm md:text-lg'
                             }`}>
-                            {article.title}
+                            {stripHtml(article.title)}
                         </h2>
-                        <p className="text-xs md:text-sm text-zinc-300/90 line-clamp-2 leading-relaxed font-medium">
+                        <p className="text-[11px] md:text-xs text-zinc-300/80 line-clamp-2 leading-relaxed font-medium">
                             {article.ai_summary || article.excerpt}
                         </p>
+                        <div className="flex items-center gap-1 mt-0.5 text-[9px] font-black uppercase tracking-widest text-white/40 group-hover:text-primary transition-colors duration-300">
+                            Čítaj viac <ArrowRight size={9} className="transition-transform duration-300 group-hover:translate-x-1" />
+                        </div>
                     </div>
                 </div>
             </div>

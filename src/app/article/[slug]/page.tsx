@@ -8,7 +8,9 @@ import { sk } from "date-fns/locale";
 import { Sparkles, Calendar, Tag } from "lucide-react";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { ContentRenderer } from "@/components/ContentRenderer";
+import { AdBanner } from "@/components/AdBanner";
 import type { Metadata } from "next";
+
 
 export const dynamic = "force-dynamic";
 
@@ -32,28 +34,40 @@ function truncateMetaDesc(text: string, max: number = META_DESC_MAX): string {
     return (cut > 0 ? cleanText.slice(0, cut) : cleanText.slice(0, max - 3)) + "...";
 }
 
+const CATEGORY_KEYWORDS: Record<string, string[]> = {
+    "AI": ["umelá inteligencia", "AI správy", "AI novinky", "machine learning", "deep learning"],
+    "Tech": ["technológie", "tech novinky", "technologické správy", "digitálne inovácie"],
+    "Návody & Tipy": ["AI návody", "tipy a triky", "technologické tipy", "návody", "tutoriál"],
+};
+
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
     const isPreview = searchParams.preview === "make-com-webhook-secret";
     const article = await getArticleBySlug(params.slug, isPreview);
     if (!article) return { title: "Nenájdené" };
 
-    const description = truncateMetaDesc(article.excerpt);
-    // Always use absolute production URL so Facebook/OG scrapers get the correct canonical
+    // Use ai_summary as primary description (richer, more SEO-friendly)
+    const rawDesc = article.ai_summary || article.excerpt;
+    const description = truncateMetaDesc(rawDesc);
     const absoluteUrl = `https://aiwai.news/article/${article.slug}`;
 
+    // Build keywords from category + article title words
+    const categoryKw = CATEGORY_KEYWORDS[article.category] ?? [];
+    const titleWords = stripHtml(article.title).split(/\s+/).filter(w => w.length > 4).slice(0, 5);
+    const keywords = [...new Set([...categoryKw, ...titleWords, "AIWai", "Slovensko"])];
+
     return {
-        title: article.title,
+        title: stripHtml(article.title),
         description,
-        alternates: {
-            canonical: absoluteUrl,
-        },
+        keywords,
+        alternates: { canonical: absoluteUrl },
         openGraph: {
-            title: article.title,
+            title: stripHtml(article.title),
             description,
             type: "article",
             url: absoluteUrl,
             siteName: "AIWai",
             publishedTime: article.published_at,
+            modifiedTime: article.published_at,
             authors: ["Redakcia AIWai"],
             section: article.category,
             images: [
@@ -61,18 +75,20 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
                     url: article.main_image,
                     width: 1200,
                     height: 630,
-                    alt: article.title,
+                    alt: stripHtml(article.title),
                 },
             ],
             locale: "sk_SK",
         },
         twitter: {
             card: "summary_large_image",
-            title: article.title,
+            title: stripHtml(article.title),
             description,
             images: [article.main_image],
         },
-        robots: article.status === "draft" ? { index: false, follow: true } : undefined,
+        robots: article.status === "draft"
+            ? { index: false, follow: true }
+            : { index: true, follow: true, "max-snippet": -1, "max-image-preview": "large" },
     };
 }
 
@@ -197,10 +213,16 @@ export default async function ArticlePage({ params, searchParams }: Props) {
                         </div>
                     )}
 
+                    {/* Banner 1 — za AI summary, pred obsahom (468x60) */}
+                    <AdBanner type="468x60" label />
+
                     <ContentRenderer
                         content={article.content}
                         relatedArticles={relatedArticles}
                     />
+
+                    {/* Banner 2 — po obsahu, pred zdrojmi (native) */}
+                    <AdBanner type="native" label />
 
                     <div className="mt-12 pt-8 border-t">
                         <div className="flex flex-col gap-4">

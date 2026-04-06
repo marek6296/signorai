@@ -194,22 +194,23 @@ export function Navbar() {
                     </div>
                 </div>
 
-                {/* Brand Logo Section */}
-                <Link href="/" className="flex items-center gap-3 group px-8 md:px-0" onClick={() => setIsMenuOpen(false)}>
-                    <span className="font-syne font-extrabold text-2xl md:text-5xl tracking-tighter uppercase 
-                        bg-gradient-to-r from-foreground via-foreground/50 to-foreground 
-                        bg-clip-text text-transparent animate-text-shimmer leading-none">
-                        AIWai
+                <Link href="/" className="flex items-center gap-3 px-8 md:px-0" onClick={() => setIsMenuOpen(false)} suppressHydrationWarning>
+                    <span className="flex items-center gap-3 group" suppressHydrationWarning>
+                        <span className="font-syne font-extrabold text-2xl md:text-5xl tracking-tighter uppercase
+                            bg-gradient-to-r from-foreground via-foreground/50 to-foreground
+                            bg-clip-text text-transparent leading-none" suppressHydrationWarning>
+                            AIWai
+                        </span>
+                        <Image
+                            src="/aiwai-logo.png"
+                            alt="AIWai News Logo"
+                            width={200}
+                            height={50}
+                            className="h-8 md:h-12 w-auto object-contain transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6"
+                            priority
+                        />
                     </span>
-                    <Image 
-                        src="/aiwai-logo.png" 
-                        alt="AIWai News Logo" 
-                        width={200} 
-                        height={50} 
-                        className="h-8 md:h-12 w-auto object-contain transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6" 
-                        priority 
-                    />
-                    <span className="text-primary font-black text-[10px] md:text-base uppercase tracking-[0.3em] opacity-80 group-hover:opacity-100 transition-opacity mt-1">
+                    <span className="text-primary font-black text-[10px] md:text-base uppercase tracking-[0.3em] opacity-100 select-none mt-1" suppressHydrationWarning>
                         News
                     </span>
                 </Link>

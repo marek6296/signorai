@@ -182,8 +182,16 @@ export default function AnalyticsPage() {
     const fetchData = async () => {
       try {
         setLoading(true);
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
         const [{ data: visitsData }, { data: subscribersData }] = await Promise.all([
-          supabase.from("site_visits").select("*"),
+          supabase
+            .from("site_visits")
+            .select("*")
+            .gte("created_at", thirtyDaysAgo.toISOString())
+            .order("created_at", { ascending: false })
+            .limit(50000),
           supabase.from("newsletter_subscribers").select("*"),
         ]);
         setAllVisits(visitsData || []);
@@ -262,8 +270,8 @@ export default function AnalyticsPage() {
         {/* Stats Row */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 32 }}>
           <StatCard label="Dnes" value={todayVisits.length} sub={`${todayUnique} unikátnych`} accent={ORANGE} icon={Eye} live />
-          <StatCard label="Celkovo" value={totalVisits.toLocaleString()} sub={`${uniqueVisitors} unikátnych`} accent={ORANGE} icon={TrendingUp} />
-          <StatCard label="Priemer/deň" value={Math.round(totalVisits / 30)} sub="Posledné 30 dní" accent={ORANGE} icon={BarChart2} />
+          <StatCard label="Posledné 30d" value={totalVisits.toLocaleString()} sub={`${uniqueVisitors} unikátnych`} accent={ORANGE} icon={TrendingUp} />
+          <StatCard label="Priemer/deň" value={Math.round(totalVisits / Math.max(30, 1))} sub="Posledné 30 dní" accent={ORANGE} icon={BarChart2} />
           <StatCard
             label="Konverzia"
             value={`${uniqueVisitors > 0 ? Math.round((subscribers.length / uniqueVisitors) * 100) : 0}%`}

@@ -154,18 +154,6 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
           <div className="absolute bottom-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-white/8 to-transparent" />
 
           <div className="flex items-center gap-3">
-            {/* Premium logo mark */}
-            <div className="relative">
-              <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                style={{
-                  background: "linear-gradient(135deg, #ffffff 0%, #cccccc 100%)",
-                  boxShadow: "0 0 20px rgba(255,255,255,0.15), 0 2px 8px rgba(0,0,0,0.5)",
-                }}
-              >
-                <span className="text-[11px] font-black text-black tracking-tight">AI</span>
-              </div>
-            </div>
             <div>
               <div
                 className="text-[13px] font-black uppercase tracking-[0.15em] leading-none"
@@ -184,13 +172,6 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Live indicator */}
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-green-500/10 border border-green-500/20">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-              <span className="text-[9px] font-bold text-green-400 uppercase tracking-wider hidden sm:block">
-                Live
-              </span>
-            </div>
             {/* Close button on mobile */}
             <button
               onClick={onClose}
@@ -202,12 +183,11 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
         </div>
 
         {/* ── Navigation ── */}
-        <nav className="flex-1 overflow-y-auto py-3 px-3 space-y-0.5">
-          <div className="flex items-center gap-2 px-3 mb-3">
-            <div className="text-[9px] font-bold text-white/20 uppercase tracking-[0.25em]">
-              Navigácia
+        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+          <div className="flex items-center gap-2 px-3 mb-4">
+            <div className="text-[8px] font-bold text-white/25 uppercase tracking-[0.3em]">
+              Menu
             </div>
-            <div className="flex-1 h-px bg-white/[0.04]" />
           </div>
 
           {navItems.map((item) => {
@@ -247,7 +227,7 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
 
                 {/* Hover background */}
                 {!active && (
-                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl bg-white/[0.03]" />
+                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl bg-white/[0.04]" />
                 )}
 
                 {/* Icon */}
