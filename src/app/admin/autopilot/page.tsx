@@ -535,221 +535,264 @@ export default function BotsPage() {
             </button>
           </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))", gap: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(420px, 1fr))", gap: 32 }}>
             {bots.map((bot) => {
               const C = BOT_COLORS[bot.type];
               const isRunning = runningBotId === bot.id;
+              const { label: nextRunLabel, isReady } = timeUntilNextRun(bot);
+              
               return (
                 <div
                   key={bot.id}
                   style={{
-                    background: "rgba(255,255,255,0.025)",
-                    border: `1px solid ${bot.enabled ? C.border : "rgba(255,255,255,0.06)"}`,
-                    borderRadius: 16,
-                    overflow: "hidden",
                     position: "relative",
-                    animation: "fadeIn 0.3s ease",
-                    transition: "border-color 0.3s",
+                    background: "rgba(255,255,255,0.012)",
+                    border: "1px solid rgba(255,255,255,0.04)",
+                    borderRadius: 28,
+                    padding: "32px 28px",
+                    animation: "fadeIn 0.5s ease",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 24,
+                    overflow: "visible",
+                    transition: "transform 0.2s ease, border-color 0.3s",
+                    boxShadow: bot.enabled ? `0 10px 40px -10px ${C.primary}15` : "none",
                   }}
                 >
-                  {/* Top stripe */}
-                  <div style={{ height: 3, background: bot.enabled ? C.primary : "rgba(255,255,255,0.08)" }} />
+                  {/* --- MAKE.COM STYLE MODULE CORE --- */}
+                  <div style={{ display: "flex", gap: 24, alignItems: "center" }}>
+                    <div style={{ position: "relative", flexShrink: 0 }}>
+                       {/* Connection Line background effect */}
+                       <div style={{ 
+                         position: "absolute", top: "50%", left: "50%", 
+                         width: 120, height: 1, 
+                         background: `linear-gradient(90deg, ${bot.enabled ? C.primary : "rgba(255,255,255,0.1)"}, transparent)`, 
+                         zIndex: 0,
+                         opacity: 0.4
+                       }} />
+                       
+                       {/* The Main Module Circle */}
+                       <div style={{
+                         width: 88, height: 88, borderRadius: "50%",
+                         background: bot.enabled ? `linear-gradient(135deg, ${C.primary}, ${C.primary}bb)` : "rgba(255,255,255,0.03)",
+                         display: "flex", alignItems: "center", justifyContent: "center",
+                         boxShadow: bot.enabled ? `0 12px 30px ${C.primary}40, 0 0 0 7px ${C.dim}` : "0 0 0 7px rgba(255,255,255,0.02)",
+                         border: `2.5px solid ${bot.enabled ? "#fff" : "rgba(255,255,255,0.08)"}`,
+                         position: "relative", zIndex: 2,
+                         transition: "all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
+                         transform: isRunning ? "scale(1.05)" : "scale(1)",
+                       }}>
+                         {bot.type === "article_only" 
+                           ? <FileText size={32} color={bot.enabled ? "#fff" : "rgba(255,255,255,0.15)"} /> 
+                           : <Zap size={32} color={bot.enabled ? "#fff" : "rgba(255,255,255,0.15)"} />
+                         }
+                         
+                         {/* Running Orbit Pulse */}
+                         {bot.enabled && (
+                           <div style={{
+                             position: "absolute", inset: -12, borderRadius: "50%",
+                             border: `1.5px solid ${C.primary}35`,
+                             animation: "pulse 2s infinite ease-in-out"
+                           }} />
+                         )}
 
-                  <div style={{ padding: 24 }}>
-                    {/* Bot header */}
-                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20 }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                          {/* Type icon */}
-                          <div style={{
-                            width: 32, height: 32, borderRadius: 8,
-                            background: C.dim, border: `1px solid ${C.border}`,
-                            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                          }}>
-                            {bot.type === "article_only"
-                              ? <FileText size={15} style={{ color: C.primary }} />
-                              : <Layers size={15} style={{ color: C.primary }} />
-                            }
-                          </div>
-                          <div>
-                            <p style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.2 }}>{bot.name}</p>
-                            <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", color: C.primary, textTransform: "uppercase", marginTop: 2 }}>
-                              {bot.type === "article_only" ? "Iba Obsah" : "Obsah + Sociálne"}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
+                         {/* Status Indicator Bubble */}
+                         <div style={{
+                           position: "absolute", top: 2, right: 2,
+                           width: 20, height: 20, borderRadius: "50%",
+                           background: bot.enabled ? "#22c55e" : "#333",
+                           border: "4px solid #080808",
+                           display: "flex", alignItems: "center", justifyContent: "center",
+                           boxShadow: bot.enabled ? "0 0 10px #22c55e40" : "none"
+                         }}>
+                            {bot.enabled && <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#fff", animation: "pulse 1s infinite" }} />}
+                         </div>
+                       </div>
+                    </div>
 
-                      {/* ON/OFF toggle */}
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                        <h3 style={{ fontSize: 19, fontWeight: 900, margin: 0, letterSpacing: "-0.02em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {bot.name}
+                        </h3>
                         <Toggle value={bot.enabled} onChange={() => toggleBot(bot.id)} color={C.primary} />
-                        <span style={{ fontSize: 10, fontWeight: 700, color: bot.enabled ? C.primary : "rgba(255,255,255,0.25)", letterSpacing: "0.1em" }}>
-                          {bot.enabled ? "AKTÍVNY" : "VYPNUTÝ"}
-                        </span>
                       </div>
-                    </div>
-
-                    {/* Schedule & Categories */}
-                    <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.04)", borderRadius: 8, padding: "6px 10px" }}>
-                        <Clock size={11} style={{ color: "rgba(255,255,255,0.35)", flexShrink: 0 }} />
-                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontWeight: 500 }}>
-                          {INTERVAL_OPTIONS.find(o => o.value === (bot.interval_hours ?? 4))?.label ?? `Každé ${bot.interval_hours ?? 4}h`}
-                        </span>
-                      </div>
-                      <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                        {bot.categories.map((cat) => (
-                          <span key={cat} style={{
-                            padding: "4px 8px", background: C.dim, border: `1px solid ${C.border}`,
-                            borderRadius: 6, fontSize: 10, fontWeight: 700, color: C.primary,
-                            letterSpacing: "0.06em",
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                         <span style={{ 
+                            fontSize: 9, fontWeight: 800, color: bot.enabled ? C.primary : "rgba(255,255,255,0.25)", 
+                            textTransform: "uppercase", letterSpacing: "0.18em", padding: "3px 8px",
+                            background: bot.enabled ? C.dim : "rgba(255,255,255,0.03)", borderRadius: 6,
+                            border: `1px solid ${bot.enabled ? C.border : "transparent"}`
                           }}>
-                            {cat}
+                            {bot.type === "article_only" ? "Content Engine" : "Hybrid Hub"}
                           </span>
-                        ))}
                       </div>
-                    </div>
-
-                    {/* Social info (full only) */}
-                    {bot.type === "full" && (
-                      <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap", alignItems: "center" }}>
-                        {bot.post_instagram && (
-                          <span style={{ padding: "4px 10px", background: "rgba(236,72,153,0.08)", border: "1px solid rgba(236,72,153,0.2)", borderRadius: 6, fontSize: 10, fontWeight: 700, color: "#ec4899" }}>
-                            IG · {INSTAGRAM_FORMATS.find(f => f.id === bot.instagram_format)?.label || "Studio"}
-                          </span>
-                        )}
-                        {bot.post_facebook && (
-                          <span style={{ padding: "4px 10px", background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)", borderRadius: 6, fontSize: 10, fontWeight: 700, color: "#3b82f6" }}>
-                            Facebook
-                          </span>
-                        )}
-                        {bot.auto_publish_social && (bot.post_instagram || bot.post_facebook) && (
-                          <span style={{ padding: "4px 8px", background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.15)", borderRadius: 6, fontSize: 9, fontWeight: 700, color: "#22c55e", letterSpacing: "0.05em" }}>
-                            AUTO
-                          </span>
-                        )}
-                        {!bot.post_instagram && !bot.post_facebook && (
-                          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.25)" }}>Žiadne soc. siete vybrané</span>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Stats row */}
-                    <div style={{ display: "flex", gap: 20, padding: "12px 0", borderTop: "1px solid rgba(255,255,255,0.05)", marginBottom: 16 }}>
-                      <div>
-                        <p style={{ fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
-                          {bot.processed_count ?? 0}
-                        </p>
-                        <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.15em", color: "rgba(255,255,255,0.25)", textTransform: "uppercase", marginTop: 2 }}>
-                          Spracovaných
-                        </p>
-                      </div>
-                      <div style={{ width: 1, background: "rgba(255,255,255,0.05)" }} />
-                      <div>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.5)" }}>
-                          {timeAgo(bot.last_run)}
-                        </p>
-                        <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.15em", color: "rgba(255,255,255,0.25)", textTransform: "uppercase", marginTop: 2 }}>
-                          Posledný beh
-                        </p>
-                      </div>
-                      <div style={{ width: 1, background: "rgba(255,255,255,0.05)" }} />
-                      <div>
-                        {(() => {
-                          const { label, isReady } = timeUntilNextRun(bot);
-                          return (
-                            <>
-                              <p style={{ 
-                                fontSize: 13, 
-                                fontWeight: 800, 
-                                color: isReady ? "#22c55e" : (bot.enabled ? C.primary : "rgba(255,255,255,0.25)"),
-                                fontVariantNumeric: "tabular-nums",
-                                letterSpacing: isReady ? "0.05em" : "0"
-                              }}>
-                                {label}
-                              </p>
-                              <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.15em", color: "rgba(255,255,255,0.25)", textTransform: "uppercase", marginTop: 2 }}>
-                                {isReady ? "Dostupný" : "Ďalší beh"}
-                              </p>
-                            </>
-                          );
-                        })()}
-                      </div>
-                      {bot.enabled && (
-                        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 5 }}>
-                          <div style={{ width: 6, height: 6, borderRadius: "50%", background: C.primary, animation: "pulse 2s infinite" }} />
-                          <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", color: C.primary }}>BEží</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Run steps (when running) */}
-                    {isRunning && runSteps.length > 0 && (
-                      <div style={{ marginBottom: 16, padding: 12, background: "rgba(255,255,255,0.03)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.06)" }}>
-                        {runSteps.map((step, i) => (
-                          <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }}>
-                            {step.status === "done" && <CheckCircle size={12} style={{ color: "#22c55e", flexShrink: 0 }} />}
-                            {step.status === "running" && <div style={{ width: 12, height: 12, border: `2px solid ${C.border}`, borderTopColor: C.primary, borderRadius: "50%", animation: "spin 0.7s linear infinite", flexShrink: 0 }} />}
-                            {step.status === "error" && <AlertCircle size={12} style={{ color: "#ef4444", flexShrink: 0 }} />}
-                            {step.status === "pending" && <div style={{ width: 12, height: 12, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.12)", flexShrink: 0 }} />}
-                            <span style={{ fontSize: 11, color: step.status === "running" ? "#fff" : step.status === "done" ? "#22c55e" : step.status === "error" ? "#ef4444" : "rgba(255,255,255,0.3)" }}>
-                              {step.label}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Actions */}
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button
-                        onClick={() => runBot(bot)}
-                        disabled={isRunning}
-                        style={{
-                          flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                          padding: "9px 0", borderRadius: 9,
-                          background: isRunning ? "rgba(255,255,255,0.03)" : C.dim,
-                          border: `1px solid ${isRunning ? "rgba(255,255,255,0.06)" : C.border}`,
-                          color: isRunning ? "rgba(255,255,255,0.3)" : C.primary,
-                          fontSize: 12, fontWeight: 700, cursor: isRunning ? "not-allowed" : "pointer",
-                        }}
-                      >
-                        {isRunning
-                          ? <><div style={{ width: 11, height: 11, border: `2px solid ${C.border}`, borderTopColor: C.primary, borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> Beží...</>
-                          : <><Play size={12} /> Spustiť</>
-                        }
-                      </button>
-                      <button
-                        onClick={() => { setEditingBot(bot); setModalOpen(true); }}
-                        style={{ padding: "9px 14px", borderRadius: 9, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.5)", cursor: "pointer" }}
-                      >
-                        <Edit2 size={13} />
-                      </button>
-                      {deleteConfirmId === bot.id ? (
-                        <div style={{ display: "flex", gap: 4 }}>
-                          <button
-                            onClick={() => deleteBot(bot.id)}
-                            style={{ padding: "9px 10px", borderRadius: 9, background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.25)", color: "#f87171", cursor: "pointer", fontSize: 11, fontWeight: 700 }}
-                          >
-                            Zmazať
-                          </button>
-                          <button
-                            onClick={() => setDeleteConfirmId(null)}
-                            style={{ padding: "9px 10px", borderRadius: 9, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.4)", cursor: "pointer" }}
-                          >
-                            <X size={12} />
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setDeleteConfirmId(bot.id)}
-                          style={{ padding: "9px 12px", borderRadius: 9, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.35)", cursor: "pointer" }}
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      )}
                     </div>
                   </div>
+
+                  {/* --- LOGIC CHAIN NODES (Visual Flow) --- */}
+                  <div style={{ 
+                    display: "flex", gap: 10, alignItems: "center", 
+                    background: "rgba(255,255,255,0.02)", padding: "14px 18px", borderRadius: 18,
+                    border: "1px solid rgba(255,255,255,0.04)"
+                  }}>
+                    {/* Node 1: AI */}
+                    <div title="AI Engine" style={{ width: 28, height: 28, borderRadius: "50%", background: "#f59e0b", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 900, color: "#000", boxShadow: "0 0 15px #f59e0b30" }}>AI</div>
+                    <div style={{ width: 20, height: 1.5, background: "rgba(255,255,255,0.08)" }} />
+                    
+                    {/* Node 2: Website */}
+                    <div title="Blog Post" style={{ 
+                      width: 28, height: 28, borderRadius: "50%", 
+                      background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)",
+                      display: "flex", alignItems: "center", justifyContent: "center" 
+                    }}>
+                      <FileText size={13} color="rgba(255,255,255,0.5)" />
+                    </div>
+
+                    {bot.type === "full" && (
+                      <>
+                        <div style={{ width: 20, height: 1.5, background: "rgba(255,255,255,0.08)" }} />
+                        <div title="Instagram" style={{ 
+                          width: 28, height: 28, borderRadius: "50%", 
+                          background: bot.post_instagram ? "linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)" : "rgba(255,255,255,0.03)", 
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          opacity: bot.post_instagram ? 1 : 0.2,
+                          boxShadow: bot.post_instagram ? "0 4px 12px rgba(220, 39, 67, 0.3)" : "none"
+                        }}>
+                          <Layers size={13} color="#fff" />
+                        </div>
+                        <div style={{ width: 20, height: 1.5, background: "rgba(255,255,255,0.08)" }} />
+                        <div title="Facebook" style={{ 
+                          width: 28, height: 28, borderRadius: "50%", 
+                          background: bot.post_facebook ? "#1877F2" : "rgba(255,255,255,0.03)", 
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          opacity: bot.post_facebook ? 1 : 0.2,
+                          boxShadow: bot.post_facebook ? "0 4px 12px rgba(24, 119, 242, 0.3)" : "none"
+                        }}>
+                          <Plus size={13} color="#fff" />
+                        </div>
+                      </>
+                    )}
+                    
+                    <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
+                       <Clock size={11} color="rgba(255,255,255,0.2)" />
+                       <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontWeight: 700 }}>
+                          {INTERVAL_OPTIONS.find(o => o.value === bot.interval_hours)?.label}
+                       </span>
+                    </div>
+                  </div>
+
+                  {/* --- STATS PILLS (Glass Effects) --- */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+                    <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 18, padding: "14px 12px", textAlign: "center", border: "1px solid rgba(255,255,255,0.02)" }}>
+                      <p style={{ margin: 0, fontSize: 18, fontWeight: 950, color: "#fff", fontVariantNumeric: "tabular-nums" }}>{bot.processed_count || 0}</p>
+                      <p style={{ margin: "4px 0 0", fontSize: 9, fontWeight: 800, color: "rgba(255,255,255,0.2)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Spracované</p>
+                    </div>
+                    <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 18, padding: "14px 12px", textAlign: "center" }}>
+                      <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.5)" }}>{timeAgo(bot.last_run)}</p>
+                      <p style={{ margin: "4px 0 0", fontSize: 9, fontWeight: 800, color: "rgba(255,255,255,0.2)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Naposledy</p>
+                    </div>
+                    <div style={{ 
+                      background: isReady ? `${C.primary}12` : "rgba(255,255,255,0.03)", 
+                      borderRadius: 18, padding: "14px 12px", textAlign: "center",
+                      border: "1px solid",
+                      borderColor: isReady ? `${C.primary}40` : "rgba(255,255,255,0.02)"
+                    }}>
+                      <p style={{ 
+                        margin: 0, fontSize: 13, fontWeight: 950, 
+                        color: isReady ? "#22c55e" : (bot.enabled ? "#fff" : "rgba(255,255,255,0.2)"),
+                        fontVariantNumeric: "tabular-nums"
+                      }}>{nextRunLabel}</p>
+                      <p style={{ margin: "4px 0 0", fontSize: 9, fontWeight: 800, color: isReady ? "#22c55e90" : "rgba(255,255,255,0.2)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                        {isReady ? "Pripravený" : "Ďalší beh"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* --- ACTIVE RUNNING UI --- */}
+                  {isRunning && (
+                    <div style={{ 
+                      padding: 18, background: "rgba(255,255,255,0.03)", border: `1px solid ${C.border}`, borderRadius: 20,
+                      boxShadow: `inset 0 0 20px ${C.primary}10`,
+                      animation: "fadeIn 0.3s ease" 
+                    }}>
+                      {runSteps.map((step, i) => (
+                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 0" }}>
+                          {step.status === "done" ? <CheckCircle size={15} color="#22c55e" /> : 
+                           step.status === "running" ? <div style={{ width: 14, height: 14, border: "2.5px solid transparent", borderTopColor: C.primary, borderRadius: "50%", animation: "spin 0.6s linear infinite" }} /> :
+                           <div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.1)" }} />}
+                          <span style={{ fontSize: 12, fontWeight: 600, color: step.status === "running" ? "#fff" : "rgba(255,255,255,0.3)" }}>{step.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* --- PRIMARY ACTIONS --- */}
+                  <div style={{ display: "flex", gap: 14, marginTop: "auto" }}>
+                    <button
+                      onClick={() => runBot(bot)}
+                      disabled={isRunning || !bot.enabled}
+                      style={{
+                        flex: 1, height: 50, borderRadius: 16,
+                        background: isRunning ? "rgba(255,255,255,0.05)" : (bot.enabled ? "#fff" : "rgba(255,255,255,0.03)"),
+                        color: isRunning ? C.primary : (bot.enabled ? "#000" : "rgba(255,255,255,0.15)"),
+                        border: "none", fontSize: 14, fontWeight: 900, cursor: (isRunning || !bot.enabled) ? "not-allowed" : "pointer",
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                        transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                        boxShadow: (bot.enabled && !isRunning) ? "0 4px 15px rgba(255,255,255,0.15)" : "none"
+                      }}
+                    >
+                      {isRunning ? "Pracujem..." : <><Play size={18} fill="currentColor" /> Spustiť bota</>}
+                    </button>
+                    
+                    <div style={{ display: "flex", gap: 10 }}>
+                       <button
+                        onClick={() => { setEditingBot(bot); setModalOpen(true); }}
+                        style={{ 
+                          width: 50, height: 50, borderRadius: 16, 
+                          background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)",
+                          color: "rgba(255,255,255,0.5)", cursor: "pointer",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          transition: "background 0.2s"
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.08)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
+                      >
+                        <Edit2 size={18} />
+                      </button>
+                      <button
+                        onClick={() => setDeleteConfirmId(bot.id)}
+                        style={{ 
+                          width: 50, height: 50, borderRadius: 16, 
+                          background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)",
+                          color: "rgba(255,255,255,0.3)", cursor: "pointer",
+                          display: "flex", alignItems: "center", justifyContent: "center"
+                        }}
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Secure Delete Overlay */}
+                  {deleteConfirmId === bot.id && (
+                    <div style={{
+                      position: "absolute", inset: 0, background: "rgba(0,0,0,0.92)", backdropFilter: "blur(6px)",
+                      borderRadius: 28, zIndex: 10, display: "flex", flexDirection: "column",
+                      alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center",
+                      animation: "fadeIn 0.2s ease"
+                    }}>
+                      <div style={{ width: 48, height: 48, borderRadius: "50%", background: "rgba(239,68,68,0.1)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
+                        <Trash2 size={24} color="#ef4444" />
+                      </div>
+                      <p style={{ fontSize: 16, fontWeight: 800, marginBottom: 8 }}>Úplne zmazať bota?</p>
+                      <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 24 }}>Túto akciu nie je možné vrátiť späť.</p>
+                      <div style={{ display: "flex", gap: 12, width: "100%" }}>
+                        <button onClick={() => deleteBot(bot.id)} style={{ flex: 1, padding: "12px 0", background: "#ef4444", border: "none", borderRadius: 12, color: "#fff", fontWeight: 800, cursor: "pointer" }}>Zmazať</button>
+                        <button onClick={() => setDeleteConfirmId(null)} style={{ flex: 1, padding: "12px 0", background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 12, color: "#fff", fontWeight: 800, cursor: "pointer" }}>Zrušiť</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
