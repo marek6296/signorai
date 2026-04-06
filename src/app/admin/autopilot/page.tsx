@@ -259,7 +259,7 @@ export default function BotsPage() {
       );
       if (!topicsRes.ok) throw new Error("Chyba pri hľadaní tém");
       const topicsData = await topicsRes.json();
-      const topic = (topicsData.topics || topicsData.suggested || [])[0];
+      const topic = (topicsData.topics || topicsData.suggestions || topicsData.items || topicsData.suggested || [])[0];
       if (!topic) throw new Error("Žiadne témy nenájdené");
       setStep(0, "done");
 
