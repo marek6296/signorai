@@ -39,12 +39,6 @@ export default function ToolPage({ params }: Props) {
 
       {/* Header */}
       <div className="flex items-start gap-5 mb-10">
-        <div
-          className="w-16 h-16 rounded-3xl flex items-center justify-center text-3xl flex-shrink-0"
-          style={{ background: `${tool.color}15`, border: `1px solid ${tool.color}25` }}
-        >
-          {tool.icon}
-        </div>
         <div>
           <h1 className="text-3xl font-black tracking-tight mb-1">{tool.name}</h1>
           <p className="text-muted-foreground text-sm leading-relaxed">{tool.longDesc}</p>

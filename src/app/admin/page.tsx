@@ -138,6 +138,7 @@ export default function AdminDashboard() {
     { label: "Sociálne siete", sub: "Instagram · Facebook", path: "/admin/socialne", icon: TrendingUp, color: "from-pink-500 to-pink-600" },
     { label: "AI Boty", sub: "Automatizácia obsahu", path: "/admin/autopilot", icon: Zap, color: "from-amber-500 to-amber-600" },
     { label: "Analytika", sub: `${todayVisitsCount} návštev dnes`, path: "/admin/analytika", icon: Eye, color: "from-orange-500 to-orange-600" },
+    { label: "Chatbot", sub: "AI asistent nastavenia", path: "/admin/chatbot", icon: Users, color: "from-blue-500 to-blue-600" },
   ];
 
   interface StatBoxProps {
