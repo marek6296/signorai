@@ -263,20 +263,21 @@ export default function BotsPage() {
       if (!topic) throw new Error("Žiadne témy nenájdené");
       setStep(0, "done");
 
-      // Step 1: generate article
+      // Step 1: generate article directly from topic title+summary (no URL scraping)
       setStep(1, "running");
-      // generate-article expects a URL to fetch & process
-      const topicUrl = typeof topic === "string"
-        ? `https://www.google.com/search?q=${encodeURIComponent(topic)}`
-        : (topic.url && topic.url.startsWith("http") ? topic.url : `https://www.google.com/search?q=${encodeURIComponent(topic.title || topic.topic || "AI news")}`);
-      const articleRes = await fetch("/api/admin/generate-article", {
+      const topicTitle = typeof topic === "string" ? topic : (topic.title || topic.topic || "AI news");
+      const topicSummary = typeof topic === "string" ? "" : (topic.summary || topic.description || "");
+      const topicSourceUrl = typeof topic === "string" ? null : (topic.url && topic.url.startsWith("http") ? topic.url : null);
+      const articleRes = await fetch("/api/admin/bot-generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           secret: "make-com-webhook-secret",
-          url: topicUrl,
+          title: topicTitle,
+          summary: topicSummary,
+          category: bot.categories[0] || "AI",
+          sourceUrl: topicSourceUrl,
           status: "draft",
-          model: "gemini",
         }),
       });
       if (!articleRes.ok) {
