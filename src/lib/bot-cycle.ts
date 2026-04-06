@@ -18,7 +18,8 @@ export interface BotConfig {
   name: string;
   type: "article_only" | "full";
   enabled: boolean;
-  run_times: string[];
+  interval_hours: number;       // run every N hours since last_run
+  run_times?: string[];         // legacy — ignored, kept for backward compat
   categories: string[];
   post_instagram?: boolean;
   post_facebook?: boolean;
@@ -295,37 +296,30 @@ RULES: NO real public figures, NO branded logos, NO text overlays, NO watermarks
   }
 }
 
-// ─── Check if a bot should run at the current Slovak time ────────────────────
+// ─── Check if a bot should run now (interval-based) ──────────────────────────
+// Vercel cron fires every hour; bot runs if interval_hours have passed since last_run.
 export function shouldBotRunNow(bot: BotConfig): boolean {
   if (!bot.enabled) return false;
-  if (!bot.run_times || bot.run_times.length === 0) return false;
 
-  // Prevent double-run: skip if ran less than 30 min ago
-  if (bot.last_run) {
-    const ageMins = (Date.now() - new Date(bot.last_run).getTime()) / 60000;
-    if (ageMins < 30) {
-      console.log(`[BotCycle] Bot "${bot.name}" skipped — ran ${Math.round(ageMins)}min ago`);
-      return false;
-    }
+  const intervalHours = bot.interval_hours ?? 4; // default: every 4 hours
+
+  // Never ran before → run immediately
+  if (!bot.last_run) {
+    console.log(`[BotCycle] Bot "${bot.name}" has never run — triggering now`);
+    return true;
   }
 
-  // Current time in Slovak timezone
-  const now = new Date();
-  const formatter = new Intl.DateTimeFormat("sk-SK", {
-    timeZone: "Europe/Bratislava",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-  const parts = formatter.formatToParts(now);
-  const hour = parseInt(parts.find((p) => p.type === "hour")?.value || "0");
-  const minute = parseInt(parts.find((p) => p.type === "minute")?.value || "0");
-  const nowTotalMin = hour * 60 + minute;
+  const lastRunMs = new Date(bot.last_run).getTime();
+  const intervalMs = intervalHours * 60 * 60 * 1000;
+  const elapsedMs = Date.now() - lastRunMs;
 
-  return bot.run_times.some((rt) => {
-    const [h, m] = rt.split(":").map(Number);
-    const rtTotalMin = h * 60 + m;
-    const diff = Math.abs(nowTotalMin - rtTotalMin);
-    return diff <= 8; // ±8 min window (cron runs every 15 min)
-  });
+  if (elapsedMs >= intervalMs) {
+    const elapsedH = (elapsedMs / 3600000).toFixed(1);
+    console.log(`[BotCycle] Bot "${bot.name}" due — ${elapsedH}h since last run (interval: ${intervalHours}h)`);
+    return true;
+  }
+
+  const minsLeft = Math.round((intervalMs - elapsedMs) / 60000);
+  console.log(`[BotCycle] Bot "${bot.name}" not due — ${minsLeft}min remaining until next run`);
+  return false;
 }

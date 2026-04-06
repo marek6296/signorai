@@ -1,7 +1,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { publishToFacebook, publishToInstagram, commentOnFacebook } from "@/lib/meta-api";
+import { publishToFacebook, publishToInstagram, commentOnFacebook, getPageAccessToken } from "@/lib/meta-api";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -143,7 +143,8 @@ export async function POST(req: Request) {
             }
 
             // ── Step 2: Post photo + text to Facebook ─────────────────────────────
-            result = await publishToFacebook(post.content || "", undefined, fbImageUrl);
+            const finalMessage = `${post.content || ""}\n\nČlánok nájdete tu: ${articleUrl}`;
+            result = await publishToFacebook(finalMessage, undefined, fbImageUrl);
             // When posting a photo, FB returns { id: photo_id, post_id: "PAGE_ID_POST_ID" }
             // We MUST comment on post_id (the timeline post), not on id (the photo object)
             console.log(`[Facebook] Photo post raw response — id: ${result?.id}, post_id: ${result?.post_id}`);
@@ -153,17 +154,21 @@ export async function POST(req: Request) {
             // Fallback: if post_id was not returned, fetch it from the photo object via Graph API
             if (!fbPostId && result?.id) {
                 try {
-                    // Get meta config from Supabase (same as meta-api.ts does internally)
+                    // Get meta config from Supabase (to exchange for Page Token)
                     const { data: settingsRow } = await supabase
                         .from('site_settings')
                         .select('value')
                         .eq('key', 'meta_config')
                         .single();
-                    const metaToken = (settingsRow?.value as Record<string, string>)?.access_token
-                        || process.env.META_ACCESS_TOKEN;
+                    const val = settingsRow?.value as any;
+                    const metaToken = val?.access_token || process.env.META_ACCESS_TOKEN;
+                    const fbPageId = val?.page_id || process.env.FB_PAGE_ID;
+
+                    // Get a real Page Access Token to perform the lookup
+                    const pageToken = await getPageAccessToken(fbPageId, metaToken);
 
                     const photoFieldsRes = await fetch(
-                        `https://graph.facebook.com/v22.0/${result.id}?fields=post_id&access_token=${metaToken}`
+                        `https://graph.facebook.com/v22.0/${result.id}?fields=post_id&access_token=${pageToken}`
                     );
                     const photoFields = await photoFieldsRes.json();
                     if (photoFields?.post_id) {

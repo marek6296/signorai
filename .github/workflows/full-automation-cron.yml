@@ -1,19 +1,15 @@
-name: Full Automation Bot Cron
+# DEAKTIVOVANÝ — bot scheduling prebehol na Vercel Cron (vercel.json)
+# Vercel cron spúšťa /api/admin/auto-pilot každú hodinu automaticky.
+# Žiadny GitHub Actions nie je potrebný.
+
+name: Full Automation Bot Cron (DISABLED)
 
 on:
-  schedule:
-    # Kontroluje každých 15 minút (spúšťa sa automaticky)
-    - cron: '*/15 * * * *'
-  workflow_dispatch: # Aktivuje manuálne tlačidlo "Run workflow" v GitHub UI
+  workflow_dispatch: # Iba manuálne — žiaden automatický cron
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger Full Automation Bot API
-        run: |
-          curl -X GET -H "x-bot-secret: ${{ secrets.ADMIN_SECRET }}" "${{ secrets.API_BASE_URL }}/api/admin/bot-full-automation${{ github.event_name == 'workflow_dispatch' && '?ignoreTime=true' || '' }}"
-
-      - name: Trigger AI Autopilot API
-        run: |
-          curl -X GET "${{ secrets.API_BASE_URL }}/api/admin/auto-pilot?secret=${{ secrets.ADMIN_SECRET }}"
+      - name: Info
+        run: echo "Boty bežia cez Vercel Cron (vercel.json). Tento workflow je deaktivovaný."

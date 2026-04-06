@@ -45,7 +45,7 @@ async function getMetaConfig() {
 /**
  * Exchanges a User Access Token for a Page Access Token for the specified page.
  */
-async function getPageAccessToken(pageId: string, userToken: string): Promise<string> {
+export async function getPageAccessToken(pageId: string, userToken: string): Promise<string> {
     try {
         const url = `https://graph.facebook.com/v22.0/${pageId}?fields=access_token&access_token=${userToken}`;
         const res = await fetch(url);

@@ -16,7 +16,8 @@ interface Bot {
   name: string;
   type: BotType;
   enabled: boolean;
-  run_times: string[];
+  interval_hours: number;       // run every N hours since last_run
+  run_times?: string[];         // legacy — ignored
   categories: string[];
   post_instagram?: boolean;
   post_facebook?: boolean;
@@ -30,7 +31,15 @@ type RunStep = { label: string; status: "pending" | "running" | "done" | "error"
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const CATEGORIES = ["AI", "Tech", "Návody & Tipy"];
-const TIME_OPTIONS = ["06:00","07:00","08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00","18:00","19:00","20:00","21:00","22:00"];
+const INTERVAL_OPTIONS = [
+  { value: 1,  label: "Každú hodinu" },
+  { value: 2,  label: "Každé 2 hodiny" },
+  { value: 4,  label: "Každé 4 hodiny" },
+  { value: 6,  label: "Každých 6 hodín" },
+  { value: 8,  label: "Každých 8 hodín" },
+  { value: 12, label: "Každých 12 hodín" },
+  { value: 24, label: "Raz za deň" },
+];
 const INSTAGRAM_FORMATS: { id: InstagramFormat; label: string; desc: string; icon: string }[] = [
   { id: "studio", label: "Studio", desc: "Brandovaná šablóna", icon: "⬛" },
   { id: "photo", label: "Photo", desc: "Foto z článku", icon: "🖼" },
@@ -51,7 +60,7 @@ function defaultBot(type: BotType): Bot {
     name: type === "article_only" ? "Článkový Bot" : "Sociálny Bot",
     type,
     enabled: false,
-    run_times: ["09:00"],
+    interval_hours: 4,
     categories: ["AI"],
     post_instagram: true,
     post_facebook: false,
@@ -142,7 +151,12 @@ export default function BotsPage() {
         .single();
 
       if (data?.value) {
-        const parsed: Bot[] = JSON.parse(data.value);
+        const raw: Bot[] = JSON.parse(data.value);
+        // Migrate legacy bots that have run_times but no interval_hours
+        const parsed = raw.map((b) => ({
+          ...b,
+          interval_hours: b.interval_hours ?? 4,
+        }));
         setBots(parsed);
       } else {
         // migrate from legacy ai_content_bot if exists
@@ -511,7 +525,7 @@ export default function BotsPage() {
                       <div style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.04)", borderRadius: 8, padding: "6px 10px" }}>
                         <Clock size={11} style={{ color: "rgba(255,255,255,0.35)", flexShrink: 0 }} />
                         <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontWeight: 500 }}>
-                          {bot.run_times.join(" · ")}
+                          {INTERVAL_OPTIONS.find(o => o.value === (bot.interval_hours ?? 4))?.label ?? `Každé ${bot.interval_hours ?? 4}h`}
                         </span>
                       </div>
                       <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
@@ -696,15 +710,6 @@ function BotModal({
 
   const C = BOT_COLORS[form.type];
 
-  const toggleTime = (t: string) => {
-    setForm((f) => ({
-      ...f,
-      run_times: f.run_times.includes(t)
-        ? f.run_times.filter((x) => x !== t)
-        : [...f.run_times, t].sort(),
-    }));
-  };
-
   const toggleCategory = (cat: string) => {
     setForm((f) => ({
       ...f,
@@ -839,32 +844,35 @@ function BotModal({
                 )}
               </div>
 
-              {/* Schedule */}
+              {/* Schedule — interval-based */}
               <div>
                 <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: "rgba(255,255,255,0.4)", textTransform: "uppercase", display: "block", marginBottom: 10 }}>
-                  Časy spustenia
+                  Frekvencia spustenia
                 </label>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {TIME_OPTIONS.map((t) => {
-                    const active = form.run_times.includes(t);
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {INTERVAL_OPTIONS.map((opt) => {
+                    const active = (form.interval_hours ?? 4) === opt.value;
                     return (
                       <button
-                        key={t}
+                        key={opt.value}
                         type="button"
-                        onClick={() => toggleTime(t)}
+                        onClick={() => setForm((f) => ({ ...f, interval_hours: opt.value }))}
                         style={{
-                          padding: "5px 11px", borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                          padding: "7px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer",
                           background: active ? C.dim : "rgba(255,255,255,0.03)",
                           border: `1px solid ${active ? C.border : "rgba(255,255,255,0.07)"}`,
                           color: active ? C.primary : "rgba(255,255,255,0.35)",
                           transition: "all 0.12s",
                         }}
                       >
-                        {t}
+                        {opt.label}
                       </button>
                     );
                   })}
                 </div>
+                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", marginTop: 8 }}>
+                  Vercel cron sa spúšťa každú hodinu a skontroluje či uplynul nastavený čas od posledného behu.
+                </p>
               </div>
 
               {/* Categories */}
