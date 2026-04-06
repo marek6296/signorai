@@ -28,9 +28,10 @@ export async function POST(req: Request) {
     try {
         const body = await req.json();
         const { platforms, autoPublish, articleId, secret, instagramVariant } = body;
-        // instagramVariant: 'studio' | 'photo' | 'article_bg' | 'text_only'
-        // Maps to satori render variant: studio → 'studio', photo → 'photo', article_bg → 'photo' (uses article image as bg)
-        const igVariant = (instagramVariant === "photo" || instagramVariant === "article_bg") ? "photo" : "studio";
+        // instagramVariant: 'studio' | 'photo' | 'article_bg' | 'image_text' | 'text_only'
+        // Maps to satori render variant: photo/article_bg/image_text → 'photo' (article image as bg), everything else → 'studio'
+        const PHOTO_VARIANTS = ["photo", "article_bg", "image_text"];
+        const igVariant = PHOTO_VARIANTS.includes(instagramVariant) ? "photo" : "studio";
 
         if (secret !== process.env.ADMIN_SECRET && secret !== LEGACY_SECRET) {
             return NextResponse.json({ message: "Invalid secret" }, { status: 401 });
