@@ -14,6 +14,54 @@ import Parser from "rss-parser";
 const VALID_CATEGORIES = ["AI", "Tech", "Návody & Tipy"];
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=1200";
 
+// ─── Semantic similarity helpers ──────────────────────────────────────────────
+function extractKeywords(text: string): Set<string> {
+  const stopWords = new Set([
+    // English
+    'the','a','an','and','or','but','in','on','at','to','for','of','with','by','from',
+    'up','about','as','is','was','are','were','be','been','have','has','had','do','does',
+    'did','will','would','could','should','may','might','can','that','this','these',
+    'those','it','its','new','first','how','what','who','when','why','now',
+    // Slovak
+    'na','sa','je','to','si','vo','zo','pre','pri','po','do','ako','aj','ale','bo',
+    'lebo','keď','že','čo','kto','kde','nový','nová','nové','prvý','prvá','prvé',
+    'jeho','jej','ich','náš','váš','sú','bol','bola','bolo','boli','len','už','či',
+    'ktorý','ktorá','ktoré','tento','táto','toto','tieto','všetky','každý','môže',
+    'môžu','bude','budú','boli','budeme','by','než','tak','nie','áno','viac','menej',
+  ]);
+  return new Set(
+    text.toLowerCase()
+      .replace(/[^a-záéíóúýčďěňřšťžůä0-9]/gi, ' ')
+      .split(/\s+/)
+      .filter(w => w.length > 3 && !stopWords.has(w))
+  );
+}
+
+function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 || b.size === 0) return 0;
+  const aArr = Array.from(a);
+  const bArr = Array.from(b);
+  const intersection = aArr.filter(x => b.has(x)).length;
+  const union = new Set(aArr.concat(bArr)).size;
+  return intersection / union;
+}
+
+/**
+ * Returns true when the proposed title is semantically too similar to any of the
+ * recent article titles (Jaccard keyword overlap above `threshold`).
+ */
+function isTooSimilarToRecent(title: string, recentTitles: string[], threshold = 0.30): boolean {
+  const titleKw = extractKeywords(title);
+  for (const recent of recentTitles) {
+    const sim = jaccardSimilarity(titleKw, extractKeywords(recent));
+    if (sim >= threshold) {
+      console.log(`[BotCycle] ⚠️ Similarity ${(sim * 100).toFixed(0)}% — rejected "${title}" (too close to: "${recent}")`);
+      return true;
+    }
+  }
+  return false;
+}
+
 // ─── RSS fallback feeds (keď nie sú v DB) ─────────────────────────────────────
 const RSS_FALLBACK_FEEDS: Record<string, { name: string; url: string }[]> = {
   "AI": [
@@ -488,7 +536,7 @@ async function fetchGeminiTopic(
   const usedTitles = (existingArticles || []).map((a: { title: string }) => a.title).filter(Boolean);
   const dedupeBlock =
     usedTitles.length > 0
-      ? `\nTIETO TÉMY UŽ MÁME — navrhni VÝHRADNE odlišné témy:\n${usedTitles.slice(0, 20).map((t) => `- ${t}`).join("\n")}\n`
+      ? `\nTIETO TÉMY UŽ MÁME — navrhni VÝHRADNE odlišné témy (aj sémanticky, nielen názvom — napríklad ak máme "GPT-5 mení pravidlá AI", nechceme nič iné o GPT-5 ani o nových AI modeloch v rovnakom kontexte):\n${usedTitles.slice(0, 40).map((t) => `- ${t}`).join("\n")}\n`
       : "";
 
   const today = new Date().toLocaleDateString("sk-SK", {
@@ -540,6 +588,9 @@ Vráť ČISTÝ JSON bez markdown blokov.`;
 
     const parsed = JSON.parse(jsonMatch[0]);
     if (!parsed.title) return null;
+
+    // Reject if semantically too similar to a recent article
+    if (isTooSimilarToRecent(parsed.title, usedTitles)) return null;
 
     return {
       title: parsed.title,
@@ -604,6 +655,8 @@ async function fetchTopicFromRSS(
   const usedTitles = new Set(
     (existingArticles || []).map((a) => (a.title || "").toLowerCase().trim())
   );
+  // Array form for semantic similarity check
+  const usedTitlesArr = Array.from(usedTitles);
 
   const parser = new Parser({ timeout: 8000 });
   const maxAgeMs = 3 * 24 * 60 * 60 * 1000; // 3 days
@@ -624,6 +677,8 @@ async function fetchTopicFromRSS(
         const normalizedUrl = item.link.split("?")[0].toLowerCase().trim().replace(/\/$/, "");
         if (usedUrls.has(normalizedUrl)) continue;
         if (usedTitles.has((item.title || "").toLowerCase().trim())) continue;
+        // Semantic similarity check — skip topics too close to already-published articles
+        if (isTooSimilarToRecent(item.title, usedTitlesArr)) continue;
 
         const pubDate = new Date(item.isoDate || item.pubDate || "").getTime();
         if (isNaN(pubDate) || now - pubDate > maxAgeMs) continue;
