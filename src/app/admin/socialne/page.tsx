@@ -74,6 +74,7 @@ export default function SocialnePage() {
   const [selectedPlatforms, setSelectedPlatforms] = useState<Set<string>>(new Set(["Instagram", "Facebook"]));
   const [instagramFormat, setInstagramFormat] = useState<InstagramFormat>("image_text");
   const [generating, setGenerating] = useState(false);
+  const [generatingProgress, setGeneratingProgress] = useState<{ current: number; total: number; label: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
   // Bot settings
@@ -172,10 +173,19 @@ export default function SocialnePage() {
       return;
     }
     setGenerating(true);
+    const articlesToProcess = articles.filter((a) => selectedArticles.has(a.id));
+    const platforms = Array.from(selectedPlatforms);
+    const total = articlesToProcess.length * platforms.length;
+    let current = 0;
     try {
-      const articlesToProcess = articles.filter((a) => selectedArticles.has(a.id));
       for (const article of articlesToProcess) {
-        for (const platform of Array.from(selectedPlatforms)) {
+        for (const platform of platforms) {
+          current++;
+          setGeneratingProgress({
+            current,
+            total,
+            label: `${article.title.slice(0, 45)}${article.title.length > 45 ? "…" : ""} → ${platform}`,
+          });
           await fetch("/api/admin/generate-social-post", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -184,7 +194,6 @@ export default function SocialnePage() {
               excerpt: article.excerpt,
               url: `https://aiwai.news/clanky/${article.slug}`,
               platform,
-              // Instagram-specific format
               ...(platform === "Instagram" && {
                 instagramFormat,
                 articleImage: article.main_image,
@@ -195,11 +204,13 @@ export default function SocialnePage() {
       }
       await fetchPosts();
       setSelectedArticles(new Set());
-      showToast(`${articlesToProcess.length * selectedPlatforms.size} príspevkov generovaných ✓`);
+      setActiveTab("draft"); // switch to drafts so user sees the new posts
+      showToast(`${total} príspevkov generovaných ✓`);
     } catch {
       showToast("Chyba pri generovaní", "error");
     } finally {
       setGenerating(false);
+      setGeneratingProgress(null);
     }
   };
 
@@ -244,6 +255,52 @@ export default function SocialnePage() {
 
   return (
     <div className="min-h-screen" style={{ background: "#080808" }}>
+      {/* ── Fixed generating overlay (top-center) ── */}
+      {generating && generatingProgress && (
+        <div
+          className="fixed inset-x-0 top-0 z-50 flex justify-center pt-5"
+          style={{ pointerEvents: "none" }}
+        >
+          <div
+            className="rounded-2xl px-5 py-4 flex items-center gap-4"
+            style={{
+              background: "linear-gradient(145deg, #141414 0%, #0f0f0f 100%)",
+              border: "1px solid rgba(244,114,182,0.35)",
+              boxShadow: "0 8px 40px rgba(0,0,0,0.8), 0 0 24px rgba(244,114,182,0.12)",
+              minWidth: 340, maxWidth: 500,
+              animation: "slideDownGen 0.3s ease",
+            }}
+          >
+            <style>{`@keyframes slideDownGen { from { opacity:0; transform:translateY(-16px); } to { opacity:1; transform:translateY(0); } }`}</style>
+            {/* Spinner */}
+            <div className="relative w-9 h-9 shrink-0">
+              <div className="absolute inset-0 rounded-full" style={{ border: "2px solid rgba(255,255,255,0.06)" }} />
+              <div className="absolute inset-0 rounded-full animate-spin" style={{ border: "2px solid transparent", borderTopColor: "#f472b6", borderRightColor: "rgba(244,114,182,0.3)" }} />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Zap className="w-4 h-4" style={{ color: "#f472b6" }} />
+              </div>
+            </div>
+            {/* Info */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-sm font-black text-white">Generujem príspevky...</span>
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(244,114,182,0.12)", border: "1px solid rgba(244,114,182,0.3)", color: "#f472b6" }}>
+                  {generatingProgress.current}/{generatingProgress.total}
+                </span>
+              </div>
+              <p className="text-xs truncate" style={{ color: "rgba(255,255,255,0.4)" }}>{generatingProgress.label}</p>
+              {/* Progress bar */}
+              <div className="mt-2 h-1 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{ width: `${(generatingProgress.current / generatingProgress.total) * 100}%`, background: "linear-gradient(to right, #f472b6, #e879f9)" }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Toast */}
       {toast && (
         <div
