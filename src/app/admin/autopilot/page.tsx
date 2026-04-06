@@ -82,18 +82,25 @@ function timeAgo(dateStr: string | null | undefined): string {
   return `pred ${Math.floor(hrs / 24)}d`;
 }
 
-function timeUntilNextRun(bot: Bot): string {
-  if (!bot.enabled) return "—";
-  if (!bot.last_run) return "teraz";
+function timeUntilNextRun(bot: Bot): { label: string; isReady: boolean } {
+  if (!bot.enabled) return { label: "—", isReady: false };
+  if (!bot.last_run) return { label: "PRIPRAVENÝ", isReady: true };
   const intervalMs = (bot.interval_hours ?? 4) * 60 * 60 * 1000;
   const nextRunMs = new Date(bot.last_run).getTime() + intervalMs;
   const diff = nextRunMs - Date.now();
-  if (diff <= 0) return "teraz";
-  const mins = Math.floor(diff / 60000);
-  if (mins < 60) return `o ${mins} min`;
-  const hrs = Math.floor(mins / 60);
-  const remMins = mins % 60;
-  return remMins > 0 ? `o ${hrs}h ${remMins}min` : `o ${hrs}h`;
+  
+  if (diff <= 0) return { label: "PRIPRAVENÝ", isReady: true };
+  
+  const totalSecs = Math.floor(diff / 1000);
+  const hrs = Math.floor(totalSecs / 3600);
+  const mins = Math.floor((totalSecs % 3600) / 60);
+  const secs = totalSecs % 60;
+  
+  const h = hrs > 0 ? `${hrs}h ` : "";
+  const m = String(mins).padStart(2, "0");
+  const s = String(secs).padStart(2, "0");
+  
+  return { label: `${h}${m}:${s}`, isReady: false };
 }
 
 // ─── Mini Toggle ──────────────────────────────────────────────────────────────
@@ -151,16 +158,16 @@ export default function BotsPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [cronCountdown, setCronCountdown] = useState<{ mins: number; secs: number }>({ mins: 0, secs: 0 });
 
-  // ── Cron countdown (fires at top of every hour: 0 * * * *) ──
+  const [tick, setTick] = useState(0);
+  // ── Countdown timer (updates every second) ──
   useEffect(() => {
-    const tick = () => {
+    const timer = setInterval(() => {
+      setTick(t => t + 1);
       const now = new Date();
       const totalSecsLeft = (59 - now.getMinutes()) * 60 + (60 - now.getSeconds());
       setCronCountdown({ mins: Math.floor(totalSecsLeft / 60), secs: totalSecsLeft % 60 });
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
+    }, 1000);
+    return () => clearInterval(timer);
   }, []);
 
   const showToast = (msg: string, type: "success" | "error" | "info" = "success") => {
@@ -634,12 +641,25 @@ export default function BotsPage() {
                       </div>
                       <div style={{ width: 1, background: "rgba(255,255,255,0.05)" }} />
                       <div>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: bot.enabled ? C.primary : "rgba(255,255,255,0.25)" }}>
-                          {timeUntilNextRun(bot)}
-                        </p>
-                        <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.15em", color: "rgba(255,255,255,0.25)", textTransform: "uppercase", marginTop: 2 }}>
-                          Ďalší beh
-                        </p>
+                        {(() => {
+                          const { label, isReady } = timeUntilNextRun(bot);
+                          return (
+                            <>
+                              <p style={{ 
+                                fontSize: 13, 
+                                fontWeight: 800, 
+                                color: isReady ? "#22c55e" : (bot.enabled ? C.primary : "rgba(255,255,255,0.25)"),
+                                fontVariantNumeric: "tabular-nums",
+                                letterSpacing: isReady ? "0.05em" : "0"
+                              }}>
+                                {label}
+                              </p>
+                              <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.15em", color: "rgba(255,255,255,0.25)", textTransform: "uppercase", marginTop: 2 }}>
+                                {isReady ? "Dostupný" : "Ďalší beh"}
+                              </p>
+                            </>
+                          );
+                        })()}
                       </div>
                       {bot.enabled && (
                         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 5 }}>

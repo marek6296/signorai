@@ -53,7 +53,8 @@ export async function GET(
 
         if (postError || !post) return new Response(`Post not found`, { status: 404 });
 
-        const title    = post.articles?.title    || 'Novinky zo sveta AI';
+        // Strip HTML tags from title (e.g. <STRONG>...</STRONG> from CMS)
+        const title    = (post.articles?.title || 'Novinky zo sveta AI').replace(/<[^>]+>/g, '');
         const rawImgUrl = post.articles?.main_image || null;
         const category = post.articles?.category  || 'AI';
 

@@ -241,7 +241,8 @@ Perex: ${article.excerpt}`;
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
                             id: savedPost.id,
-                            secret: LEGACY_SECRET
+                            secret: LEGACY_SECRET,
+                            variant: igVariant   // pass photo/studio variant through to publish
                         })
                     });
 

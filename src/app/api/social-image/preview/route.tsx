@@ -41,7 +41,7 @@ async function loadImageAsDataUrl(url: string): Promise<string | null> {
 export async function GET(req: NextRequest) {
     try {
         const sp = req.nextUrl.searchParams;
-        const title   = sp.get('title')    || 'Novinky zo sveta AI';
+        const title   = (sp.get('title') || 'Novinky zo sveta AI').replace(/<[^>]+>/g, '');
         const rawImg  = sp.get('imageUrl') || '';
         const variant = sp.get('variant')  || 'photo';
         const dateStr = sp.get('date')     || '';
