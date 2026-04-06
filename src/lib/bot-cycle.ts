@@ -36,6 +36,53 @@ export interface BotCycleResult {
   error?: string;
 }
 
+// ─── Scrape images from a source URL (og:image + <img> tags) ─────────────────
+async function scrapeSourceImages(url: string): Promise<{ hero: string | null; inline1: string | null; inline2: string | null }> {
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; AIWaiBot/1.0)" },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return { hero: null, inline1: null, inline2: null };
+
+    const html = await res.text();
+
+    // 1. Try og:image first (highest quality, usually the hero)
+    const ogMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
+      || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+    const ogImage = ogMatch?.[1] || null;
+
+    // 2. Extract all <img> src values from article body (skip tiny icons/logos)
+    const imgMatches = [...html.matchAll(/<img[^>]+src=["']([^"']+)["'][^>]*>/gi)];
+    const candidateImgs = imgMatches
+      .map((m) => m[1])
+      .filter((src) => {
+        if (!src.startsWith("http")) return false;
+        // Skip likely icons/avatars/logos/trackers
+        if (/\/(icon|logo|avatar|pixel|tracking|placeholder|spinner|gif)/i.test(src)) return false;
+        if (/\.(svg|gif|ico)(\?|$)/i.test(src)) return false;
+        return true;
+      });
+
+    // Deduplicate keeping order
+    const seen = new Set<string>();
+    const deduped = candidateImgs.filter((u) => { if (seen.has(u)) return false; seen.add(u); return true; });
+
+    // og:image is always the hero; pick next 2 unique inline images (skip if same as og)
+    const inlines = deduped.filter((u) => u !== ogImage).slice(0, 2);
+
+    const hero   = ogImage || deduped[0] || null;
+    const inline1 = inlines[0] || null;
+    const inline2 = inlines[1] || null;
+
+    console.log(`[BotCycle] Source images scraped — hero=${!!hero}, inline1=${!!inline1}, inline2=${!!inline2}`);
+    return { hero, inline1, inline2 };
+  } catch (e) {
+    console.warn("[BotCycle] Source image scraping failed:", e);
+    return { hero: null, inline1: null, inline2: null };
+  }
+}
+
 // ─── Generate and upload one AI image ──────────────────────────────────────────
 async function generateAndUploadImage(
   ai: GoogleGenAI,
@@ -227,18 +274,46 @@ ${topic.url ? `ZDROJ: ${topic.url}` : ""}`;
 
     console.log(`[BotCycle][${rid}] Article generated: "${articleData.title}"`);
 
-    // ── 3. Generate images in parallel ────────────────────────────────────────
-    console.log(`[BotCycle][${rid}] Generating 3 AI images...`);
-    const imageBase = `Generate a photorealistic, ultra-high quality cinematic editorial photograph.
+    // ── 3. Images: try source first, AI-generate only what's missing ─────────
+    let heroUrl: string | null = null;
+    let inline1Url: string | null = null;
+    let inline2Url: string | null = null;
+
+    // 3a. Try to scrape images from the source article URL
+    if (topic.url) {
+      console.log(`[BotCycle][${rid}] Scraping images from source: ${topic.url}`);
+      const scraped = await scrapeSourceImages(topic.url);
+      heroUrl   = scraped.hero;
+      inline1Url = scraped.inline1;
+      inline2Url = scraped.inline2;
+    }
+
+    // 3b. AI-generate only the images still missing
+    const missingHero   = !heroUrl;
+    const missingInline1 = !inline1Url;
+    const missingInline2 = !inline2Url;
+    const anyMissing = missingHero || missingInline1 || missingInline2;
+
+    if (anyMissing) {
+      console.log(`[BotCycle][${rid}] AI-generating missing images (hero=${missingHero}, inline1=${missingInline1}, inline2=${missingInline2})...`);
+      const imageBase = `Generate a photorealistic, ultra-high quality cinematic editorial photograph.
 Theme: ${articleData.title || topic.title}
 Context: ${articleData.excerpt || topic.summary || "Technology news"}
 RULES: NO real public figures, NO branded logos, NO text overlays, NO watermarks. Realistic editorial photography.`;
 
-    const [heroUrl, inline1Url, inline2Url] = await Promise.all([
-      generateAndUploadImage(ai, `${imageBase}\nFocus: Main subject — innovative hardware or core concept of story. Hero shot, dramatic lighting.`),
-      generateAndUploadImage(ai, `${imageBase}\nFocus: Close-up detail — specific component, interface, or technical element.`),
-      generateAndUploadImage(ai, `${imageBase}\nFocus: Broader impact — people using technology or futuristic environment.`),
-    ]);
+      const [aiHero, aiInline1, aiInline2] = await Promise.all([
+        missingHero   ? generateAndUploadImage(ai, `${imageBase}\nFocus: Main subject — innovative hardware or core concept of story. Hero shot, dramatic lighting.`) : Promise.resolve(null),
+        missingInline1 ? generateAndUploadImage(ai, `${imageBase}\nFocus: Close-up detail — specific component, interface, or technical element.`) : Promise.resolve(null),
+        missingInline2 ? generateAndUploadImage(ai, `${imageBase}\nFocus: Broader impact — people using technology or futuristic environment.`) : Promise.resolve(null),
+      ]);
+
+      if (missingHero   && aiHero)   heroUrl   = aiHero;
+      if (missingInline1 && aiInline1) inline1Url = aiInline1;
+      if (missingInline2 && aiInline2) inline2Url = aiInline2;
+    } else {
+      console.log(`[BotCycle][${rid}] All images from source — skipping AI generation`);
+    }
+
     console.log(`[BotCycle][${rid}] Images ready: hero=${!!heroUrl}, inline1=${!!inline1Url}, inline2=${!!inline2Url}`);
 
     // ── 4. Inject inline images into content ──────────────────────────────────
