@@ -17,6 +17,9 @@ interface InstagramPreviewProps {
     id?: string;
     articleId?: string;
     onImageUpdate?: (url: string) => void;
+    /** If provided, clicking Save calls this (server-side render) instead of html-to-image.
+     *  Receives the current variant ('studio'|'photo'), returns the public PNG URL or null. */
+    onSaveAndRender?: (variant: 'studio' | 'photo') => Promise<string | null>;
 }
 
 export function InstagramPreview({
@@ -28,6 +31,7 @@ export function InstagramPreview({
     id = "instagram-preview-capture",
     articleId,
     onImageUpdate,
+    onSaveAndRender,
 }: InstagramPreviewProps) {
     const previewRef  = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -41,6 +45,9 @@ export function InstagramPreview({
     const [currentImg,    setCurrentImg]    = useState(articleImage || '');
     const [base64Img,     setBase64Img]     = useState<string>('');
     const [imgReady,      setImgReady]      = useState(false);
+
+    // Download state
+    const [isDownloading,  setIsDownloading]  = useState(false);
 
     // Generate / Edit
     const [isGenerating,   setIsGenerating]   = useState(false);
@@ -97,11 +104,41 @@ export function InstagramPreview({
     const captureOpts = { cacheBust: true, width: 1080, height: 1080, pixelRatio: 1 };
 
     const onDownload = async () => {
-        if (!previewRef.current) return;
-        const url = await toPng(previewRef.current, captureOpts);
-        const a = document.createElement('a');
-        a.download = `aiwai-${variant}-${Date.now()}.png`;
-        a.href = url; a.click();
+        setIsDownloading(true);
+        try {
+            if (onSaveAndRender) {
+                // Server-side render (preserves backgrounds perfectly)
+                const url = await onSaveAndRender(variant);
+                if (url) {
+                    // Fetch the PNG via proxy to force download (avoids open-in-tab)
+                    try {
+                        const res = await fetch(`/api/proxy-image?url=${encodeURIComponent(url)}&t=${Date.now()}`);
+                        if (res.ok) {
+                            const blob = await res.blob();
+                            const blobUrl = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.download = `aiwai-${variant}-${Date.now()}.png`;
+                            a.href = blobUrl;
+                            a.click();
+                            setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+                            return;
+                        }
+                    } catch { /* fallthrough to direct link */ }
+                    const a = document.createElement('a');
+                    a.download = `aiwai-${variant}-${Date.now()}.png`;
+                    a.href = url; a.click();
+                    return;
+                }
+            }
+            // Fallback: html-to-image (may miss some backgrounds)
+            if (!previewRef.current) return;
+            const url = await toPng(previewRef.current, captureOpts);
+            const a = document.createElement('a');
+            a.download = `aiwai-${variant}-${Date.now()}.png`;
+            a.href = url; a.click();
+        } finally {
+            setIsDownloading(false);
+        }
     };
 
     const onCopy = async () => {
@@ -221,10 +258,11 @@ export function InstagramPreview({
                         {isCopied ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                         {isCopied ? "OK!" : "Copy"}
                     </button>
-                    <button onClick={onDownload} disabled={!imgReady}
+                    <button onClick={onDownload} disabled={!imgReady || isDownloading}
                         className="flex items-center gap-1.5 bg-white text-black px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-200 transition-all shadow-sm disabled:opacity-40"
                     >
-                        <Download className="w-3.5 h-3.5" /> Save
+                        {isDownloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                        {isDownloading ? '...' : 'Save'}
                     </button>
                 </div>
             </div>

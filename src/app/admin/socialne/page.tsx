@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { InstagramPreview } from "@/components/InstagramPreview";
 import {
@@ -19,6 +19,9 @@ import {
   Zap,
   Settings,
   RefreshCw,
+  CheckCircle2,
+  X,
+  ExternalLink,
 } from "lucide-react";
 
 type SocialPost = {
@@ -42,6 +45,8 @@ type Article = {
   status: string;
   main_image: string;
 };
+
+type PendingPost = { platform: string; content: string; article: Article };
 
 type SocialBotSettings = {
   enabled: boolean;
@@ -76,9 +81,15 @@ export default function SocialnePage() {
   const [instagramFormat, setInstagramFormat] = useState<InstagramFormat>("image_text");
   const [generating, setGenerating] = useState(false);
   const [generatingProgress, setGeneratingProgress] = useState<{ current: number; total: number; label: string } | null>(null);
-  const [lastGeneratedPost, setLastGeneratedPost] = useState<SocialPost | null>(null);
-  const [lastGeneratedArticle, setLastGeneratedArticle] = useState<Article | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Pending (preview before save)
+  const [pendingPosts, setPendingPosts] = useState<PendingPost[]>([]);
+  const [previewArticle, setPreviewArticle] = useState<Article | null>(null);
+  // Editable pending content
+  const [pendingIgContent, setPendingIgContent] = useState("");
+  const [pendingFbContent, setPendingFbContent] = useState("");
+  const [confirming, setConfirming] = useState(false);
 
   // Bot settings
   const [showSettings, setShowSettings] = useState(false);
@@ -104,7 +115,7 @@ export default function SocialnePage() {
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
-    setTimeout(() => setToast(null), 3000);
+    setTimeout(() => setToast(null), 3500);
   };
 
   const fetchPosts = async () => {
@@ -170,19 +181,22 @@ export default function SocialnePage() {
     }
   };
 
+  // ── Step 1: Generate text only → show in preview, do NOT save to DB yet ──
   const generatePosts = async () => {
     if (selectedArticles.size === 0 || selectedPlatforms.size === 0) {
       showToast("Vyberte aspoň jeden článok a platformu", "error");
       return;
     }
     setGenerating(true);
-    setLastGeneratedPost(null);
-    setLastGeneratedArticle(null);
+    setPendingPosts([]);
+    setPreviewArticle(null);
+
     const articlesToProcess = articles.filter((a) => selectedArticles.has(a.id));
     const platforms = Array.from(selectedPlatforms);
     const total = articlesToProcess.length * platforms.length;
     let current = 0;
-    let lastPost: SocialPost | null = null;
+    const generated: PendingPost[] = [];
+
     try {
       for (const article of articlesToProcess) {
         for (const platform of platforms) {
@@ -193,7 +207,6 @@ export default function SocialnePage() {
             label: `${article.title.slice(0, 45)}${article.title.length > 45 ? "…" : ""} → ${platform}`,
           });
 
-          // Step 1: Generate text
           const textRes = await fetch("/api/admin/generate-social-post", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -206,62 +219,137 @@ export default function SocialnePage() {
           });
           if (!textRes.ok) throw new Error("Text generation failed");
           const { socialPost } = await textRes.json();
-
-          // Step 2: Save to DB
-          const saveRes = await fetch("/api/admin/social-posts", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify([{
-              article_id: article.id,
-              platform,
-              content: socialPost,
-              status: "draft",
-            }]),
-          });
-          if (!saveRes.ok) throw new Error("Save failed");
-          const savedPosts = await saveRes.json();
-          const savedPost = savedPosts?.[0];
-
-          if (savedPost?.id) {
-            // Step 3: Generate image (photo variant = article image as background)
-            setGeneratingProgress({
-              current,
-              total,
-              label: `Generujem obrázok pre ${platform}...`,
-            });
-            try {
-              await fetch("/api/admin/pre-render-social-image", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id: savedPost.id, variant: "photo" }),
-              });
-            } catch {
-              // Image gen failure is non-fatal
-            }
-
-            lastPost = {
-              ...savedPost,
-              articles: { title: article.title, slug: article.slug, category: article.category, main_image: article.main_image },
-            };
-          }
+          generated.push({ platform, content: socialPost || "", article });
         }
       }
-      await fetchPosts();
-      if (lastPost) {
-        setLastGeneratedPost(lastPost);
-        // set the article for InstagramPreview (use the last processed article)
-        const lastArticle = articlesToProcess[articlesToProcess.length - 1];
-        if (lastArticle) setLastGeneratedArticle(lastArticle);
-      }
+
+      setPendingPosts(generated);
+
+      // Set preview to the first article that has an Instagram post
+      const firstIg = generated.find((p) => p.platform === "Instagram");
+      const firstArticle = firstIg?.article || generated[0]?.article || null;
+      setPreviewArticle(firstArticle || null);
+
+      // Initialize editable content (for the first article)
+      const igPost = generated.find((p) => p.platform === "Instagram" && p.article.id === firstArticle?.id);
+      const fbPost = generated.find((p) => p.platform === "Facebook" && p.article.id === firstArticle?.id);
+      setPendingIgContent(igPost?.content || "");
+      setPendingFbContent(fbPost?.content || "");
+
       setSelectedArticles(new Set());
-      setActiveTab("draft");
-      showToast(`${total} príspevkov vygenerovaných ✓`);
+      showToast("Texty vygenerované — skontroluj a potvrď");
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Chyba";
       showToast(`Chyba: ${msg}`, "error");
     } finally {
       setGenerating(false);
       setGeneratingProgress(null);
+    }
+  };
+
+  // ── Step 2: Confirm → save to DB + pre-render image ──
+  const confirmAndSave = async () => {
+    if (!pendingPosts.length || !previewArticle) return;
+    setConfirming(true);
+
+    try {
+      const savedIds: { platform: string; id: string }[] = [];
+
+      // Sync editable content back to pendingPosts before saving
+      const toSave = pendingPosts.map((p) => {
+        if (p.platform === "Instagram" && p.article.id === previewArticle.id) {
+          return { ...p, content: pendingIgContent };
+        }
+        if (p.platform === "Facebook" && p.article.id === previewArticle.id) {
+          return { ...p, content: pendingFbContent };
+        }
+        return p;
+      });
+
+      for (const pending of toSave) {
+        const saveRes = await fetch("/api/admin/social-posts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify([{
+            article_id: pending.article.id,
+            platform: pending.platform,
+            content: pending.content,
+            status: "draft",
+          }]),
+        });
+        if (!saveRes.ok) throw new Error("Save failed");
+        const savedArr = await saveRes.json();
+        const savedPost = savedArr?.[0];
+        if (savedPost?.id) {
+          savedIds.push({ platform: pending.platform, id: savedPost.id });
+        }
+      }
+
+      // Pre-render Instagram image server-side
+      const igSaved = savedIds.find((s) => s.platform === "Instagram");
+      if (igSaved) {
+        try {
+          await fetch("/api/admin/pre-render-social-image", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: igSaved.id, variant: "photo" }),
+          });
+        } catch { /* non-fatal */ }
+      }
+
+      await fetchPosts();
+      setPendingPosts([]);
+      setPreviewArticle(null);
+      setPendingIgContent("");
+      setPendingFbContent("");
+      setActiveTab("draft");
+      showToast(`${toSave.length} príspevkov uložených do draftov ✓`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Chyba";
+      showToast(`Chyba: ${msg}`, "error");
+    } finally {
+      setConfirming(false);
+    }
+  };
+
+  // ── Save+render for InstagramPreview download button ──
+  // Saves the Instagram post to DB, pre-renders server-side, returns the PNG URL for download
+  const handlePreviewSaveAndRender = async (variant: "studio" | "photo"): Promise<string | null> => {
+    if (!previewArticle) return null;
+    try {
+      // Save Instagram post
+      const content = pendingIgContent || pendingPosts.find((p) => p.platform === "Instagram" && p.article.id === previewArticle.id)?.content || "";
+      const saveRes = await fetch("/api/admin/social-posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify([{
+          article_id: previewArticle.id,
+          platform: "Instagram",
+          content,
+          status: "draft",
+        }]),
+      });
+      if (!saveRes.ok) return null;
+      const savedArr = await saveRes.json();
+      const savedPost = savedArr?.[0];
+      if (!savedPost?.id) return null;
+
+      // Pre-render
+      const prRes = await fetch("/api/admin/pre-render-social-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: savedPost.id, variant }),
+      });
+      if (!prRes.ok) return null;
+      const prData = await prRes.json();
+
+      // Remove the saved IG post from pending so confirmAndSave skips it
+      setPendingPosts((prev) => prev.filter((p) => !(p.platform === "Instagram" && p.article.id === previewArticle.id)));
+
+      await fetchPosts();
+      return prData.url || null;
+    } catch {
+      return null;
     }
   };
 
@@ -304,14 +392,15 @@ export default function SocialnePage() {
     { id: "article_bg", label: "Obrázok článku", desc: "Obrázok z článku ako pozadie", icon: Layers },
   ];
 
+  const hasPendingPreview = pendingPosts.length > 0 && !!previewArticle;
+  const pendingIgPost = pendingPosts.find((p) => p.platform === "Instagram");
+  const pendingFbPost = pendingPosts.find((p) => p.platform === "Facebook");
+
   return (
     <div className="min-h-screen" style={{ background: "#080808" }}>
       {/* ── Fixed generating overlay (top-center) ── */}
-      {generating && generatingProgress && (
-        <div
-          className="fixed inset-x-0 top-0 z-50 flex justify-center pt-5"
-          style={{ pointerEvents: "none" }}
-        >
+      {(generating && generatingProgress) && (
+        <div className="fixed inset-x-0 top-0 z-50 flex justify-center pt-5" style={{ pointerEvents: "none" }}>
           <div
             className="rounded-2xl px-5 py-4 flex items-center gap-4"
             style={{
@@ -323,7 +412,6 @@ export default function SocialnePage() {
             }}
           >
             <style>{`@keyframes slideDownGen { from { opacity:0; transform:translateY(-16px); } to { opacity:1; transform:translateY(0); } }`}</style>
-            {/* Spinner */}
             <div className="relative w-9 h-9 shrink-0">
               <div className="absolute inset-0 rounded-full" style={{ border: "2px solid rgba(255,255,255,0.06)" }} />
               <div className="absolute inset-0 rounded-full animate-spin" style={{ border: "2px solid transparent", borderTopColor: "#f472b6", borderRightColor: "rgba(244,114,182,0.3)" }} />
@@ -331,22 +419,47 @@ export default function SocialnePage() {
                 <Zap className="w-4 h-4" style={{ color: "#f472b6" }} />
               </div>
             </div>
-            {/* Info */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-sm font-black text-white">Generujem príspevky...</span>
+                <span className="text-sm font-black text-white">Generujem texty...</span>
                 <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(244,114,182,0.12)", border: "1px solid rgba(244,114,182,0.3)", color: "#f472b6" }}>
                   {generatingProgress.current}/{generatingProgress.total}
                 </span>
               </div>
               <p className="text-xs truncate" style={{ color: "rgba(255,255,255,0.4)" }}>{generatingProgress.label}</p>
-              {/* Progress bar */}
               <div className="mt-2 h-1 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
                 <div
                   className="h-full rounded-full transition-all duration-500"
                   style={{ width: `${(generatingProgress.current / generatingProgress.total) * 100}%`, background: "linear-gradient(to right, #f472b6, #e879f9)" }}
                 />
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Fixed confirming overlay ── */}
+      {confirming && (
+        <div className="fixed inset-x-0 top-0 z-50 flex justify-center pt-5" style={{ pointerEvents: "none" }}>
+          <div
+            className="rounded-2xl px-5 py-4 flex items-center gap-4"
+            style={{
+              background: "linear-gradient(145deg, #141414 0%, #0f0f0f 100%)",
+              border: "1px solid rgba(74,222,128,0.35)",
+              boxShadow: "0 8px 40px rgba(0,0,0,0.8), 0 0 24px rgba(74,222,128,0.12)",
+              minWidth: 280,
+              animation: "slideDownGen 0.3s ease",
+            }}
+          >
+            <div className="relative w-9 h-9 shrink-0">
+              <div className="absolute inset-0 rounded-full animate-spin" style={{ border: "2px solid transparent", borderTopColor: "#4ade80", borderRightColor: "rgba(74,222,128,0.3)" }} />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <CheckCircle2 className="w-4 h-4" style={{ color: "#4ade80" }} />
+              </div>
+            </div>
+            <div>
+              <span className="text-sm font-black text-white">Ukladám do draftov...</span>
+              <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>Renderujem Instagram obrázok</p>
             </div>
           </div>
         </div>
@@ -421,10 +534,7 @@ export default function SocialnePage() {
           }}
         >
           {/* Tab header */}
-          <div
-            className="flex items-center gap-1 p-3"
-            style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
-          >
+          <div className="flex items-center gap-1 p-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
             {(["draft", "posted"] as const).map((tab) => (
               <button
                 key={tab}
@@ -471,6 +581,7 @@ export default function SocialnePage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {displayPosts.map((post) => {
                   const pl = platformStyle(post.platform);
+                  const isIg = post.platform === "Instagram";
                   return (
                     <div
                       key={post.id}
@@ -478,11 +589,8 @@ export default function SocialnePage() {
                       style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
                     >
                       {/* Platform badge */}
-                      <div
-                        className="flex items-center gap-2 px-4 py-3"
-                        style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
-                      >
-                        {post.platform === "Instagram"
+                      <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                        {isIg
                           ? <Instagram className="w-3.5 h-3.5" style={{ color: pl.color }} />
                           : <Facebook className="w-3.5 h-3.5" style={{ color: pl.color }} />
                         }
@@ -494,32 +602,46 @@ export default function SocialnePage() {
                         </span>
                       </div>
 
-                      {/* Image if present */}
-                      {post.image_url && (
-                        <img
-                          src={post.image_url}
-                          alt=""
-                          className="w-full h-28 object-cover"
-                        />
+                      {/* Instagram: show 1:1 styled image */}
+                      {isIg && post.image_url && (
+                        <div className="w-full aspect-square overflow-hidden">
+                          <img
+                            src={post.image_url}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
                       )}
 
-                      {/* Content */}
+                      {/* Facebook: show link-card style preview (FB generates OG from article URL) */}
+                      {!isIg && post.articles?.title && (
+                        <div
+                          className="mx-3 mt-3 rounded-xl overflow-hidden"
+                          style={{ background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.15)" }}
+                        >
+                          {post.articles?.main_image && (
+                            <img src={post.articles.main_image} alt="" className="w-full h-24 object-cover opacity-80" />
+                          )}
+                          <div className="px-3 py-2">
+                            <div className="text-[9px] uppercase tracking-wider mb-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>
+                              aiwai.news
+                            </div>
+                            <div className="text-[11px] font-semibold leading-tight line-clamp-2" style={{ color: "rgba(255,255,255,0.7)" }}>
+                              {post.articles.title}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Content text */}
                       <div className="px-4 py-3 flex-1">
-                        {post.articles?.title && (
-                          <p className="text-[10px] font-semibold mb-1 truncate" style={{ color: "rgba(255,255,255,0.35)" }}>
-                            {post.articles.title}
-                          </p>
-                        )}
-                        <p className="text-xs line-clamp-3 leading-relaxed" style={{ color: "rgba(255,255,255,0.65)" }}>
+                        <p className="text-xs line-clamp-3 leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
                           {post.content}
                         </p>
                       </div>
 
                       {/* Actions */}
-                      <div
-                        className="flex gap-2 px-4 py-3"
-                        style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
-                      >
+                      <div className="flex gap-2 px-4 py-3" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
                         {post.status === "draft" && (
                           <button
                             onClick={() => publishPost(post.id)}
@@ -528,6 +650,17 @@ export default function SocialnePage() {
                           >
                             <Send className="w-3 h-3" /> Publikovať
                           </button>
+                        )}
+                        {isIg && post.articles?.slug && (
+                          <a
+                            href={`https://aiwai.news/clanky/${post.articles.slug}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition-all"
+                            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.4)" }}
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
                         )}
                         <button
                           onClick={() => deletePost(post.id)}
@@ -554,10 +687,7 @@ export default function SocialnePage() {
             border: "1px solid rgba(255,255,255,0.07)",
           }}
         >
-          <div
-            className="flex items-center gap-3 px-5 py-4"
-            style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
-          >
+          <div className="flex items-center gap-3 px-5 py-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
             <div
               className="w-7 h-7 rounded-lg flex items-center justify-center"
               style={{ background: "rgba(244,114,182,0.12)", border: "1px solid rgba(244,114,182,0.2)" }}
@@ -566,216 +696,265 @@ export default function SocialnePage() {
             </div>
             <h2 className="text-sm font-black text-white uppercase tracking-wide">Generovať Príspevky</h2>
           </div>
+
           {/* Two-column layout: form left, preview right */}
-          <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px]" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+          <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px]">
 
-          {/* LEFT: form */}
-          <div className="p-5 space-y-5 min-w-0">
-            {/* Platform Selection */}
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "rgba(255,255,255,0.4)" }}>
-                Platformy
-              </label>
-              <div className="flex gap-2">
-                {(["Instagram", "Facebook"] as const).map((p) => {
-                  const active = selectedPlatforms.has(p);
-                  const pl = platformStyle(p);
-                  return (
-                    <button
-                      key={p}
-                      onClick={() => {
-                        const n = new Set(selectedPlatforms);
-                        n.has(p) ? n.delete(p) : n.add(p);
-                        setSelectedPlatforms(n);
-                      }}
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all flex-1 justify-center"
-                      style={
-                        active
-                          ? { background: pl.bg, border: `1px solid ${pl.border}`, color: pl.color }
-                          : { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.35)" }
-                      }
-                    >
-                      {p === "Instagram" ? <Instagram className="w-4 h-4" /> : <Facebook className="w-4 h-4" />}
-                      {p}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Instagram Format Options */}
-            {selectedPlatforms.has("Instagram") && (
+            {/* LEFT: form */}
+            <div className="p-5 space-y-5 min-w-0">
+              {/* Platform Selection */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "rgba(255,255,255,0.4)" }}>
-                  Instagram formát
+                  Platformy
                 </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {instagramFormats.map((fmt) => {
-                    const Icon = fmt.icon;
-                    const active = instagramFormat === fmt.id;
+                <div className="flex gap-2">
+                  {(["Instagram", "Facebook"] as const).map((p) => {
+                    const active = selectedPlatforms.has(p);
+                    const pl = platformStyle(p);
                     return (
                       <button
-                        key={fmt.id}
-                        onClick={() => setInstagramFormat(fmt.id)}
-                        className="flex flex-col items-center gap-2 p-3 rounded-xl text-center transition-all"
+                        key={p}
+                        onClick={() => {
+                          const n = new Set(selectedPlatforms);
+                          n.has(p) ? n.delete(p) : n.add(p);
+                          setSelectedPlatforms(n);
+                        }}
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all flex-1 justify-center"
                         style={
                           active
-                            ? { background: "rgba(236,72,153,0.12)", border: "1px solid rgba(236,72,153,0.3)" }
-                            : { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }
+                            ? { background: pl.bg, border: `1px solid ${pl.border}`, color: pl.color }
+                            : { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.35)" }
                         }
                       >
-                        <Icon
-                          className="w-4 h-4"
-                          style={{ color: active ? "#f472b6" : "rgba(255,255,255,0.3)" }}
-                        />
-                        <span
-                          className="text-[10px] font-bold leading-tight"
-                          style={{ color: active ? "#f472b6" : "rgba(255,255,255,0.4)" }}
-                        >
-                          {fmt.label}
-                        </span>
-                        <span
-                          className="text-[9px] leading-tight"
-                          style={{ color: "rgba(255,255,255,0.2)" }}
-                        >
-                          {fmt.desc}
-                        </span>
+                        {p === "Instagram" ? <Instagram className="w-4 h-4" /> : <Facebook className="w-4 h-4" />}
+                        {p}
                       </button>
                     );
                   })}
                 </div>
               </div>
-            )}
 
-            {/* Article Selection */}
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "rgba(255,255,255,0.4)" }}>
-                Vybrať článok{selectedArticles.size > 0 && ` (${selectedArticles.size} vybraných)`}
-              </label>
-              {/* Search */}
-              <div className="relative mb-2">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: "rgba(255,255,255,0.3)" }} />
-                <input
-                  type="text"
-                  placeholder="Hľadať článok..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none placeholder:text-white/20"
-                  style={inputStyle}
-                />
-              </div>
-              {/* Article list */}
-              <div
-                className="rounded-xl overflow-y-auto max-h-52"
-                style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}
-              >
-                {filteredArticles.length === 0 ? (
-                  <div className="py-8 text-center text-sm" style={{ color: "rgba(255,255,255,0.25)" }}>Žiadne publikované články</div>
-                ) : (
-                  filteredArticles.map((a) => {
-                    const selected = selectedArticles.has(a.id);
-                    return (
-                      <label
-                        key={a.id}
-                        className="flex items-center gap-3 px-4 py-3 cursor-pointer transition-all"
-                        style={{
-                          borderBottom: "1px solid rgba(255,255,255,0.03)",
-                          background: selected ? "rgba(244,114,182,0.06)" : "transparent",
-                        }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selected}
-                          onChange={() => {
-                            const n = new Set(selectedArticles);
-                            n.has(a.id) ? n.delete(a.id) : n.add(a.id);
-                            setSelectedArticles(n);
-                          }}
-                          className="w-4 h-4 rounded shrink-0"
-                          style={{ accentColor: "#f472b6" }}
-                        />
-                        {a.main_image && (
-                          <img src={a.main_image} alt="" className="w-8 h-8 rounded-lg object-cover shrink-0" />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-white truncate">{a.title}</p>
-                          <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>{a.category}</p>
-                        </div>
-                      </label>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-3">
-              <button
-                onClick={generatePosts}
-                disabled={generating || selectedArticles.size === 0 || selectedPlatforms.size === 0}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-black transition-all disabled:opacity-40"
-                style={{
-                  background: "linear-gradient(135deg, rgba(244,114,182,0.2) 0%, rgba(244,114,182,0.08) 100%)",
-                  border: "1px solid rgba(244,114,182,0.3)",
-                  color: "#f472b6",
-                }}
-              >
-                {generating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-                {generating ? "Generujem..." : "Generovať príspevky"}
-              </button>
-              <button
-                onClick={runAutopilot}
-                disabled={generating || selectedPlatforms.size === 0}
-                className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-40"
-                style={{
-                  background: "rgba(167,139,250,0.1)",
-                  border: "1px solid rgba(167,139,250,0.25)",
-                  color: "#a78bfa",
-                }}
-              >
-                <Zap className="w-4 h-4" /> Autopilot
-              </button>
-            </div>
-          </div>
-
-          {/* RIGHT: live preview using InstagramPreview component */}
-          <div className="p-4 flex flex-col gap-3 min-w-0" style={{ borderLeft: "1px solid rgba(255,255,255,0.06)" }}>
-            <div className="text-[10px] font-black uppercase tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.25)" }}>
-              Náhľad Instagram obrázka
-            </div>
-
-            {lastGeneratedArticle ? (
-              <>
-                <InstagramPreview
-                  title={lastGeneratedArticle.title}
-                  articleImage={lastGeneratedArticle.main_image}
-                  category={lastGeneratedArticle.category}
-                  id="socialne-preview"
-                />
-                {/* Generated text preview */}
-                {lastGeneratedPost?.content && (
-                  <div className="rounded-xl p-3 text-xs leading-relaxed mt-1" style={{
-                    background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)",
-                    color: "rgba(255,255,255,0.6)", maxHeight: 100, overflowY: "auto"
-                  }}>
-                    <div className="text-[9px] font-black uppercase tracking-wider mb-1.5" style={{ color: "rgba(255,255,255,0.25)" }}>
-                      {lastGeneratedPost.platform} príspevok
-                    </div>
-                    {lastGeneratedPost.content}
+              {/* Instagram Format Options */}
+              {selectedPlatforms.has("Instagram") && (
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "rgba(255,255,255,0.4)" }}>
+                    Instagram formát
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {instagramFormats.map((fmt) => {
+                      const Icon = fmt.icon;
+                      const active = instagramFormat === fmt.id;
+                      return (
+                        <button
+                          key={fmt.id}
+                          onClick={() => setInstagramFormat(fmt.id)}
+                          className="flex flex-col items-center gap-2 p-3 rounded-xl text-center transition-all"
+                          style={
+                            active
+                              ? { background: "rgba(236,72,153,0.12)", border: "1px solid rgba(236,72,153,0.3)" }
+                              : { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }
+                          }
+                        >
+                          <Icon className="w-4 h-4" style={{ color: active ? "#f472b6" : "rgba(255,255,255,0.3)" }} />
+                          <span className="text-[10px] font-bold leading-tight" style={{ color: active ? "#f472b6" : "rgba(255,255,255,0.4)" }}>
+                            {fmt.label}
+                          </span>
+                          <span className="text-[9px] leading-tight" style={{ color: "rgba(255,255,255,0.2)" }}>
+                            {fmt.desc}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
-                )}
-              </>
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center gap-3 py-12">
-                <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: "rgba(244,114,182,0.08)", border: "1px solid rgba(244,114,182,0.12)" }}>
-                  <ImageIcon className="w-6 h-6" style={{ color: "rgba(244,114,182,0.4)" }} />
                 </div>
-                <p className="text-xs text-center" style={{ color: "rgba(255,255,255,0.2)" }}>
-                  Po vygenerovaní sa tu zobrazí náhľad príspevku
-                </p>
+              )}
+
+              {/* Article Selection */}
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "rgba(255,255,255,0.4)" }}>
+                  Vybrať článok{selectedArticles.size > 0 && ` (${selectedArticles.size} vybraných)`}
+                </label>
+                <div className="relative mb-2">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: "rgba(255,255,255,0.3)" }} />
+                  <input
+                    type="text"
+                    placeholder="Hľadať článok..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none placeholder:text-white/20"
+                    style={inputStyle}
+                  />
+                </div>
+                <div
+                  className="rounded-xl overflow-y-auto max-h-52"
+                  style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}
+                >
+                  {filteredArticles.length === 0 ? (
+                    <div className="py-8 text-center text-sm" style={{ color: "rgba(255,255,255,0.25)" }}>Žiadne publikované články</div>
+                  ) : (
+                    filteredArticles.map((a) => {
+                      const selected = selectedArticles.has(a.id);
+                      return (
+                        <label
+                          key={a.id}
+                          className="flex items-center gap-3 px-4 py-3 cursor-pointer transition-all"
+                          style={{
+                            borderBottom: "1px solid rgba(255,255,255,0.03)",
+                            background: selected ? "rgba(244,114,182,0.06)" : "transparent",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={() => {
+                              const n = new Set(selectedArticles);
+                              n.has(a.id) ? n.delete(a.id) : n.add(a.id);
+                              setSelectedArticles(n);
+                            }}
+                            className="w-4 h-4 rounded shrink-0"
+                            style={{ accentColor: "#f472b6" }}
+                          />
+                          {a.main_image && (
+                            <img src={a.main_image} alt="" className="w-8 h-8 rounded-lg object-cover shrink-0" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-white truncate">{a.title}</p>
+                            <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>{a.category}</p>
+                          </div>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
               </div>
-            )}
-          </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={generatePosts}
+                  disabled={generating || selectedArticles.size === 0 || selectedPlatforms.size === 0}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-black transition-all disabled:opacity-40"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(244,114,182,0.2) 0%, rgba(244,114,182,0.08) 100%)",
+                    border: "1px solid rgba(244,114,182,0.3)",
+                    color: "#f472b6",
+                  }}
+                >
+                  {generating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                  {generating ? "Generujem..." : "Generovať príspevky"}
+                </button>
+                <button
+                  onClick={runAutopilot}
+                  disabled={generating || selectedPlatforms.size === 0}
+                  className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-40"
+                  style={{
+                    background: "rgba(167,139,250,0.1)",
+                    border: "1px solid rgba(167,139,250,0.25)",
+                    color: "#a78bfa",
+                  }}
+                >
+                  <Zap className="w-4 h-4" /> Autopilot
+                </button>
+              </div>
+            </div>
+
+            {/* RIGHT: preview + confirm panel */}
+            <div className="p-4 flex flex-col gap-4 min-w-0" style={{ borderLeft: "1px solid rgba(255,255,255,0.06)" }}>
+
+              {hasPendingPreview ? (
+                <>
+                  {/* Panel header */}
+                  <div className="flex items-center justify-between">
+                    <div className="text-[10px] font-black uppercase tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.35)" }}>
+                      Náhľad · Potvrď pred uložením
+                    </div>
+                    <button
+                      onClick={() => { setPendingPosts([]); setPreviewArticle(null); }}
+                      className="p-1.5 rounded-lg transition-all"
+                      style={{ color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.04)" }}
+                      title="Zahodiť"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {/* Instagram image preview */}
+                  {pendingIgPost && (
+                    <InstagramPreview
+                      title={previewArticle!.title}
+                      articleImage={previewArticle!.main_image}
+                      category={previewArticle!.category}
+                      id="socialne-preview"
+                      onSaveAndRender={handlePreviewSaveAndRender}
+                    />
+                  )}
+
+                  {/* Instagram text (editable) */}
+                  {pendingIgPost && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <Instagram className="w-3.5 h-3.5" style={{ color: "#f9a8d4" }} />
+                        <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: "#f9a8d4" }}>Instagram príspevok</span>
+                      </div>
+                      <textarea
+                        value={pendingIgContent}
+                        onChange={(e) => setPendingIgContent(e.target.value)}
+                        rows={5}
+                        className="w-full rounded-xl p-3 text-xs leading-relaxed resize-none outline-none focus:ring-1 focus:ring-pink-400/30 transition-all"
+                        style={{ background: "rgba(236,72,153,0.05)", border: "1px solid rgba(236,72,153,0.2)", color: "rgba(255,255,255,0.75)" }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Facebook text (editable) */}
+                  {pendingFbPost && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <Facebook className="w-3.5 h-3.5" style={{ color: "#93c5fd" }} />
+                        <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: "#93c5fd" }}>Facebook príspevok</span>
+                      </div>
+                      <textarea
+                        value={pendingFbContent}
+                        onChange={(e) => setPendingFbContent(e.target.value)}
+                        rows={5}
+                        className="w-full rounded-xl p-3 text-xs leading-relaxed resize-none outline-none focus:ring-1 focus:ring-blue-400/30 transition-all"
+                        style={{ background: "rgba(59,130,246,0.05)", border: "1px solid rgba(59,130,246,0.2)", color: "rgba(255,255,255,0.75)" }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Confirm button */}
+                  <button
+                    onClick={confirmAndSave}
+                    disabled={confirming}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-black transition-all disabled:opacity-50"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(74,222,128,0.2) 0%, rgba(74,222,128,0.08) 100%)",
+                      border: "1px solid rgba(74,222,128,0.35)",
+                      color: "#4ade80",
+                    }}
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    {confirming ? "Ukladám..." : "Potvrdiť & Uložiť do draftu"}
+                  </button>
+                </>
+              ) : (
+                /* Empty state */
+                <div className="flex-1 flex flex-col items-center justify-center gap-3 py-12">
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: "rgba(244,114,182,0.08)", border: "1px solid rgba(244,114,182,0.12)" }}>
+                    <ImageIcon className="w-6 h-6" style={{ color: "rgba(244,114,182,0.4)" }} />
+                  </div>
+                  <div className="text-center space-y-1">
+                    <p className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.3)" }}>
+                      Náhľad príspevku
+                    </p>
+                    <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.15)" }}>
+                      Vygeneruj príspevky a tu uvidíš náhľad
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -814,10 +993,7 @@ export default function SocialnePage() {
           </button>
 
           {showSettings && (
-            <div
-              className="px-5 pb-5 space-y-5"
-              style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
-            >
+            <div className="px-5 pb-5 space-y-5" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
               {/* Enable toggle */}
               <div className="flex items-center justify-between pt-4">
                 <div>
