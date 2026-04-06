@@ -317,7 +317,7 @@ export function Navbar() {
                     </div>
 
                     {/* Top Right: User Auth + Theme Toggle */}
-                    <div className="absolute right-3 sm:right-4 lg:right-10 top-1/2 md:top-4 -translate-y-1/2 md:translate-y-0 flex items-center gap-2">
+                    <div className="absolute right-3 sm:right-4 lg:right-10 top-1/2 -translate-y-1/2 flex items-center gap-2">
                         <UserAuthButton />
                         <ThemeToggle />
                     </div>

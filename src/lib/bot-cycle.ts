@@ -61,7 +61,7 @@ export interface BotConfig {
   type: "article_only" | "full";
   enabled: boolean;
   interval_hours: number;       // run every N hours since last_run
-  schedule_hours?: number[];    // specific hours of day to run (0-23, UTC)
+  schedule_hours?: number[];    // specific hours of day to run (0-23, Slovak time CET/CEST)
   run_times?: string[];         // legacy — ignored, kept for backward compat
   categories: string[];
   post_instagram?: boolean;

@@ -9,6 +9,9 @@ import { Sparkles, Calendar, Tag } from "lucide-react";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { ContentRenderer } from "@/components/ContentRenderer";
 import { AdBanner } from "@/components/AdBanner";
+import { ShareButtons } from "@/components/ShareButtons";
+import { BookmarkButton } from "@/components/BookmarkButton";
+import { Comments } from "@/components/Comments";
 import type { Metadata } from "next";
 
 
@@ -163,6 +166,7 @@ export default async function ArticlePage({ params, searchParams }: Props) {
                                 <time>{publishDate}</time>
                             </span>
                             <AdminEditButton articleId={article.id} />
+                            <BookmarkButton articleId={article.id} />
                         </div>
                         <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight mb-6 leading-[1.1]">
                             {article.title}
@@ -177,6 +181,8 @@ export default async function ArticlePage({ params, searchParams }: Props) {
                         title={article.title}
                         text={`${article.title}. ${article.ai_summary ? `Zhrnutie článku: ${stripHtml(article.ai_summary)}` : stripHtml(article.excerpt)}`}
                     />
+
+                    <ShareButtons url={`https://aiwai.news/article/${article.slug}`} title={article.title} />
 
                     <figure className="relative w-full rounded-2xl overflow-hidden mb-12 border bg-zinc-950 flex items-center justify-center h-[300px] sm:h-[400px] md:h-[500px] lg:h-[600px]">
                         {/* Rozmazané pozadie na vyplnenie okrajov (pre fotky na výšku) */}
@@ -254,6 +260,10 @@ export default async function ArticlePage({ params, searchParams }: Props) {
                                 })}
                             </div>
                         </div>
+                    </div>
+
+                    <div className="mt-12 pt-8 border-t">
+                        <Comments articleId={article.id} />
                     </div>
                 </article>
 

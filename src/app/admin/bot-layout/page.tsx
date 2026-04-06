@@ -58,14 +58,14 @@ interface MDef {
 }
 
 // Generate hour options 0-23 for the cron trigger
-const HOUR_OPTIONS = Array.from({length:24},(_,i)=>({value:String(i),label:(i<10?"0"+i:String(i))+":01"}));
+const HOUR_OPTIONS = Array.from({length:24},(_,i)=>({value:String(i),label:(i<10?"0"+i:String(i))+":00"}));
 
 const DEFS: Record<MType, MDef> = {
   "trigger":{label:"Cron / Spúšťač",desc:"Kedy a ako často sa bot spustí",emoji:"⏰",icon:Clock,color:"#f59e0b",bg:"rgba(245,158,11,0.15)",border:"rgba(245,158,11,0.4)",hasIn:false,hasOut:true,
     defaults:{enabled:true,scheduleHours:["8","14","20"],intervalHours:0},
     fields:[
       {key:"enabled",label:"Bot aktívny",type:"toggle",default:true},
-      {key:"scheduleHours",label:"Hodiny spustenia (SK čas)",type:"multiselect",options:HOUR_OPTIONS,default:["8","14","20"]},
+      {key:"scheduleHours",label:"Hodiny spustenia (SK čas)",type:"multiselect",options:HOUR_OPTIONS,default:["9","15","20"]},
       {key:"intervalHours",label:"Alebo každých N hodín (0 = vypnuté)",type:"number",default:0,min:0,max:24}]},
   "topic-scout":{label:"Prieskum Tém",desc:"Hľadá aktuálne témy cez Gemini",emoji:"🔍",icon:Search,color:"#3b82f6",bg:"rgba(59,130,246,0.15)",border:"rgba(59,130,246,0.3)",hasIn:true,hasOut:true,
     defaults:{categories:["AI"],timeRange:"48h",googleSearch:true,dedup:true},
@@ -145,7 +145,8 @@ function outPt(m:WModule){return{x:m.x+MOD_SIZE,y:m.y+MOD_SIZE/2};}
 function inPt(m:WModule) {return{x:m.x,   y:m.y+MOD_SIZE/2};}
 
 function defaultWF(): BotWorkflow {
-  const tr = {id:uid(),type:"trigger"        as MType,x:0,   y:300,settings:{...DEFS["trigger"].defaults}};
+  // New bots start with trigger disabled — user must configure & enable
+  const tr = {id:uid(),type:"trigger"        as MType,x:0,   y:300,settings:{...DEFS["trigger"].defaults,enabled:false}};
   const s  = {id:uid(),type:"topic-scout"    as MType,x:200, y:300,settings:{...DEFS["topic-scout"].defaults}};
   const a  = {id:uid(),type:"article-writer" as MType,x:400, y:200,settings:{...DEFS["article-writer"].defaults}};
   const im = {id:uid(),type:"image-sourcer"  as MType,x:400, y:400,settings:{...DEFS["image-sourcer"].defaults}};
@@ -240,12 +241,11 @@ function generateWorkflowFromLegacyConfig(bot: BotEntry): BotWorkflow {
 
 function defaultBot(): BotEntry {
   const wf = defaultWF();
-  const derived = deriveConfigFromWorkflow(wf);
+  const derived = deriveConfigFromWorkflow(wf); // derived.enabled = false (from trigger default)
   return {
     id: botId(),
     name: "Nový Bot",
-    ...derived,
-    enabled: false,
+    ...derived,  // enabled: false comes from trigger module default
     last_run: null,
     processed_count: 0,
     workflow: wf,
