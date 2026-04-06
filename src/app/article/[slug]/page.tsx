@@ -38,19 +38,20 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     if (!article) return { title: "Nenájdené" };
 
     const description = truncateMetaDesc(article.excerpt);
-    
-    // We don't use absolute URL here so Next.js can automatically prefix it 
-    // with the current deployment domain (Vercel or aiwai.news)
-    const relativeUrl = `/article/${article.slug}`;
+    // Always use absolute production URL so Facebook/OG scrapers get the correct canonical
+    const absoluteUrl = `https://aiwai.news/article/${article.slug}`;
 
     return {
         title: article.title,
         description,
+        alternates: {
+            canonical: absoluteUrl,
+        },
         openGraph: {
             title: article.title,
             description,
             type: "article",
-            url: relativeUrl,
+            url: absoluteUrl,
             siteName: "AIWai",
             publishedTime: article.published_at,
             authors: ["Redakcia AIWai"],

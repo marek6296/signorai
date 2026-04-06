@@ -80,13 +80,16 @@ export async function publishToFacebook(message: string, link?: string, imageUrl
 
     if (isPhoto) {
         params.url = imageUrl!;
-        // For photo posts, we MUST include the link in the message text because there's no preview card
-        params.caption = link ? `${message}\n\nČlánok tu: ${link}` : message;
+        params.caption = link ? `${message}\n\n${link}` : message;
+        // published: true ensures FB creates a timeline story and returns post_id in the response.
+        // Without this, post_id may be absent and we can't comment on the correct object.
+        params.published = 'true';
     } else {
+        // Use `link` param so Facebook creates a proper link-preview card (image + title).
+        // Message must NOT contain the URL — it goes only in `link`.
         params.message = message;
         if (link) {
             params.link = link;
-            params.scrape = "true";
         }
     }
 
@@ -98,7 +101,7 @@ export async function publishToFacebook(message: string, link?: string, imageUrl
         const response = await fetch(url, { method: "POST", body: body });
         const data = await response.json();
         if (response.ok) {
-            console.log(`[Meta API] Facebook post successful: ${data.id || data.post_id}`);
+            console.log(`[Meta API] Facebook photo post response — id: ${data.id}, post_id: ${data.post_id}`);
             return data;
         }
         lastError = data.error?.message || "Failed to post to Facebook";

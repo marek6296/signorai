@@ -152,18 +152,15 @@ PRAVIDLÁ:
 1. Jazyk: Profesionálna, moderná slovenčina (žiadne klišé ako "pozor", "máme tu", "uži si").
 2. Štýl: News-style (spravodajský). Buď vecný, informuj o faktoch z článku.
 3. Emodži: PRÍSNY ZÁKAZ. Nepoužívaj žiadne emodži, smajlíky ani grafické symboly.
-4. Štruktúra: 
-   - Krátky "hook" (jedna veta max).
-   - Jedna až dve vety o tom, čo sa v článku píše (faktograficky).
-   - ${platform === 'Instagram' ? "Namiesto linku napíš na konci text 'Link v bio'." : "Čistý link na konci na samostatnom riadku."}
-5. Zákaz: Nepoužívaj Markdown ([text](url)). ${platform === 'Instagram' ? "V príspevku nesmie byť žiadna URL adresa." : `Iba čistá URL: ${url}`}
+4. Zákaz: Nepoužívaj Markdown ([text](url)).
+5. ${platform === 'Instagram' ? "V príspevku nesmie byť žiadna URL adresa." : "NIKDY nevkladaj URL ani link do textu príspevku — link sa pridá automaticky ako karta pod príspevkom."}
 
 ŠPECIFIKÁCIE PRE PLATFORMY:
-- Facebook: Max 3 vety + otázka na vyvolanie diskusie.
-- Instagram: Krátky, estetický text, max 3-4 vety. Hashtagy daj na samostatný blok nižšie (max 5 kusov). HASHTAGY MUSIA BYŤ BEZ DIAKRITIKY. Namiesto odkazu použi vetu "Link v bio".
-- X (Twitter): Extrémne stručný news-flash. HASHTAGY MUSIA BYŤ BEZ DIAKRITIKY.
+- Facebook: Max 2-3 vety + 1 otázka na diskusiu. BEZ URL v texte.
+- Instagram: Krátky text, max 3-4 vety. Na konci "Link v bio." Hashtagy (max 5, BEZ DIAKRITIKY) na samostatnom riadku.
+- X (Twitter): Extrémne stručný news-flash. HASHTAGY BEZ DIAKRITIKY.
 
-HASHTAGY: Musia byť trefné a ZÁSADNE BEZ DIAKRITIKY (napr. #technologia namiesto #technológia).
+HASHTAGY: Zásadne BEZ DIAKRITIKY (napr. #technologia namiesto #technológia).
 Príspevok nesmie znieť ako reklama, ale ako správa.`;
 
                 const promptUser = `Vytvor príspevok na ${platform} pre tento článok:
