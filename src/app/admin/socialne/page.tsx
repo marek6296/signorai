@@ -547,9 +547,10 @@ export default function SocialnePage() {
 
         {/* Generate Posts Section */}
         <div
-          className="rounded-2xl overflow-hidden"
+          className="rounded-2xl"
           style={{
             background: "linear-gradient(145deg, #111111 0%, #0d0d0d 100%)",
+            overflow: "hidden",
             border: "1px solid rgba(255,255,255,0.07)",
           }}
         >
@@ -566,10 +567,10 @@ export default function SocialnePage() {
             <h2 className="text-sm font-black text-white uppercase tracking-wide">Generovať Príspevky</h2>
           </div>
           {/* Two-column layout: form left, preview right */}
-          <div className="flex divide-x" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+          <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px]" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
 
           {/* LEFT: form */}
-          <div className="flex-1 p-5 space-y-5">
+          <div className="p-5 space-y-5 min-w-0">
             {/* Platform Selection */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "rgba(255,255,255,0.4)" }}>
@@ -738,7 +739,7 @@ export default function SocialnePage() {
           </div>
 
           {/* RIGHT: live preview using InstagramPreview component */}
-          <div className="w-96 shrink-0 p-5 flex flex-col gap-3" style={{ borderLeft: "1px solid rgba(255,255,255,0.06)" }}>
+          <div className="p-4 flex flex-col gap-3 min-w-0" style={{ borderLeft: "1px solid rgba(255,255,255,0.06)" }}>
             <div className="text-[10px] font-black uppercase tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.25)" }}>
               Náhľad Instagram obrázka
             </div>

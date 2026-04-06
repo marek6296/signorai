@@ -175,7 +175,7 @@ export function InstagramPreview({
         <div className="space-y-4">
 
             {/* ── Top controls ── */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2 flex-wrap">
                     {/* Style tabs */}
                     <div className="flex bg-muted/40 p-1 rounded-2xl border border-white/5">
@@ -231,7 +231,7 @@ export function InstagramPreview({
 
             {/* ── Canvas preview ── */}
             <div ref={containerRef}
-                className="relative overflow-hidden rounded-[32px] border border-white/10 shadow-2xl bg-black aspect-square max-w-[400px] mx-auto ring-1 ring-white/5"
+                className="relative overflow-hidden rounded-[24px] border border-white/10 shadow-2xl bg-black aspect-square w-full max-w-[360px] mx-auto ring-1 ring-white/5"
             >
                 <div style={{ transform: `scale(${scale})`, transformOrigin: 'top left', width: 1080, height: 1080 }}>
                     <div
