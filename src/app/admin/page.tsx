@@ -166,30 +166,27 @@ export default function AdminDashboard() {
         .border-accent { border-color: rgba(245,158,11,0.2); }
       `}</style>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {/* Header */}
-        <div className="flex items-start justify-between mb-12 pb-8 border-b border-amber-500/10">
-          <div>
-            <div className="flex items-center gap-4 mb-3">
-              <div className="relative w-14 h-14">
-                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/30 to-orange-500/30 rounded-xl blur-lg" />
-                <div className="relative w-14 h-14 bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/40 rounded-xl flex items-center justify-center">
-                  <BarChart2 className="w-7 h-7 text-amber-400" />
-                </div>
-              </div>
-              <div>
-                <h1 className="text-4xl font-black text-white tracking-tight">Dashboard</h1>
-                <p className="text-amber-400/60 text-xs font-bold tracking-wider mt-1">ADMIN PANEL</p>
+        <div className="flex items-center justify-between mb-8 sm:mb-12 pb-6 sm:pb-8 border-b border-amber-500/10">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="relative w-10 h-10 sm:w-14 sm:h-14 shrink-0">
+              <div className="absolute inset-0 bg-gradient-to-br from-amber-500/30 to-orange-500/30 rounded-xl blur-lg" />
+              <div className="relative w-full h-full bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/40 rounded-xl flex items-center justify-center">
+                <BarChart2 className="w-5 h-5 sm:w-7 sm:h-7 text-amber-400" />
               </div>
             </div>
-            <p className="text-gray-500 text-xs font-medium mt-3">{time && `Sync: ${time}`}</p>
+            <div>
+              <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight">Dashboard</h1>
+              <p className="text-amber-400/60 text-[10px] font-bold tracking-wider mt-0.5">{time ? `Sync: ${time}` : "ADMIN PANEL"}</p>
+            </div>
           </div>
           <button
             onClick={() => { setRefreshing(true); fetchData(); }}
-            className="flex items-center gap-2 px-5 py-3 card-glass border border-accent hover:border-amber-500/40 rounded-xl text-sm text-gray-300 hover:text-amber-300 transition duration-300 group"
+            className="flex items-center gap-2 px-3 sm:px-5 py-2.5 sm:py-3 card-glass border border-accent hover:border-amber-500/40 rounded-xl text-sm text-gray-300 hover:text-amber-300 transition duration-300 group shrink-0"
           >
             <RefreshCw className={`w-4 h-4 transition ${refreshing ? 'animate-spin' : 'group-hover:rotate-180'}`} />
-            <span className="font-bold">Refresh</span>
+            <span className="font-bold hidden sm:inline">Refresh</span>
           </button>
         </div>
 
@@ -223,14 +220,14 @@ export default function AdminDashboard() {
           />
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-6 mb-8">
+        <div className="grid lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
           {/* Publishing Pipeline */}
-          <div className="lg:col-span-2 card-glass border border-accent rounded-2xl p-8 glow-border">
-            <div className="flex items-center justify-between mb-8">
+          <div className="lg:col-span-2 card-glass border border-accent rounded-2xl p-5 sm:p-8 glow-border">
+            <div className="flex items-center justify-between mb-5 sm:mb-8">
               <h2 className="text-xs font-black text-amber-400/70 uppercase tracking-widest">Content Pipeline</h2>
               <span className="text-xs font-bold text-gray-500">{pipelinePct}% Ready</span>
             </div>
-            <div className="flex gap-4 h-24">
+            <div className="flex gap-3 sm:gap-4 h-20 sm:h-24">
               <div className="flex-1 bg-gradient-to-br from-amber-500/15 to-amber-500/5 border border-amber-500/20 rounded-xl p-5 flex flex-col justify-center group hover:border-amber-500/40 transition">
                 <p className="text-3xl font-black text-amber-400">{drafts.length}</p>
                 <p className="text-xs text-amber-300/60 mt-2 font-bold tracking-wider">DRAFTS</p>

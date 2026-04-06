@@ -214,7 +214,6 @@ function defaultBot(): BotEntry {
     name: "Nový Bot",
     ...derived,
     enabled: false,
-    interval_hours: 4,
     last_run: null,
     processed_count: 0,
     workflow: wf,
@@ -441,7 +440,6 @@ function BotLayoutPageInner(){
   const [allBots, setAllBots] = useState<BotEntry[]>([]);
   const [activeBotId, setActiveBotId] = useState<string|null>(null);
   const [botName, setBotName] = useState("Nový Bot");
-  const [intervalHours, setIntervalHours] = useState(4);
 
   // Workflow state (canvas)
   const [modules, setModules] = useState<WModule[]>([]);
@@ -519,7 +517,6 @@ function BotLayoutPageInner(){
   function loadBotIntoCanvas(bot: BotEntry) {
     setActiveBotId(bot.id);
     setBotName(bot.name);
-    setIntervalHours(bot.interval_hours ?? 4);
     if(bot.workflow){
       setModules(bot.workflow.modules);
       setConnections(bot.workflow.connections);
@@ -539,7 +536,6 @@ function BotLayoutPageInner(){
       id: newId,
       name: "Nový Bot",
       enabled: false,
-      interval_hours: 4,
       type: "article_only",
       categories: ["AI"],
       last_run: null,
@@ -549,7 +545,6 @@ function BotLayoutPageInner(){
     setAllBots(prev => [newBot, ...prev]);
     setActiveBotId(newId);
     setBotName(newBot.name);
-    setIntervalHours(4);
     setModules([]);
     setConnections([]);
     setSelectedId(null);
@@ -606,7 +601,6 @@ function BotLayoutPageInner(){
         type: "full",
         enabled: true,
         ...derived,
-        interval_hours: intervalHours,
         workflow: wf,
       };
 
@@ -705,8 +699,7 @@ function BotLayoutPageInner(){
       const botToSave: BotEntry = {
         id: activeBotId!,
         name: botName,
-        enabled: true, // Auto-enable on publish? Or keep current? Let's keep current or enable if new
-        interval_hours: intervalHours,
+        enabled: true,
         ...derived,
         last_run: existingIdx >= 0 ? newAllBots[existingIdx].last_run : null,
         processed_count: existingIdx >= 0 ? newAllBots[existingIdx].processed_count : 0,
@@ -888,11 +881,6 @@ function BotLayoutPageInner(){
 
   const cursorStyle=isPanning.current?"grabbing":connecting?"crosshair":"default";
 
-  // Interval options
-  const INTERVALS = [
-    {v:1,l:"1h"},{v:2,l:"2h"},{v:4,l:"4h"},{v:6,l:"6h"},{v:8,l:"8h"},{v:12,l:"12h"},{v:24,l:"24h"},
-  ];
-
   // Is this bot already saved?
   const isExistingBot = allBots.some(b => b.id === activeBotId);
 
@@ -940,13 +928,10 @@ function BotLayoutPageInner(){
           onBlur={e=>e.currentTarget.style.borderColor="rgba(255,255,255,0.1)"}
         />
 
-        {/* Interval selector */}
-        <div style={{display:"flex",alignItems:"center",gap:6,marginLeft:8}}>
-          <span style={{fontSize:10,color:"rgba(255,255,255,0.35)",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em"}}>Cycle:</span>
-          <select value={intervalHours} onChange={e=>setIntervalHours(Number(e.target.value))}
-            style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:7,padding:"4px 8px",color:"#fff",fontSize:11,fontWeight:600,outline:"none",cursor:"pointer"}}>
-            {INTERVALS.map(i=><option key={i.v} value={i.v}>{i.l}</option>)}
-          </select>
+        {/* Schedule indicator — driven by AI Autopilot settings */}
+        <div style={{display:"flex",alignItems:"center",gap:6,marginLeft:8,padding:"4px 10px",background:"rgba(34,197,94,0.06)",border:"1px solid rgba(34,197,94,0.15)",borderRadius:7}}>
+          <div style={{width:6,height:6,borderRadius:"50%",background:"#22c55e",opacity:0.8}}/>
+          <span style={{fontSize:10,color:"rgba(34,197,94,0.7)",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em"}}>Časovanie cez Autopilot</span>
         </div>
 
         <div style={{flex:1}}/>

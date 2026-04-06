@@ -96,46 +96,77 @@ function timeAgo(dateStr: string | null | undefined): string {
   return `pred ${Math.floor(hrs / 24)}d`;
 }
 
-function timeUntilNextRun(bot: Bot): { label: string; isReady: boolean } {
-  if (!bot.enabled) return { label: "—", isReady: false };
+/** Returns the exact Date of the next scheduled run for a bot */
+function getNextRunDate(bot: Bot): Date | null {
+  if (!bot.enabled) return null;
+
+  const now = new Date();
 
   if (bot.schedule_hours && bot.schedule_hours.length > 0) {
-    const now = new Date();
-    const currentHour = now.getHours();
     const sorted = [...bot.schedule_hours].sort((a, b) => a - b);
-    // Find next scheduled hour today or tomorrow
-    const nextHour = sorted.find(h => h > currentHour) ?? sorted[0];
-    const isToday = nextHour > currentHour;
-    const nextRun = new Date(now);
-    nextRun.setHours(nextHour, 0, 0, 0);
-    if (!isToday) nextRun.setDate(nextRun.getDate() + 1);
+    const currentHour = now.getHours();
+    const currentMin  = now.getMinutes();
+    const currentSec  = now.getSeconds();
 
-    // Already ran this hour?
+    // Already ran in this exact scheduled hour slot? → skip to next
+    let alreadyRanThisSlot = false;
     if (bot.last_run) {
       const last = new Date(bot.last_run);
-      if (last.getHours() === currentHour && (now.getTime() - last.getTime()) < 55 * 60 * 1000) {
-        const diff = nextRun.getTime() - now.getTime();
-        const hrs = Math.floor(diff / 3600000);
-        const mins = Math.floor((diff % 3600000) / 60000);
-        return { label: `${hrs}h ${String(mins).padStart(2,"0")}m`, isReady: false };
-      }
+      const sameHour  = last.getHours() === currentHour;
+      const sameDay   = last.toDateString() === now.toDateString();
+      const withinSlot = (now.getTime() - last.getTime()) < 58 * 60 * 1000; // < 58 min ago
+      if (sameHour && sameDay && withinSlot) alreadyRanThisSlot = true;
     }
 
-    if (sorted.includes(currentHour)) return { label: "PRIPRAVENÝ", isReady: true };
-    const diff = nextRun.getTime() - now.getTime();
-    const hrs = Math.floor(diff / 3600000);
-    const mins = Math.floor((diff % 3600000) / 60000);
-    return { label: `${hrs}h ${String(mins).padStart(2,"0")}m`, isReady: false };
+    // Find next hour: this hour (if not already ran) or next upcoming
+    let targetHour: number | undefined;
+    if (!alreadyRanThisSlot && sorted.includes(currentHour)) {
+      // We're in a scheduled hour and haven't run yet → run "now" (ready)
+      targetHour = currentHour;
+    } else {
+      // Find next hour strictly after current, or wrap to tomorrow
+      targetHour = sorted.find(h => h > currentHour);
+    }
+
+    const isToday = targetHour !== undefined && targetHour >= currentHour && !alreadyRanThisSlot;
+    const resolvedHour = targetHour ?? sorted[0];
+
+    const nextRun = new Date(now);
+    nextRun.setHours(resolvedHour, 0, 0, 0);
+    nextRun.setSeconds(0, 0);
+    if (resolvedHour < currentHour || alreadyRanThisSlot && resolvedHour === currentHour) {
+      nextRun.setDate(nextRun.getDate() + 1);
+    }
+
+    return nextRun;
   }
 
-  // Legacy interval fallback
-  if (!bot.last_run) return { label: "PRIPRAVENÝ", isReady: true };
+  // Legacy interval_hours fallback
   const intervalMs = (bot.interval_hours ?? 4) * 60 * 60 * 1000;
-  const diff = new Date(bot.last_run).getTime() + intervalMs - Date.now();
-  if (diff <= 0) return { label: "PRIPRAVENÝ", isReady: true };
-  const hrs = Math.floor(diff / 3600000);
-  const mins = Math.floor((diff % 3600000) / 60000);
-  return { label: `${hrs}h ${String(mins).padStart(2,"0")}m`, isReady: false };
+  if (!bot.last_run) return new Date(); // run now
+  const nextRun = new Date(new Date(bot.last_run).getTime() + intervalMs);
+  return nextRun;
+}
+
+/** Format milliseconds diff as "Xh Ym Zs" */
+function formatCountdown(diffMs: number): string {
+  if (diffMs <= 0) return "TERAZ";
+  const totalSecs = Math.floor(diffMs / 1000);
+  const hrs  = Math.floor(totalSecs / 3600);
+  const mins = Math.floor((totalSecs % 3600) / 60);
+  const secs = totalSecs % 60;
+  if (hrs > 0)  return `${hrs}h ${String(mins).padStart(2,"0")}m ${String(secs).padStart(2,"0")}s`;
+  if (mins > 0) return `${mins}m ${String(secs).padStart(2,"0")}s`;
+  return `${secs}s`;
+}
+
+function timeUntilNextRun(bot: Bot): { label: string; isReady: boolean; nextRunDate: Date | null } {
+  if (!bot.enabled) return { label: "—", isReady: false, nextRunDate: null };
+  const nextRunDate = getNextRunDate(bot);
+  if (!nextRunDate) return { label: "—", isReady: false, nextRunDate: null };
+  const diffMs = nextRunDate.getTime() - Date.now();
+  const isReady = diffMs <= 0;
+  return { label: isReady ? "PRIPRAVENÝ" : formatCountdown(diffMs), isReady, nextRunDate };
 }
 
 // ─── Mini Toggle ──────────────────────────────────────────────────────────────
@@ -615,7 +646,12 @@ export default function BotsPage() {
             {bots.map((bot) => {
               const C = BOT_COLORS_UNIFIED[bot.enabled ? 'enabled' : 'disabled'];
               const isRunning = runningBotId === bot.id;
-              const { label: nextRunLabel, isReady } = timeUntilNextRun(bot);
+              const { label: nextRunLabel, isReady, nextRunDate } = timeUntilNextRun(bot);
+              const nextRunTime = nextRunDate
+                ? (nextRunDate.toDateString() === new Date().toDateString()
+                    ? `dnes o ${String(nextRunDate.getHours()).padStart(2,"0")}:00`
+                    : `zajtra o ${String(nextRunDate.getHours()).padStart(2,"0")}:00`)
+                : null;
               
               return (
                 <div
@@ -685,7 +721,10 @@ export default function BotsPage() {
                             textTransform: "uppercase", letterSpacing: "0.15em"
                           }}>{bot.type === "article_only" ? "Content Engine" : "Hybrid Hub"}</span>
                           <div style={{ width: 4, height: 4, borderRadius: "50%", background: "rgba(255,255,255,0.2)" }} />
-                          <span style={{ fontSize: 10, fontWeight: 900, color: isReady ? "#22c55e" : "rgba(255,255,255,0.3)" }}>{nextRunLabel}</span>
+                          <span style={{ fontSize: 10, fontWeight: 900, color: isReady ? "#22c55e" : "rgba(255,255,255,0.5)" }}>{nextRunLabel}</span>
+                          {nextRunTime && !isReady && (
+                            <span style={{ fontSize: 9, fontWeight: 600, color: "rgba(255,255,255,0.25)" }}>({nextRunTime})</span>
+                          )}
                       </div>
                     </div>
                   </div>

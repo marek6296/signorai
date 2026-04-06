@@ -9,17 +9,25 @@ const supabase = createClient(
 
 export async function POST(req: Request) {
     try {
-        const { title, excerpt } = await req.json();
+        const { title, excerpt, customPrompt } = await req.json();
 
         const apiKey = process.env.GEMINI_API_KEY;
-        
+
         if (!apiKey) {
             return NextResponse.json({ error: "Gemini API kľúč nie je nakonfigurovaný" }, { status: 500 });
         }
 
         const ai = new GoogleGenAI({ apiKey });
 
-        const prompt = `Generate a photorealistic, ultra-high quality cinematic image that perfectly captures the essence of this technology news article.
+        // Use custom prompt directly, or build from article content
+        const prompt = customPrompt
+            ? `${customPrompt}
+
+CRITICAL INSTRUCTIONS:
+- MUST NOT contain specific real-world public figures or trademarked logos.
+- Style: Realistic photography, cinematic lighting, highly detailed, professional stock photo style.
+- NO text, NO watermarks, NO UI elements.`
+            : `Generate a photorealistic, ultra-high quality cinematic image that perfectly captures the essence of this technology news article.
 Theme: ${title}
 Context: ${excerpt || 'Teaser na článok'}
 

@@ -5,15 +5,271 @@ import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Article } from "@/lib/data";
-import { ArrowLeft, Sparkles, Loader2 } from "lucide-react";
+import { ArrowLeft, Sparkles, Loader2, Copy, Check, FileText, Wand2, Image as ImageIcon, Plus } from "lucide-react";
+import { useAdmin } from "@/app/admin/_context/AdminContext";
 
 interface Props {
     params: { id: string };
 }
 
+// ── Reusable Image Generator Panel ─────────────────────────────────────────
+function ImageGenerator({
+    title,
+    excerpt,
+    label = "Obrázok",
+    onGenerated,
+}: {
+    title: string;
+    excerpt: string;
+    label?: string;
+    onGenerated: (url: string) => void;
+}) {
+    const [mode, setMode] = useState<"content" | "prompt">("content");
+    const [customPrompt, setCustomPrompt] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
+
+    const generate = async () => {
+        if (mode === "content" && (!title || !excerpt)) {
+            setError("Pre generovanie z obsahu je potrebný Nadpis a Perex.");
+            return;
+        }
+        if (mode === "prompt" && !customPrompt.trim()) {
+            setError("Zadaj prompt pre generovanie obrázka.");
+            return;
+        }
+
+        setLoading(true);
+        setError("");
+
+        try {
+            const body =
+                mode === "prompt"
+                    ? { customPrompt: customPrompt.trim() }
+                    : { title, excerpt };
+
+            const res = await fetch("/api/admin/article-image-generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body),
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Generovanie zlyhalo");
+            if (data.imageUrl) onGenerated(data.imageUrl);
+        } catch (e: any) {
+            setError(e.message || "Chyba pri generovaní");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="rounded-2xl border border-border/50 bg-muted/10 overflow-hidden">
+            {/* Mode tabs */}
+            <div className="flex border-b border-border/40">
+                <button
+                    type="button"
+                    onClick={() => setMode("content")}
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-xs font-black uppercase tracking-widest transition-all ${
+                        mode === "content"
+                            ? "bg-primary/10 text-primary border-b-2 border-primary"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                    }`}
+                >
+                    <FileText className="w-3.5 h-3.5" />
+                    Z obsahu článku
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setMode("prompt")}
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-xs font-black uppercase tracking-widest transition-all ${
+                        mode === "prompt"
+                            ? "bg-primary/10 text-primary border-b-2 border-primary"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                    }`}
+                >
+                    <Wand2 className="w-3.5 h-3.5" />
+                    Vlastný prompt
+                </button>
+            </div>
+
+            <div className="p-4 space-y-3">
+                {mode === "content" && (
+                    <p className="text-xs text-muted-foreground">
+                        AI vygeneruje obrázok automaticky podľa nadpisu a perexu článku.
+                    </p>
+                )}
+
+                {mode === "prompt" && (
+                    <textarea
+                        value={customPrompt}
+                        onChange={(e) => setCustomPrompt(e.target.value)}
+                        rows={3}
+                        placeholder="Napr: A futuristic robot hand shaking a human hand, cinematic lighting, dark background, photorealistic..."
+                        className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-muted-foreground/40"
+                    />
+                )}
+
+                {error && (
+                    <p className="text-xs text-red-500 font-medium">{error}</p>
+                )}
+
+                <button
+                    type="button"
+                    onClick={generate}
+                    disabled={loading}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground text-xs font-black uppercase tracking-widest rounded-xl hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50"
+                >
+                    {loading ? (
+                        <><Loader2 className="w-4 h-4 animate-spin" /> Generujem {label}...</>
+                    ) : (
+                        <><Sparkles className="w-4 h-4" /> Generovať {label} cez AI</>
+                    )}
+                </button>
+
+                {loading && (
+                    <p className="text-[10px] text-center text-muted-foreground animate-pulse">
+                        Generovanie môže trvať 15–30 sekúnd...
+                    </p>
+                )}
+            </div>
+        </div>
+    );
+}
+
+// ── Inline Image Section ────────────────────────────────────────────────────
+function InlineImageGenerator({
+    title,
+    excerpt,
+    content,
+    onInsert,
+}: {
+    title: string;
+    excerpt: string;
+    content: string;
+    onInsert: (html: string) => void;
+}) {
+    const [open, setOpen] = useState(false);
+    const [imageUrl, setImageUrl] = useState("");
+    const [caption, setCaption] = useState("");
+    const [copied, setCopied] = useState(false);
+
+    const htmlSnippet = imageUrl
+        ? `<figure class="my-8 mx-auto max-w-2xl">
+  <img src="${imageUrl}" alt="${caption || "Obrázok"}" class="w-full rounded-2xl shadow-lg" />
+  ${caption ? `<figcaption class="text-center text-sm text-muted-foreground mt-3">${caption}</figcaption>` : ""}
+</figure>`
+        : "";
+
+    const copySnippet = async () => {
+        if (!htmlSnippet) return;
+        await navigator.clipboard.writeText(htmlSnippet);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    const insertIntoContent = () => {
+        if (!htmlSnippet) return;
+        onInsert(htmlSnippet);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    return (
+        <div className="rounded-2xl border border-dashed border-border/60 overflow-hidden">
+            {/* Toggle header */}
+            <button
+                type="button"
+                onClick={() => setOpen(!open)}
+                className="w-full flex items-center gap-3 px-5 py-4 hover:bg-muted/20 transition-colors"
+            >
+                <div className="w-8 h-8 rounded-xl bg-violet-500/15 border border-violet-500/30 flex items-center justify-center shrink-0">
+                    <ImageIcon className="w-4 h-4 text-violet-400" />
+                </div>
+                <div className="flex-1 text-left">
+                    <p className="text-sm font-black uppercase tracking-wider">Obrázok do textu</p>
+                    <p className="text-xs text-muted-foreground">Voliteľné — vygeneruj obrázok na vloženie medzi odseky</p>
+                </div>
+                <Plus
+                    className={`w-5 h-5 text-muted-foreground transition-transform duration-300 ${
+                        open ? "rotate-45" : "rotate-0"
+                    }`}
+                />
+            </button>
+
+            {open && (
+                <div className="px-5 pb-5 space-y-4 border-t border-border/40 pt-4">
+                    <ImageGenerator
+                        title={title}
+                        excerpt={excerpt}
+                        label="obrázok do textu"
+                        onGenerated={setImageUrl}
+                    />
+
+                    {imageUrl && (
+                        <div className="space-y-3">
+                            {/* Preview */}
+                            <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-border/50 bg-muted/20">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={imageUrl} alt="Inline preview" className="object-cover w-full h-full" />
+                            </div>
+
+                            {/* Caption input */}
+                            <div>
+                                <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wider">
+                                    Popis obrázka (voliteľné)
+                                </label>
+                                <input
+                                    type="text"
+                                    value={caption}
+                                    onChange={(e) => setCaption(e.target.value)}
+                                    placeholder="Napr: Vizualizácia novej AI architektúry"
+                                    className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                                />
+                            </div>
+
+                            {/* HTML snippet preview */}
+                            <div>
+                                <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wider">
+                                    HTML kód na vloženie
+                                </label>
+                                <pre className="bg-muted/40 rounded-xl px-4 py-3 text-[10px] font-mono text-muted-foreground overflow-x-auto whitespace-pre-wrap break-all border border-border/40">
+                                    {htmlSnippet}
+                                </pre>
+                            </div>
+
+                            {/* Action buttons */}
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={copySnippet}
+                                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider border border-border hover:bg-muted/30 transition-all"
+                                >
+                                    {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                                    {copied ? "Skopírované!" : "Kopírovať HTML"}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={insertIntoContent}
+                                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider bg-violet-500/15 border border-violet-500/30 text-violet-400 hover:bg-violet-500/25 transition-all"
+                                >
+                                    <Plus className="w-3.5 h-3.5" />
+                                    Vložiť na koniec obsahu
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ── Main Edit Page ──────────────────────────────────────────────────────────
 export default function EditArticlePage({ params }: Props) {
     const router = useRouter();
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const { isLoggedIn, isHydrated } = useAdmin();
 
     // Form state
     const [title, setTitle] = useState("");
@@ -23,12 +279,18 @@ export default function EditArticlePage({ params }: Props) {
     const [category, setCategory] = useState("");
     const [aiSummary, setAiSummary] = useState("");
     const [mainImage, setMainImage] = useState("");
-    const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+    const [showImageGen, setShowImageGen] = useState(false);
 
     const [status, setStatus] = useState<"loading" | "idle" | "saving" | "success" | "error">("loading");
     const [message, setMessage] = useState("");
 
     useEffect(() => {
+        if (!isHydrated) return;
+        if (!isLoggedIn) {
+            router.push("/admin");
+            return;
+        }
+
         const fetchArticle = async () => {
             const { data, error } = await supabase
                 .from("articles")
@@ -50,54 +312,11 @@ export default function EditArticlePage({ params }: Props) {
             setCategory(article.category || "");
             setAiSummary(article.ai_summary || "");
             setMainImage(article.main_image || "");
-
             setStatus("idle");
         };
 
-        if (typeof window !== "undefined") {
-            const loggedInUser = localStorage.getItem("admin_logged_in");
-            if (loggedInUser === "true") {
-                setIsLoggedIn(true);
-                fetchArticle();
-            } else {
-                router.push("/admin");
-            }
-        }
-    }, [params.id, router]);
-
-    const handleGenerateImage = async () => {
-        if (!title || !excerpt) {
-            alert("Pre vygenerovanie obrázka je potrebný vyplnený Nadpis a Perex.");
-            return;
-        }
-
-        setIsGeneratingImage(true);
-        setMessage("Generujem nový hlavný obrázok cez AI (môže to chvíľu trvať)...");
-
-        try {
-            const res = await fetch("/api/admin/article-image-generate", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ title, excerpt }),
-            });
-
-            if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.error || "Image generation failed");
-            }
-
-            const data = await res.json();
-            if (data.imageUrl) {
-                setMainImage(data.imageUrl);
-                setMessage("Obrázok bol úspešne vygenerovaný!");
-            }
-        } catch (error: any) {
-            setMessage("Chyba pri generovaní obrázka: " + error.message);
-            setStatus("error");
-        } finally {
-            setIsGeneratingImage(false);
-        }
-    };
+        fetchArticle();
+    }, [params.id, router, isLoggedIn, isHydrated]);
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -106,15 +325,7 @@ export default function EditArticlePage({ params }: Props) {
 
         const { error } = await supabase
             .from("articles")
-            .update({
-                title,
-                slug,
-                excerpt,
-                content,
-                category,
-                ai_summary: aiSummary,
-                main_image: mainImage,
-            })
+            .update({ title, slug, excerpt, content, category, ai_summary: aiSummary, main_image: mainImage })
             .eq("id", params.id);
 
         if (error) {
@@ -122,26 +333,22 @@ export default function EditArticlePage({ params }: Props) {
             setMessage("Chyba pri ukladaní: " + error.message);
         } else {
             setStatus("success");
-            setMessage("Článok uložený. Zmeny by mali byť na webe hneď (obnov stránku článku ak ju máš otvorenú).");
-
-            // Revalidácia – konkrétny článok + úvod + kategórie
+            setMessage("Článok uložený. Zmeny by mali byť na webe hneď.");
             await fetch("/api/revalidate?secret=make-com-webhook-secret", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ slug }),
             });
-
-            setTimeout(() => {
-                setStatus("idle");
-            }, 4000);
+            setTimeout(() => setStatus("idle"), 4000);
         }
     };
 
-    if (!isLoggedIn) return null;
+    if (!isHydrated || !isLoggedIn) return null;
 
     return (
-        <div className="container mx-auto px-4 py-12 max-w-4xl flex-grow">
-            <div className="mb-6">
+        <div className="container mx-auto px-4 py-8 max-w-4xl flex-grow">
+            {/* Back + header */}
+            <div className="mb-5">
                 <button
                     type="button"
                     onClick={() => router.back()}
@@ -151,8 +358,9 @@ export default function EditArticlePage({ params }: Props) {
                     Späť
                 </button>
             </div>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-                <h1 className="text-3xl font-black">Úprava článku</h1>
+
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <h1 className="text-2xl sm:text-3xl font-black">Úprava článku</h1>
                 <div className="flex flex-wrap items-center gap-2">
                     <a
                         href={`/article/${slug}`}
@@ -160,50 +368,56 @@ export default function EditArticlePage({ params }: Props) {
                         rel="noreferrer"
                         className="px-4 py-2 text-sm font-bold rounded-lg border border-border hover:bg-muted transition-colors flex items-center justify-center text-primary"
                     >
-                        Náhľad článku na webe
+                        Náhľad na webe
                     </a>
                     <Link
-                        href="/admin"
+                        href="/admin/clanky"
                         className="px-4 py-2 text-sm font-bold rounded-lg border border-border hover:bg-muted transition-colors flex items-center justify-center"
                     >
-                        Späť na Admin Panel
+                        Späť na Články
                     </Link>
                 </div>
             </div>
 
             {status === "loading" ? (
                 <div className="bg-card border rounded-2xl p-8 shadow-sm text-center">
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto mb-3 text-primary" />
                     <p className="text-muted-foreground">Načítavam článok...</p>
                 </div>
             ) : (
-                <div className="bg-card border rounded-2xl p-8 shadow-sm relative">
+                <form onSubmit={handleSave} className="space-y-5">
+                    {/* Status message */}
                     {message && (
-                        <div className={`mb-6 p-4 rounded-lg font-medium text-center ${status === "error" ? "bg-red-500/10 text-red-600 dark:text-red-400" :
-                            "bg-green-500/10 text-green-600 dark:text-green-400"
-                            }`}>
+                        <div className={`p-4 rounded-2xl font-medium text-center text-sm ${
+                            status === "error"
+                                ? "bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20"
+                                : "bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20"
+                        }`}>
                             {message}
                         </div>
                     )}
 
-                    <form onSubmit={handleSave} className="space-y-6">
-                        <div>
-                            <label className="block text-sm font-medium mb-2">Nadpis (Title)</label>
-                            <input
-                                type="text"
-                                value={title}
-                                onChange={(e) => setTitle(e.target.value)}
-                                className="w-full bg-background border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary font-bold text-lg"
-                                required
-                            />
-                        </div>
+                    {/* Title */}
+                    <div className="bg-card border rounded-2xl p-5 shadow-sm space-y-4">
+                        <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground">Nadpis</label>
+                        <input
+                            type="text"
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            className="w-full bg-background border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary font-bold text-lg"
+                            required
+                        />
+                    </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label className="block text-sm font-medium mb-2">Kategória</label>
+                    {/* Category + Slug */}
+                    <div className="bg-card border rounded-2xl p-5 shadow-sm">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground">Kategória</label>
                                 <select
                                     value={category}
                                     onChange={(e) => setCategory(e.target.value)}
-                                    className="w-full bg-background border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
+                                    className="w-full bg-background border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
                                     required
                                 >
                                     <option value="AI">AI</option>
@@ -212,104 +426,135 @@ export default function EditArticlePage({ params }: Props) {
                                     <option value="Newsletter">Newsletter</option>
                                 </select>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-2">URL Slug</label>
+                            <div className="space-y-2">
+                                <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground">URL Slug</label>
                                 <input
                                     type="text"
                                     value={slug}
                                     onChange={(e) => setSlug(e.target.value)}
-                                    className="w-full bg-background border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary text-muted-foreground"
+                                    className="w-full bg-background border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary text-muted-foreground"
                                     required
                                 />
                             </div>
                         </div>
+                    </div>
 
-                        <div>
-                            <label className="flex items-center justify-between text-sm font-medium mb-2">
-                                <span>Hlavný Obrázok (URL)</span>
-                                <button
-                                    type="button"
-                                    onClick={handleGenerateImage}
-                                    disabled={isGeneratingImage}
-                                    className="px-3 py-1 bg-white text-black font-bold uppercase rounded text-[10px] tracking-wider hover:bg-neutral-200 transition-colors flex items-center gap-1.5 disabled:opacity-50"
-                                >
-                                    {isGeneratingImage ? (
-                                        <><Loader2 className="w-3 h-3 animate-spin"/> Generujem...</>
-                                    ) : (
-                                        <><Sparkles className="w-3 h-3" /> AI Generovať</>
-                                    )}
-                                </button>
-                            </label>
-                            
-                            {mainImage && (
-                                <div className="mb-3 relative w-full aspect-video rounded-xl overflow-hidden border border-border/50 bg-muted/20 flex items-center justify-center">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img src={mainImage} alt="Main Image Preview" className="object-cover w-full h-full" />
-                                </div>
-                            )}
-
-                            <input
-                                type="url"
-                                value={mainImage}
-                                onChange={(e) => setMainImage(e.target.value)}
-                                className="w-full bg-background border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
-                                required
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium mb-2">Perex (Excerpt - úvodný text)</label>
-                            <textarea
-                                value={excerpt}
-                                onChange={(e) => setExcerpt(e.target.value)}
-                                rows={3}
-                                className="w-full bg-background border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary resize-y"
-                                required
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium mb-2 flex items-center gap-2">
-                                <span className="text-primary font-bold">Zhrnutie od AI</span>
-                            </label>
-                            <textarea
-                                value={aiSummary}
-                                onChange={(e) => setAiSummary(e.target.value)}
-                                rows={2}
-                                className="w-full bg-background border border-primary/20 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary resize-y"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium mb-2">Kompletný Obsah (HTML Formát)</label>
-                            <textarea
-                                value={content}
-                                onChange={(e) => setContent(e.target.value)}
-                                rows={15}
-                                className="w-full bg-background border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm resize-y"
-                                required
-                            />
-                        </div>
-
-                        <div className="pt-6 border-t sticky bottom-0 bg-card z-10 p-4 -mx-4 rounded-b-2xl shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.3)] dark:shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.8)] flex flex-col sm:flex-row gap-3">
+                    {/* Main Image */}
+                    <div className="bg-card border rounded-2xl p-5 shadow-sm space-y-4">
+                        <div className="flex items-center justify-between">
+                            <label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Hlavný Obrázok</label>
                             <button
                                 type="button"
-                                onClick={() => router.back()}
-                                className="inline-flex items-center justify-center gap-2 px-4 py-4 rounded-lg border border-border font-bold hover:bg-muted transition-colors shrink-0"
+                                onClick={() => setShowImageGen(!showImageGen)}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                                    showImageGen
+                                        ? "bg-primary/15 text-primary border border-primary/30"
+                                        : "border border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
+                                }`}
                             >
-                                <ArrowLeft className="w-4 h-4" />
-                                Späť
-                            </button>
-                            <button
-                                type="submit"
-                                disabled={status === "saving"}
-                                className="flex-1 bg-primary text-primary-foreground font-bold rounded-lg px-4 py-4 transition-colors hover:bg-primary/90 disabled:opacity-50"
-                            >
-                                {status === "saving" ? "Ukladám zmeny..." : "Uložiť zmeny v článku"}
+                                <Sparkles className="w-3 h-3" />
+                                AI Generovať
                             </button>
                         </div>
-                    </form>
-                </div>
+
+                        {/* Image preview */}
+                        {mainImage && (
+                            <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-border/50 bg-muted/20">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={mainImage} alt="Hlavný obrázok" className="object-cover w-full h-full" />
+                            </div>
+                        )}
+
+                        {/* URL input */}
+                        <input
+                            type="url"
+                            value={mainImage}
+                            onChange={(e) => setMainImage(e.target.value)}
+                            placeholder="https://..."
+                            className="w-full bg-background border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                            required
+                        />
+
+                        {/* Generator panel — collapsible */}
+                        {showImageGen && (
+                            <ImageGenerator
+                                title={title}
+                                excerpt={excerpt}
+                                label="hlavný obrázok"
+                                onGenerated={(url) => {
+                                    setMainImage(url);
+                                    setShowImageGen(false);
+                                }}
+                            />
+                        )}
+                    </div>
+
+                    {/* Perex */}
+                    <div className="bg-card border rounded-2xl p-5 shadow-sm space-y-2">
+                        <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground">Perex (úvodný text)</label>
+                        <textarea
+                            value={excerpt}
+                            onChange={(e) => setExcerpt(e.target.value)}
+                            rows={3}
+                            className="w-full bg-background border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary resize-y text-sm"
+                            required
+                        />
+                    </div>
+
+                    {/* AI Summary */}
+                    <div className="bg-card border border-primary/20 rounded-2xl p-5 shadow-sm space-y-2">
+                        <label className="block text-xs font-black uppercase tracking-widest text-primary/70">Zhrnutie od AI</label>
+                        <textarea
+                            value={aiSummary}
+                            onChange={(e) => setAiSummary(e.target.value)}
+                            rows={2}
+                            className="w-full bg-background border border-primary/20 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary resize-y text-sm"
+                        />
+                    </div>
+
+                    {/* Content */}
+                    <div className="bg-card border rounded-2xl p-5 shadow-sm space-y-2">
+                        <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground">
+                            Kompletný Obsah (HTML)
+                        </label>
+                        <textarea
+                            value={content}
+                            onChange={(e) => setContent(e.target.value)}
+                            rows={18}
+                            className="w-full bg-background border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm resize-y"
+                            required
+                        />
+                    </div>
+
+                    {/* ── Inline Image Generator ── */}
+                    <InlineImageGenerator
+                        title={title}
+                        excerpt={excerpt}
+                        content={content}
+                        onInsert={(html) =>
+                            setContent((prev) => prev + "\n\n" + html)
+                        }
+                    />
+
+                    {/* Save bar */}
+                    <div className="sticky bottom-0 bg-background/95 backdrop-blur border-t border-border/40 z-10 -mx-4 px-4 py-3 flex flex-col sm:flex-row gap-3 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.3)]">
+                        <button
+                            type="button"
+                            onClick={() => router.back()}
+                            className="inline-flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl border border-border font-bold hover:bg-muted transition-colors text-sm shrink-0"
+                        >
+                            <ArrowLeft className="w-4 h-4" />
+                            Späť
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={status === "saving"}
+                            className="flex-1 bg-primary text-primary-foreground font-black text-sm rounded-xl px-4 py-3.5 transition-colors hover:bg-primary/90 disabled:opacity-50 uppercase tracking-wider"
+                        >
+                            {status === "saving" ? "Ukladám zmeny..." : "Uložiť zmeny v článku"}
+                        </button>
+                    </div>
+                </form>
             )}
         </div>
     );
