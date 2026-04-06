@@ -137,20 +137,17 @@ async function handleAutopilot(request: NextRequest) {
     // ── Save updated bots back to site_settings ─────────────────────────────
     await supabase
       .from("site_settings")
-      .upsert({ key: "bots", value: JSON.stringify(bots) });
+      .upsert({ key: "bots", value: JSON.stringify(bots) }, { onConflict: "key" });
 
     // ── Also write legacy auto_pilot key for backward compat ────────────────
     const anySuccess = results.some((r) => r.success);
     if (anySuccess) {
       await supabase
         .from("site_settings")
-        .upsert({
-          key: "auto_pilot",
-          value: JSON.stringify({
-            enabled: true,
-            last_run: new Date().toISOString(),
-          }),
-        });
+        .upsert(
+          { key: "auto_pilot", value: JSON.stringify({ enabled: true, last_run: new Date().toISOString() }) },
+          { onConflict: "key" }
+        );
     }
 
     const successCount = results.filter((r) => r.success).length;

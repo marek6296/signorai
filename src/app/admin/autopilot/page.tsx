@@ -183,21 +183,21 @@ export default function BotsPage() {
 
   // ── Save bots to Supabase ──
   const saveBots = async (updated: Bot[]) => {
-    await supabase.from("site_settings").upsert({
-      key: "bots",
-      value: JSON.stringify(updated),
-    });
+    await supabase.from("site_settings").upsert(
+      { key: "bots", value: JSON.stringify(updated) },
+      { onConflict: "key" }
+    );
     // also write legacy auto_pilot key from first enabled full bot
     const fullBot = updated.find((b) => b.type === "full" && b.enabled) ?? updated.find((b) => b.type === "full");
     if (fullBot) {
-      await supabase.from("site_settings").upsert({
-        key: "auto_pilot",
-        value: JSON.stringify({ enabled: fullBot.enabled, run_times: fullBot.run_times, categories: fullBot.categories }),
-      });
-      await supabase.from("site_settings").upsert({
-        key: "ai_content_bot",
-        value: JSON.stringify(fullBot),
-      });
+      await supabase.from("site_settings").upsert(
+        { key: "auto_pilot", value: JSON.stringify({ enabled: fullBot.enabled, run_times: fullBot.run_times, categories: fullBot.categories }) },
+        { onConflict: "key" }
+      );
+      await supabase.from("site_settings").upsert(
+        { key: "ai_content_bot", value: JSON.stringify(fullBot) },
+        { onConflict: "key" }
+      );
     }
   };
 
