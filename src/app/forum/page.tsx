@@ -73,13 +73,23 @@ export default async function ForumPage() {
     .from("forum_threads")
     .select(`
       id, title, created_at, views, is_pinned, is_locked,
-      category_id,
-      forum_categories(name, icon, color, slug),
-      profiles(full_name)
+      user_id, category_id,
+      forum_categories(name, icon, color, slug)
     `)
     .order("is_pinned", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(20);
+
+  // Fetch author names separately for non-null user_ids
+  const userIds = Array.from(new Set((threads || []).map((t) => t.user_id).filter(Boolean)));
+  const profileMap: Record<string, string> = {};
+  if (userIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, full_name")
+      .in("id", userIds);
+    (profiles || []).forEach((p) => { if (p.full_name) profileMap[p.id] = p.full_name; });
+  }
 
   // Get reply counts
   const threadIds = (threads || []).map((t) => t.id);
@@ -99,7 +109,7 @@ export default async function ForumPage() {
     ...t,
     reply_count: replyCountMap[t.id] || 0,
     forum_categories: Array.isArray(t.forum_categories) ? t.forum_categories[0] : t.forum_categories,
-    profiles: Array.isArray(t.profiles) ? t.profiles[0] : t.profiles,
+    profiles: t.user_id ? { full_name: profileMap[t.user_id] ?? null } : null,
   }));
 
   // Total stats
