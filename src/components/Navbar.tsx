@@ -106,7 +106,7 @@ export function Navbar() {
     const pathname = usePathname();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
-    const { user } = useUser();
+    const { user, signOut } = useUser();
 
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
@@ -368,8 +368,40 @@ export function Navbar() {
                         );
                     })}
 
-                    {/* Mobile auth buttons */}
-                    {!user && (
+                    {/* Mobile auth */}
+                    {user ? (
+                        <div className="w-11/12 max-w-sm mt-2 border-t border-border/30 pt-4">
+                            {(() => {
+                                const avatarUrl = user.user_metadata?.avatar_url;
+                                const name = user.user_metadata?.full_name || user.email || "Používateľ";
+                                const initials = name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
+                                return (
+                                    <div className="flex items-center justify-between px-2">
+                                        <div className="flex items-center gap-3">
+                                            {avatarUrl ? (
+                                                <Image src={avatarUrl} alt={name} width={36} height={36} className="w-9 h-9 rounded-full object-cover border-2 border-primary/30" unoptimized />
+                                            ) : (
+                                                <div className="w-9 h-9 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-[11px] font-black text-primary">
+                                                    {initials}
+                                                </div>
+                                            )}
+                                            <div>
+                                                <p className="text-[11px] font-black text-foreground truncate max-w-[160px]">{name}</p>
+                                                <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">Prihlásený</p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => { signOut(); setIsMenuOpen(false); }}
+                                            className="flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-red-400 hover:bg-red-500/10 rounded-xl transition-all border border-red-500/20"
+                                        >
+                                            <LogOut size={13} />
+                                            Odhlásiť
+                                        </button>
+                                    </div>
+                                );
+                            })()}
+                        </div>
+                    ) : (
                         <div className="w-11/12 max-w-sm flex gap-2 mt-2">
                             <Link
                                 href="/registracia"

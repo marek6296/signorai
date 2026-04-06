@@ -171,7 +171,7 @@ export default function AdminDashboard() {
         .pulse-subtle { animation: pulse-subtle 3s ease-in-out infinite; }
         .stat-trend { animation: pulse-subtle 2s ease-in-out infinite; }
         .glow-border { animation: glow 3s ease-in-out infinite; }
-        .card-glass { background: rgba(20,20,20,0.6); backdrop-filter: blur(20px); }
+        .card-glass { background: rgba(20,20,20,0.6); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); }
         .border-accent { border-color: rgba(245,158,11,0.2); }
       `}</style>
 

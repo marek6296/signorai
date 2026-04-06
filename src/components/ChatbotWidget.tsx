@@ -110,8 +110,7 @@ function TypingDots() {
       {[0, 1, 2].map((i) => (
         <span
           key={i}
-          className="w-[7px] h-[7px] rounded-full aiwai-dot"
-          style={{ animation: `typingDot 1.3s ease-in-out ${i * 0.18}s infinite` }}
+          className="aiwai-typing-dot w-[7px] h-[7px] rounded-full aiwai-dot"
         />
       ))}
     </div>
@@ -352,22 +351,92 @@ export function ChatbotWidget() {
         }
         .aiwai-input-area { border-top: 1px solid var(--cw-border); }
 
+        /* ── hide scrollbar (cross-browser incl. Safari/WebKit) ── */
+        .aiwai-messages-scroll::-webkit-scrollbar { display: none; }
+        .aiwai-messages-scroll {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+          -webkit-overflow-scrolling: touch;
+        }
+
+        /* ── GPU acceleration + panel open/close animations ── */
+        .aiwai-panel {
+          -webkit-transform: translateZ(0);
+          transform: translateZ(0);
+          will-change: transform, opacity;
+          -webkit-backface-visibility: hidden;
+          backface-visibility: hidden;
+        }
+        .aiwai-panel-in {
+          -webkit-animation: cwIn 0.28s cubic-bezier(0.34,1.4,0.64,1) forwards;
+          animation: cwIn 0.28s cubic-bezier(0.34,1.4,0.64,1) forwards;
+        }
+        .aiwai-panel-out {
+          -webkit-animation: cwOut 0.24s ease-in forwards;
+          animation: cwOut 0.24s ease-in forwards;
+        }
+        .aiwai-pulse {
+          -webkit-animation: pulseRing 1.5s ease-out infinite;
+          animation: pulseRing 1.5s ease-out infinite;
+        }
+        .aiwai-btn {
+          -webkit-transform: translateZ(0);
+          transform: translateZ(0);
+          will-change: transform;
+          -webkit-backface-visibility: hidden;
+          backface-visibility: hidden;
+        }
+        /* Use CSS classes for animations (avoids React inline style shorthand conflict) */
+        .aiwai-msg-row {
+          -webkit-animation: msgIn 0.22s ease forwards;
+          animation: msgIn 0.22s ease forwards;
+          will-change: transform, opacity;
+          -webkit-backface-visibility: hidden;
+          backface-visibility: hidden;
+        }
+        .aiwai-typing-dot {
+          -webkit-animation: typingDot 1.3s ease-in-out infinite;
+          animation: typingDot 1.3s ease-in-out infinite;
+        }
+        .aiwai-typing-dot:nth-child(2) { -webkit-animation-delay: 0.18s; animation-delay: 0.18s; }
+        .aiwai-typing-dot:nth-child(3) { -webkit-animation-delay: 0.36s; animation-delay: 0.36s; }
+
         /* ── animations ── */
+        @-webkit-keyframes typingDot {
+          0%, 60%, 100% { opacity: 0.3; -webkit-transform: translateY(0); transform: translateY(0); }
+          30% { opacity: 1; -webkit-transform: translateY(-3px); transform: translateY(-3px); }
+        }
         @keyframes typingDot {
           0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
           30% { opacity: 1; transform: translateY(-3px); }
         }
+        @-webkit-keyframes cwIn {
+          from { opacity: 0; -webkit-transform: translateY(18px) scale(0.95); transform: translateY(18px) scale(0.95); }
+          to   { opacity: 1; -webkit-transform: translateY(0) scale(1); transform: translateY(0) scale(1); }
+        }
         @keyframes cwIn {
           from { opacity: 0; transform: translateY(18px) scale(0.95); }
-          to   { opacity: 1; transform: translateY(0)   scale(1); }
+          to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @-webkit-keyframes cwOut {
+          from { opacity: 1; -webkit-transform: translateY(0) scale(1); transform: translateY(0) scale(1); }
+          to   { opacity: 0; -webkit-transform: translateY(18px) scale(0.95); transform: translateY(18px) scale(0.95); }
         }
         @keyframes cwOut {
-          from { opacity: 1; transform: translateY(0)   scale(1); }
+          from { opacity: 1; transform: translateY(0) scale(1); }
           to   { opacity: 0; transform: translateY(18px) scale(0.95); }
+        }
+        @-webkit-keyframes msgIn {
+          from { opacity: 0; -webkit-transform: translateY(6px); transform: translateY(6px); }
+          to   { opacity: 1; -webkit-transform: translateY(0); transform: translateY(0); }
         }
         @keyframes msgIn {
           from { opacity: 0; transform: translateY(6px); }
           to   { opacity: 1; transform: translateY(0); }
+        }
+        @-webkit-keyframes pulseRing {
+          0%   { -webkit-transform: scale(1);    transform: scale(1);    opacity: 0.45; }
+          100% { -webkit-transform: scale(1.85); transform: scale(1.85); opacity: 0; }
         }
         @keyframes pulseRing {
           0%   { transform: scale(1);   opacity: 0.45; }
@@ -378,14 +447,8 @@ export function ChatbotWidget() {
       {/* ── Chat panel ── */}
       {isRendered && (
         <div
-          className="aiwai-panel fixed bottom-24 right-4 sm:right-6 z-50 w-[calc(100vw-2rem)] sm:w-[380px] flex flex-col rounded-3xl overflow-hidden"
-          style={{
-            maxHeight: "min(540px, calc(100vh - 120px))",
-            animation: isVisible
-              ? "cwIn 0.28s cubic-bezier(0.34,1.4,0.64,1) forwards"
-              : "cwOut 0.24s ease-in forwards",
-            transformOrigin: "bottom right",
-          }}
+          className={`aiwai-panel ${isVisible ? "aiwai-panel-in" : "aiwai-panel-out"} fixed bottom-24 right-4 sm:right-6 z-50 w-[calc(100vw-2rem)] sm:w-[380px] flex flex-col rounded-3xl overflow-hidden`}
+          style={{ maxHeight: "min(540px, calc(100vh - 120px))", transformOrigin: "bottom right" }}
         >
           {/* Header */}
           <div className="aiwai-header-border flex items-center justify-between px-5 py-4">
@@ -429,15 +492,11 @@ export function ChatbotWidget() {
           )}
 
           {/* Messages */}
-          <div
-            className="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-3.5 min-h-0"
-            style={{ scrollbarWidth: "none" }}
-          >
+          <div className="aiwai-messages-scroll flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-3.5 min-h-0">
             {messages.map((msg) => (
               <div
                 key={msg.id}
-                className={`flex gap-2.5 items-end ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
-                style={{ animation: "msgIn 0.22s ease forwards" }}
+                className={`aiwai-msg-row flex gap-2.5 items-end ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
               >
                 {msg.role === "bot" && (
                   <Avatar name={config.bot_name} size="sm" />
@@ -459,10 +518,7 @@ export function ChatbotWidget() {
             ))}
 
             {loading && (
-              <div
-                className="flex gap-2.5 items-end"
-                style={{ animation: "msgIn 0.2s ease forwards" }}
-              >
+              <div className="aiwai-msg-row flex gap-2.5 items-end">
                 <Avatar name={config.bot_name} size="sm" />
                 <div className="aiwai-bot-bubble rounded-2xl rounded-bl-md px-4 py-3">
                   <TypingDots />
@@ -504,11 +560,8 @@ export function ChatbotWidget() {
       <div className="fixed bottom-6 right-4 sm:right-6 z-50">
         {btnPulse && !isOpen && (
           <span
-            className="absolute inset-0 rounded-full"
-            style={{
-              background: "var(--cw-pulse-bg)",
-              animation: "pulseRing 1.5s ease-out infinite",
-            }}
+            className="aiwai-pulse absolute inset-0 rounded-full"
+            style={{ background: "var(--cw-pulse-bg)" }}
           />
         )}
         <button

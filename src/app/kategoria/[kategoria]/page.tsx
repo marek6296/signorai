@@ -2,6 +2,7 @@ import { getArticlesByCategory, CATEGORY_MAP } from "@/lib/data";
 import { ArticleCard } from "@/components/ArticleCard";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
+import { PageTransition } from "@/components/PageTransition";
 
 export const dynamic = "force-dynamic";
 
@@ -90,7 +91,7 @@ export default async function CategoryPage({ params }: Props) {
     };
 
     return (
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-8 md:pt-4 md:pb-12 max-w-7xl flex-grow">
+        <PageTransition className="container mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-8 md:pt-4 md:pb-12 max-w-7xl flex-grow">
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdCollection) }} />
 
             {articles.length === 0 ? (
@@ -105,6 +106,6 @@ export default async function CategoryPage({ params }: Props) {
                     ))}
                 </div>
             )}
-        </div>
+        </PageTransition>
     );
 }

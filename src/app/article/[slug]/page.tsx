@@ -13,6 +13,7 @@ import { ShareButtons } from "@/components/ShareButtons";
 import { BookmarkButton } from "@/components/BookmarkButton";
 import { Comments } from "@/components/Comments";
 import type { Metadata } from "next";
+import { PageTransition } from "@/components/PageTransition";
 
 
 export const dynamic = "force-dynamic";
@@ -139,7 +140,7 @@ export default async function ArticlePage({ params, searchParams }: Props) {
     };
 
     return (
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 max-w-7xl">
+        <PageTransition className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 max-w-7xl">
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdArticle) }} />
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdBreadcrumb) }} />
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16">
@@ -274,6 +275,6 @@ export default async function ArticlePage({ params, searchParams }: Props) {
                     </div>
                 </div>
             </div>
-        </div>
+        </PageTransition>
     );
 }

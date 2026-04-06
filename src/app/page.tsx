@@ -1,4 +1,5 @@
 import { getLatestArticle, getRecentArticles } from "@/lib/data";
+import { PageTransition } from "@/components/PageTransition";
 import { ArticleCard } from "@/components/ArticleCard";
 import { NewsletterSidebar } from "@/components/NewsletterSidebar";
 import { SocialPromo } from "@/components/SocialPromo";
@@ -62,7 +63,7 @@ export default async function Home() {
   };
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-8 md:pt-4 md:pb-12 max-w-7xl">
+    <PageTransition className="container mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-8 md:pt-4 md:pb-12 max-w-7xl">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdItemList) }} />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
@@ -131,6 +132,6 @@ export default async function Home() {
           <LoadMoreGrid articles={remainingArticles} />
         </div>
       )}
-    </div>
+    </PageTransition>
   );
 }
