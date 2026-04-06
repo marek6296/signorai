@@ -1,7 +1,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { publishToFacebook, publishToInstagram, getPageAccessToken } from "@/lib/meta-api";
+import { publishToFacebook, publishToInstagram } from "@/lib/meta-api";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -142,49 +142,14 @@ export async function POST(req: Request) {
                 }
             }
 
-            // ── Step 2: Post photo + text to Facebook ─────────────────────────────
-            const finalMessage = `${post.content || ""}\n\nČlánok nájdete tu: ${articleUrl}`;
+            // ── Step 2: Post feed+image to Facebook ──────────────────────────────
+            // Message contains only post content — the article link goes via the `link`
+            // param so Facebook creates a proper link-preview card (not a bare URL in text).
+            const finalMessage = post.content || "";
             result = await publishToFacebook(finalMessage, articleUrl, fbImageUrl);
-            // When posting a photo, FB returns { id: photo_id, post_id: "PAGE_ID_POST_ID" }
-            // We MUST comment on post_id (the timeline post), not on id (the photo object)
-            console.log(`[Facebook] Photo post raw response — id: ${result?.id}, post_id: ${result?.post_id}`);
-
-            let fbPostId: string | undefined = result?.post_id;
-
-            // Fallback: if post_id was not returned, fetch it from the photo object via Graph API
-            if (!fbPostId && result?.id) {
-                try {
-                    // Get meta config from Supabase (to exchange for Page Token)
-                    const { data: settingsRow } = await supabase
-                        .from('site_settings')
-                        .select('value')
-                        .eq('key', 'meta_config')
-                        .single();
-                    const val = settingsRow?.value as any;
-                    const metaToken = val?.access_token || process.env.META_ACCESS_TOKEN;
-                    const fbPageId = val?.page_id || process.env.FB_PAGE_ID;
-
-                    // Get a real Page Access Token to perform the lookup
-                    const pageToken = await getPageAccessToken(fbPageId, metaToken);
-
-                    const photoFieldsRes = await fetch(
-                        `https://graph.facebook.com/v22.0/${result.id}?fields=post_id&access_token=${pageToken}`
-                    );
-                    const photoFields = await photoFieldsRes.json();
-                    if (photoFields?.post_id) {
-                        fbPostId = photoFields.post_id;
-                        console.log(`[Facebook] Recovered post_id from photo object: ${fbPostId}`);
-                    } else {
-                        console.warn(`[Facebook] Could not recover post_id — fallback to photo id. API said: ${JSON.stringify(photoFields)}`);
-                        fbPostId = result.id;
-                    }
-                } catch (lookupErr) {
-                    console.warn("[Facebook] post_id lookup failed, using photo id:", lookupErr);
-                    fbPostId = result.id;
-                }
-            }
-
-            // Link je už súčasťou caption textu — komentár nie je potrebný
+            // publishToFacebook now uses the 2-step approach (unpublished photo → feed post)
+            // and always returns { id: feedPostId, post_id: feedPostId }, so no extra lookup needed.
+            console.log(`[Facebook] Feed+image post — id: ${result?.id}`);
         } else if (post.platform === 'Instagram') {
             // Instagram ideally needs a 1:1 image, but let's allow the publish attempt even if pre-render failed
             // Meta API will validate aspect ratio and reject if too far off
