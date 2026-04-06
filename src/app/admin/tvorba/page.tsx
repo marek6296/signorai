@@ -23,6 +23,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import Link from "next/link";
+import { Portal } from "@/components/Portal";
 
 type SuggestedNews = {
   id: string;
@@ -395,16 +396,18 @@ export default function TvorbaPage() {
 
   return (
     <div className="min-h-screen" style={{ background: "#080808" }}>
-      {loading && <LoadingOverlay stage={loadingStage} />}
-      {confirmModal && (
-        <ConfirmModal
-          item={confirmModal}
-          onConfirm={confirmProcess}
-          onCancel={() => setConfirmModal(null)}
-          isLoading={loading}
-        />
-      )}
-      {toast && <Toast msg={toast.msg} type={toast.type} />}
+      <Portal>
+        {loading && <LoadingOverlay stage={loadingStage} />}
+        {confirmModal && (
+          <ConfirmModal
+            item={confirmModal}
+            onConfirm={confirmProcess}
+            onCancel={() => setConfirmModal(null)}
+            isLoading={loading}
+          />
+        )}
+        {toast && <Toast msg={toast.msg} type={toast.type} />}
+      </Portal>
 
       <div className="p-5 md:p-7 space-y-5 pb-20">
         {/* Header */}
