@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { InstagramPreview } from "@/components/InstagramPreview";
 import {
   Trash2,
   Send,
@@ -76,6 +77,7 @@ export default function SocialnePage() {
   const [generating, setGenerating] = useState(false);
   const [generatingProgress, setGeneratingProgress] = useState<{ current: number; total: number; label: string } | null>(null);
   const [lastGeneratedPost, setLastGeneratedPost] = useState<SocialPost | null>(null);
+  const [lastGeneratedArticle, setLastGeneratedArticle] = useState<Article | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
   // Bot settings
@@ -175,6 +177,7 @@ export default function SocialnePage() {
     }
     setGenerating(true);
     setLastGeneratedPost(null);
+    setLastGeneratedArticle(null);
     const articlesToProcess = articles.filter((a) => selectedArticles.has(a.id));
     const platforms = Array.from(selectedPlatforms);
     const total = articlesToProcess.length * platforms.length;
@@ -244,7 +247,12 @@ export default function SocialnePage() {
         }
       }
       await fetchPosts();
-      if (lastPost) setLastGeneratedPost(lastPost);
+      if (lastPost) {
+        setLastGeneratedPost(lastPost);
+        // set the article for InstagramPreview (use the last processed article)
+        const lastArticle = articlesToProcess[articlesToProcess.length - 1];
+        if (lastArticle) setLastGeneratedArticle(lastArticle);
+      }
       setSelectedArticles(new Set());
       setActiveTab("draft");
       showToast(`${total} príspevkov vygenerovaných ✓`);
@@ -729,77 +737,35 @@ export default function SocialnePage() {
             </div>
           </div>
 
-          {/* RIGHT: live preview */}
-          <div className="w-80 shrink-0 p-5 flex flex-col gap-4" style={{ borderLeft: "1px solid rgba(255,255,255,0.06)" }}>
+          {/* RIGHT: live preview using InstagramPreview component */}
+          <div className="w-96 shrink-0 p-5 flex flex-col gap-3" style={{ borderLeft: "1px solid rgba(255,255,255,0.06)" }}>
             <div className="text-[10px] font-black uppercase tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.25)" }}>
-              Náhľad posledného príspevku
+              Náhľad Instagram obrázka
             </div>
 
-            {lastGeneratedPost ? (
+            {lastGeneratedArticle ? (
               <>
-                {/* Image preview */}
-                <div className="relative rounded-xl overflow-hidden" style={{ aspectRatio: "1/1", background: "#000" }}>
-                  {lastGeneratedPost.image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={lastGeneratedPost.image_url}
-                      alt="preview"
-                      className="w-full h-full object-cover"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                    />
-                  ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center gap-2" style={{ background: "linear-gradient(135deg, #0a0a12, #111)" }}>
-                      <div className="text-[10px] font-black uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.25)" }}>AIWAI · NEWS</div>
-                      <div className="text-center text-xs font-black uppercase px-4" style={{ color: "rgba(255,255,255,0.6)", lineHeight: 1.3 }}>
-                        {lastGeneratedPost.articles?.title?.slice(0, 60)}
-                      </div>
-                      <div className="text-[9px] uppercase tracking-widest mt-2" style={{ color: "rgba(255,255,255,0.2)" }}>Generujem obrázok...</div>
-                    </div>
-                  )}
-                  {/* Platform badge */}
-                  <div className="absolute top-2 left-2 px-2 py-1 rounded-lg text-[10px] font-bold" style={{
-                    background: lastGeneratedPost.platform === "Instagram" ? "rgba(236,72,153,0.85)" : "rgba(59,130,246,0.85)",
-                    color: "#fff", backdropFilter: "blur(4px)"
-                  }}>
-                    {lastGeneratedPost.platform}
-                  </div>
-                </div>
-
-                {/* Post content preview */}
-                {lastGeneratedPost.content && (
-                  <div className="rounded-xl p-3 text-xs leading-relaxed" style={{
+                <InstagramPreview
+                  title={lastGeneratedArticle.title}
+                  articleImage={lastGeneratedArticle.main_image}
+                  category={lastGeneratedArticle.category}
+                  id="socialne-preview"
+                />
+                {/* Generated text preview */}
+                {lastGeneratedPost?.content && (
+                  <div className="rounded-xl p-3 text-xs leading-relaxed mt-1" style={{
                     background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)",
-                    color: "rgba(255,255,255,0.6)", maxHeight: 120, overflowY: "auto"
+                    color: "rgba(255,255,255,0.6)", maxHeight: 100, overflowY: "auto"
                   }}>
+                    <div className="text-[9px] font-black uppercase tracking-wider mb-1.5" style={{ color: "rgba(255,255,255,0.25)" }}>
+                      {lastGeneratedPost.platform} príspevok
+                    </div>
                     {lastGeneratedPost.content}
                   </div>
                 )}
-
-                {/* Refresh image button */}
-                <button
-                  onClick={async () => {
-                    if (!lastGeneratedPost?.id) return;
-                    try {
-                      const res = await fetch("/api/admin/pre-render-social-image", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ id: lastGeneratedPost.id, variant: "photo" }),
-                      });
-                      if (res.ok) {
-                        const { url } = await res.json();
-                        setLastGeneratedPost(p => p ? { ...p, image_url: url } : p);
-                        await fetchPosts();
-                      }
-                    } catch { /* ignore */ }
-                  }}
-                  className="w-full py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all"
-                  style={{ background: "rgba(244,114,182,0.08)", border: "1px solid rgba(244,114,182,0.2)", color: "#f472b6" }}
-                >
-                  <RefreshCw className="w-3 h-3" /> Obnov obrázok
-                </button>
               </>
             ) : (
-              <div className="flex-1 flex flex-col items-center justify-center gap-3 py-8">
+              <div className="flex-1 flex flex-col items-center justify-center gap-3 py-12">
                 <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: "rgba(244,114,182,0.08)", border: "1px solid rgba(244,114,182,0.12)" }}>
                   <ImageIcon className="w-6 h-6" style={{ color: "rgba(244,114,182,0.4)" }} />
                 </div>
