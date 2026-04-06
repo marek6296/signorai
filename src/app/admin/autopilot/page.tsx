@@ -238,8 +238,8 @@ export default function BotsPage() {
   const runBot = async (bot: Bot) => {
     setRunningBotId(bot.id);
     const steps: RunStep[] = [
-      { label: "Hľadám tému...", status: "pending" },
-      { label: "Generujem článok...", status: "pending" },
+      { label: "Hľadám tému & generujem článok...", status: "pending" },
+      { label: "Generujem AI obrázky...", status: "pending" },
       { label: "Publikujem na stránku...", status: "pending" },
       ...(bot.type === "full"
         ? [{ label: "Zverejňujem na soc. siete...", status: "pending" as const }]
@@ -252,47 +252,27 @@ export default function BotsPage() {
     };
 
     try {
-      // Step 0: discover topic
+      // Steps 0+1+2: bot-generate handles topic fetch + article + images + save (all in one)
       setStep(0, "running");
-      const topicsRes = await fetch(
-        `/api/admin/gemini-topics?count=1&categories=${bot.categories.join(",")}&secret=make-com-webhook-secret`
-      );
-      if (!topicsRes.ok) throw new Error("Chyba pri hľadaní tém");
-      const topicsData = await topicsRes.json();
-      const topic = (topicsData.topics || topicsData.suggestions || topicsData.items || topicsData.suggested || [])[0];
-      if (!topic) throw new Error("Žiadne témy nenájdené");
-      setStep(0, "done");
-
-      // Step 1: generate article directly from topic title+summary (no URL scraping)
       setStep(1, "running");
-      const topicTitle = typeof topic === "string" ? topic : (topic.title || topic.topic || "AI news");
-      const topicSummary = typeof topic === "string" ? "" : (topic.summary || topic.description || "");
-      const topicSourceUrl = typeof topic === "string" ? null : (topic.url && topic.url.startsWith("http") ? topic.url : null);
-      const articleRes = await fetch("/api/admin/bot-generate", {
+      const botRes = await fetch("/api/admin/bot-generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           secret: "make-com-webhook-secret",
-          title: topicTitle,
-          summary: topicSummary,
-          category: bot.categories[0] || "AI",
-          sourceUrl: topicSourceUrl,
-          status: "draft",
+          bot,
         }),
       });
-      if (!articleRes.ok) {
-        const errData = await articleRes.json().catch(() => ({}));
+      if (!botRes.ok) {
+        const errData = await botRes.json().catch(() => ({}));
         throw new Error(errData.message || "Chyba pri generovaní článku");
       }
-      const articleData = await articleRes.json();
-      const articleId = articleData.article?.id || articleData.id;
+      const botData = await botRes.json();
+      const articleId = botData.articleId;
+      setStep(0, "done");
       setStep(1, "done");
 
-      // Step 2: publish article
-      setStep(2, "running");
-      if (articleId) {
-        await supabase.from("articles").update({ status: "published" }).eq("id", articleId);
-      }
+      // Step 2: article is already published by bot-generate (status: published)
       setStep(2, "done");
 
       // Step 3 (full only): social posts
@@ -301,13 +281,13 @@ export default function BotsPage() {
         const platforms: string[] = [];
         if (bot.post_instagram) platforms.push("instagram");
         if (bot.post_facebook) platforms.push("facebook");
-        if (platforms.length > 0 && articleData.article) {
+        if (platforms.length > 0 && articleId) {
           await fetch("/api/admin/generate-social-post", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               secret: "make-com-webhook-secret",
-              articleId: articleId,
+              articleId,
               platforms,
               instagramFormat: bot.instagram_format || "image_text",
               autoPublish: bot.auto_publish_social,
