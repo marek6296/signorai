@@ -15,6 +15,8 @@ interface GenerateArticleRequest {
     secret?: string;
     status?: 'draft' | 'published';
     model?: 'gpt-4o' | 'gemini';
+    fallbackTitle?: string;
+    fallbackContent?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -25,8 +27,8 @@ export async function POST(request: NextRequest) {
         const body: GenerateArticleRequest = await request.json();
         console.log(`>>> [API][${requestId}] Body parsed items:`, Object.keys(body));
         
-        const { url, secret, status = 'draft', model = 'gpt-4o' } = body ?? {};
-        console.log(`>>> [API][${requestId}] Data: url=${url}, model=${model}, secret=${secret ? 'provided' : 'none'}`);
+        const { url, secret, status = 'draft', model = 'gpt-4o', fallbackTitle, fallbackContent } = body ?? {};
+        console.log(`>>> [API][${requestId}] Data: url=${url}, model=${model}, secret=${secret ? 'provided' : 'none'}, hasFallback=${!!(fallbackTitle || fallbackContent)}`);
 
         // Authorization
         if (secret !== process.env.ADMIN_SECRET && secret !== LEGACY_SECRET) {
@@ -47,7 +49,7 @@ export async function POST(request: NextRequest) {
         console.log(`>>> [API][${requestId}] Importing logic and starting generation...`);
         const { processArticleFromUrl } = await import("../../../../lib/generate-logic");
         
-        const data = await processArticleFromUrl(url, status, undefined, model);
+        const data = await processArticleFromUrl(url, status, undefined, model, fallbackTitle, fallbackContent);
         
         console.log(`>>> [API][${requestId}] Success for article:`, data?.title);
         return NextResponse.json({ success: true, article: data });

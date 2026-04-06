@@ -308,6 +308,8 @@ export default function TvorbaPage() {
           url: suggestion.url,
           status: asDraft ? "draft" : "published",
           secret: "make-com-webhook-secret",
+          fallbackTitle: suggestion.title || undefined,
+          fallbackContent: suggestion.summary || undefined,
         }),
       });
       if (!res.ok) {
@@ -390,8 +392,11 @@ export default function TvorbaPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: botPrompt, postSocial, publishStatus, secret: "make-com-webhook-secret" }),
       });
-      if (!res.ok) throw new Error("Bot failed");
-      const data = (await res.json()) as GeneratedArticle;
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || `Chyba servera (${res.status})`);
+      }
+      const { article: data } = await res.json() as { article: GeneratedArticle };
       setBotPrompt("");
       setLastCreated(data);
       showToast(`Článok vytvorený ✓`);

@@ -321,42 +321,57 @@ export async function scrapeUrl(url: string): Promise<string> {
     }
 }
 
-export async function processArticleFromUrl(url: string, targetStatus: 'draft' | 'published' = 'draft', forcedCategory?: string, model: 'gpt-4o' | 'gemini' = 'gpt-4o') {
+export async function processArticleFromUrl(url: string, targetStatus: 'draft' | 'published' = 'draft', forcedCategory?: string, model: 'gpt-4o' | 'gemini' = 'gpt-4o', fallbackTitle?: string, fallbackContent?: string) {
     try {
-        // 0. Validate URL — reject known unscrapable URL patterns
+        // 0. Validate URL — reject known unscrapable URL patterns (unless fallback provided)
         const BLOCKED_URL_PATTERNS = [
             'vertexaisearch.cloud.google.com',
             'grounding-api-redirect',
         ];
         for (const pattern of BLOCKED_URL_PATTERNS) {
-            if (url.includes(pattern)) {
+            if (url.includes(pattern) && !fallbackTitle && !fallbackContent) {
                 throw new Error(`Táto URL je Google interný presmerovací odkaz a nedá sa priamo spracovať. Otvorte odkaz v prehliadači, skopírujte skutočnú URL článku a skúste znova.`);
             }
         }
 
-        // 1. Scraping
+        // 1. Scraping — non-fatal when fallback content is available
         console.log(`>>> [Logic] Scraping URL with timeout: ${url}`);
-        const response = await fetch(url, {
-            headers: {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-                "Accept-Language": "en-US,en;q=0.5"
-            },
-            signal: AbortSignal.timeout(15000) // 15s timeout
-        });
+        let doc: InstanceType<typeof JSDOM> | null = null;
+        let parsedArticle: { title?: string | null; textContent?: string | null; content?: string | null } | null = null;
 
-        if (!response.ok) {
-            throw new Error(`Nepodarilo sa načítať URL (status ${response.status})`);
+        try {
+            const response = await fetch(url, {
+                headers: {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                    "Accept-Language": "en-US,en;q=0.5"
+                },
+                signal: AbortSignal.timeout(15000) // 15s timeout
+            });
+
+            if (response.ok) {
+                const html = await response.text();
+                doc = new JSDOM(html, { url });
+                const reader = new Readability(doc.window.document);
+                parsedArticle = reader.parse();
+            } else {
+                console.warn(`>>> [Logic] URL returned status ${response.status}. Using fallback content.`);
+            }
+        } catch (fetchErr) {
+            console.warn(`>>> [Logic] URL fetch failed: ${fetchErr}. Using fallback content.`);
         }
 
-        const html = await response.text();
-        const doc = new JSDOM(html, { url });
-        const reader = new Readability(doc.window.document);
-        const parsedArticle = reader.parse();
-
-        if (!parsedArticle || !parsedArticle.textContent) {
-            throw new Error("Nepodarilo sa extrahovať obsah článku. Web môže blokovať botov.");
+        // If scraping yielded nothing and there's no fallback, fail clearly
+        const hasScrapedContent = !!(parsedArticle?.textContent?.trim());
+        const hasFallback = !!(fallbackTitle || fallbackContent);
+        if (!hasScrapedContent && !hasFallback) {
+            throw new Error(`Nepodarilo sa načítať obsah stránky. Web môže blokovať botov. Skúste iný zdroj.`);
         }
+
+        // Effective source content (scraped wins, fallback is secondary)
+        const effectiveTitle = parsedArticle?.title || fallbackTitle || url;
+        const effectiveText = parsedArticle?.textContent || fallbackContent || fallbackTitle || "";
+        const effectiveHtmlContent = parsedArticle?.content || fallbackContent || "";
 
         // 2. Define the instructions
         const promptSystem = `Si šéfredaktor a špičkový copywriter pre prestížny AI & Tech magazín AIWai. Bude ti zadaný zdrojový text z nejakého webu.
@@ -397,8 +412,8 @@ Nikdy nevracaj inú kategóriu. Nikdy nevracaj markdown bloky okolo JSON.`;
             const finalPrompt = `${promptSystem}
 
 Spracuj tento článok zo zdroja:
-TITULOK: ${parsedArticle.title}
-OBSAH: ${parsedArticle.textContent?.substring(0, 8000)}
+TITULOK: ${effectiveTitle}
+OBSAH: ${effectiveText.substring(0, 8000)}
 
 DÔLEŽITÉ: Odpovedaj VÝHRADNE v čistom JSON formáte. Žiadny markdown, žiadny text pred ani po JSON.`;
 
@@ -435,7 +450,7 @@ DÔLEŽITÉ: Odpovedaj VÝHRADNE v čistom JSON formáte. Žiadny markdown, žia
                 model: "gpt-4o",
                 messages: [
                     { role: "system", content: promptSystem },
-                    { role: "user", content: `Spracuj tento článok: ${parsedArticle.title}\n\nZdrojové HTML:\n${parsedArticle.content}` }
+                    { role: "user", content: `Spracuj tento článok: ${effectiveTitle}\n\nZdrojové HTML:\n${effectiveHtmlContent || effectiveText}` }
                 ],
                 response_format: { type: "json_object" }
             });
@@ -465,7 +480,8 @@ DÔLEŽITÉ: Odpovedaj VÝHRADNE v čistom JSON formáte. Žiadny markdown, žia
         };
 
         try {
-            const document = doc.window.document;
+            const document = doc?.window.document;
+            if (!document) throw new Error("No document (scraping was skipped)");
             const ogImage = document.querySelector('meta[property="og:image"]')?.getAttribute('content');
             const twitterImage = document.querySelector('meta[name="twitter:image"]')?.getAttribute('content');
             const firstImg = document.querySelector('article img')?.getAttribute('src') || document.querySelector('img')?.getAttribute('src');
