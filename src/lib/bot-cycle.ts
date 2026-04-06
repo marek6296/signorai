@@ -1052,31 +1052,46 @@ ${topic.url ? `ZDROJ: ${topic.url}` : ""}`;
   }
 }
 
-// ─── Check if a bot should run now (interval-based) ──────────────────────────
-// Vercel cron fires every hour; bot runs if interval_hours have passed since last_run.
+// ─── Helper: get current hour in Slovak timezone (CET/CEST, auto-DST) ────────
+function getSlovakHour(date: Date): number {
+  return parseInt(
+    new Intl.DateTimeFormat("sk-SK", {
+      timeZone: "Europe/Bratislava",
+      hour: "numeric",
+      hour12: false,
+    }).format(date),
+    10
+  );
+}
+
+// ─── Check if a bot should run now ────────────────────────────────────────────
+// Vercel cron fires every hour (0 * * * * UTC).
+// schedule_hours are stored in Slovak local time (CET winter UTC+1, CEST summer UTC+2).
 export function shouldBotRunNow(bot: BotConfig): boolean {
   if (!bot.enabled) return false;
 
   const now = new Date();
-  const currentHour = now.getUTCHours(); // Vercel runs in UTC
+  // Use Slovak timezone — matches what the user configured in the UI
+  const currentHour = getSlovakHour(now);
 
-  // ── schedule_hours mode: run at specific hours of day ──
+  // ── schedule_hours mode: run at specific hours of day (SK time) ──
   if (bot.schedule_hours && bot.schedule_hours.length > 0) {
     if (!bot.schedule_hours.includes(currentHour)) {
-      console.log(`[BotCycle] Bot "${bot.name}" — current hour ${currentHour}h not in schedule [${bot.schedule_hours.join(",")}]`);
+      console.log(`[BotCycle] Bot "${bot.name}" — SK hour ${currentHour}h not in schedule [${bot.schedule_hours.join(",")}]`);
       return false;
     }
-    // Check we haven't already run in this hour
+    // Check we haven't already run in this hour slot
     if (bot.last_run) {
       const lastRun = new Date(bot.last_run);
-      const sameHour = lastRun.getUTCHours() === currentHour
+      const lastRunHour = getSlovakHour(lastRun);
+      const sameHour = lastRunHour === currentHour
         && (now.getTime() - lastRun.getTime()) < 55 * 60 * 1000; // within 55 min
       if (sameHour) {
-        console.log(`[BotCycle] Bot "${bot.name}" — already ran this hour (${currentHour}h)`);
+        console.log(`[BotCycle] Bot "${bot.name}" — already ran this SK hour (${currentHour}h)`);
         return false;
       }
     }
-    console.log(`[BotCycle] Bot "${bot.name}" — scheduled for hour ${currentHour}h ✓`);
+    console.log(`[BotCycle] Bot "${bot.name}" — scheduled for SK hour ${currentHour}h ✓`);
     return true;
   }
 
