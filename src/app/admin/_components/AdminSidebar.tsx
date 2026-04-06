@@ -12,6 +12,7 @@ import {
   LogOut,
   X,
   ExternalLink,
+  GitBranch,
 } from "lucide-react";
 import { useAdmin } from "@/app/admin/_context/AdminContext";
 import { cn } from "@/lib/utils";
@@ -39,6 +40,16 @@ const navItems: NavItem[] = [
     iconBg: "bg-white/15",
     iconColor: "text-white",
     glowColor: "shadow-white/10",
+  },
+  {
+    href: "/admin/bot-layout",
+    label: "Bot Layout",
+    icon: GitBranch,
+    description: "Workflow Builder",
+    gradient: "from-emerald-500/10",
+    iconBg: "bg-emerald-500/20",
+    iconColor: "text-emerald-400",
+    glowColor: "shadow-emerald-500/20",
   },
   {
     href: "/admin/autopilot",

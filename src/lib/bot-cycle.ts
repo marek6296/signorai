@@ -83,6 +83,41 @@ async function scrapeSourceImages(url: string): Promise<{ hero: string | null; i
   }
 }
 
+// ─── Generate smart journalist-grade image prompt from article section ────────
+async function generateSmartImagePrompt(
+  ai: GoogleGenAI,
+  articleTitle: string,
+  sectionText: string,
+  role: "hero" | "inline"
+): Promise<string> {
+  const roleCtx = role === "hero"
+    ? "HERO IMAGE — represents the entire article. Wide, cinematic establishing shot."
+    : "INLINE ILLUSTRATION — illustrates this specific paragraph/section of the article.";
+
+  const meta = `You are a senior photo editor at Wired / MIT Technology Review magazine.
+Article title: "${articleTitle}"
+Section: "${sectionText.slice(0, 350)}"
+
+Role: ${roleCtx}
+
+Write ONE precise Stable Diffusion / Imagen prompt for a photorealistic editorial photo.
+Rules:
+- Photorealistic editorial photography, no CGI illustrations
+- Specific subject, lighting, composition, camera angle
+- NO human faces, NO real logos, NO text/words in the image
+- Must literally match what this SECTION of the article is about
+- Style: modern editorial, clean background when appropriate
+
+Return ONLY the prompt. No explanations.`;
+
+  try {
+    const r = await ai.models.generateContent({ model: "gemini-2.5-flash", contents: meta });
+    return r.text?.trim() || "";
+  } catch {
+    return "";
+  }
+}
+
 // ─── Generate and upload one AI image ──────────────────────────────────────────
 async function generateAndUploadImage(
   ai: GoogleGenAI,
@@ -289,25 +324,38 @@ ${topic.url ? `ZDROJ: ${topic.url}` : ""}`;
     }
 
     // 3b. AI-generate only the images still missing
-    const missingHero   = !heroUrl;
+    const missingHero    = !heroUrl;
     const missingInline1 = !inline1Url;
     const missingInline2 = !inline2Url;
     const anyMissing = missingHero || missingInline1 || missingInline2;
 
     if (anyMissing) {
       console.log(`[BotCycle][${rid}] AI-generating missing images (hero=${missingHero}, inline1=${missingInline1}, inline2=${missingInline2})...`);
-      const imageBase = `Generate a photorealistic, ultra-high quality cinematic editorial photograph.
-Theme: ${articleData.title || topic.title}
-Context: ${articleData.excerpt || topic.summary || "Technology news"}
-RULES: NO real public figures, NO branded logos, NO text overlays, NO watermarks. Realistic editorial photography.`;
 
-      const [aiHero, aiInline1, aiInline2] = await Promise.all([
-        missingHero   ? generateAndUploadImage(ai, `${imageBase}\nFocus: Main subject — innovative hardware or core concept of story. Hero shot, dramatic lighting.`) : Promise.resolve(null),
-        missingInline1 ? generateAndUploadImage(ai, `${imageBase}\nFocus: Close-up detail — specific component, interface, or technical element.`) : Promise.resolve(null),
-        missingInline2 ? generateAndUploadImage(ai, `${imageBase}\nFocus: Broader impact — people using technology or futuristic environment.`) : Promise.resolve(null),
+      // Extract article plain text for contextual image prompts
+      const plainText = (articleData.content || "")
+        .replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      const words = plainText.split(" ");
+      const total = words.length;
+      const heroCtx   = words.slice(0, Math.min(80, total)).join(" ");
+      const mid1Ctx   = words.slice(Math.floor(total * 0.2), Math.floor(total * 0.45)).join(" ");
+      const mid2Ctx   = words.slice(Math.floor(total * 0.55), Math.floor(total * 0.78)).join(" ");
+
+      // Generate contextual prompts in parallel (only for missing images)
+      const [heroPrompt, inline1Prompt, inline2Prompt] = await Promise.all([
+        missingHero    ? generateSmartImagePrompt(ai, articleData.title, heroCtx,  "hero")   : Promise.resolve(""),
+        missingInline1 ? generateSmartImagePrompt(ai, articleData.title, mid1Ctx,  "inline") : Promise.resolve(""),
+        missingInline2 ? generateSmartImagePrompt(ai, articleData.title, mid2Ctx,  "inline") : Promise.resolve(""),
       ]);
 
-      if (missingHero   && aiHero)   heroUrl   = aiHero;
+      // Generate images with smart prompts
+      const [aiHero, aiInline1, aiInline2] = await Promise.all([
+        missingHero    && heroPrompt    ? generateAndUploadImage(ai, heroPrompt)    : Promise.resolve(null),
+        missingInline1 && inline1Prompt ? generateAndUploadImage(ai, inline1Prompt) : Promise.resolve(null),
+        missingInline2 && inline2Prompt ? generateAndUploadImage(ai, inline2Prompt) : Promise.resolve(null),
+      ]);
+
+      if (missingHero    && aiHero)    heroUrl    = aiHero;
       if (missingInline1 && aiInline1) inline1Url = aiInline1;
       if (missingInline2 && aiInline2) inline2Url = aiInline2;
     } else {
