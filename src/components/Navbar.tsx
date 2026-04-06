@@ -17,6 +17,7 @@ const categories = [
     { name: "AI", href: "/kategoria/ai" },
     { name: "Tech", href: "/kategoria/tech" },
     { name: "Návody & Tipy", href: "/kategoria/navody" },
+    { name: "AI Nástroje", href: "/ai-tools" },
     { name: "Fórum", href: "/forum" },
 ];
 

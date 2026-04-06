@@ -5,7 +5,7 @@ import Image from "next/image";
 import { format, parseISO } from "date-fns";
 import { sk } from "date-fns/locale";
 import { type Article } from "@/lib/data";
-import { Edit, Trash2, ArrowRight } from "lucide-react";
+import { Edit, Trash2, ArrowRight, MessageSquare } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -25,11 +25,21 @@ export function ArticleCard({ article, featured = false, priority = false }: Art
     const publishDate = format(parseISO(article.published_at), "d. MMMM yyyy", { locale: sk });
 
     const [isAdmin, setIsAdmin] = useState(false);
+    const [commentCount, setCommentCount] = useState<number | null>(null);
     const router = useRouter();
 
     useEffect(() => {
         setIsAdmin(localStorage.getItem("admin_logged_in") === "true");
     }, []);
+
+    useEffect(() => {
+        supabase
+            .from("comments")
+            .select("*", { count: "exact", head: true })
+            .eq("article_id", article.id)
+            .eq("is_approved", true)
+            .then(({ count }) => { if (count !== null) setCommentCount(count); });
+    }, [article.id]);
 
     const handleDelete = async (e: React.MouseEvent) => {
         e.preventDefault();
@@ -103,8 +113,16 @@ export function ArticleCard({ article, featured = false, priority = false }: Art
                         <p className="text-[11px] md:text-xs text-zinc-300/80 line-clamp-2 leading-relaxed font-medium">
                             {article.ai_summary || article.excerpt}
                         </p>
-                        <div className="flex items-center gap-1 mt-0.5 text-[9px] font-black uppercase tracking-widest text-white/40 group-hover:text-primary transition-colors duration-300">
-                            Čítaj viac <ArrowRight size={9} className="transition-transform duration-300 group-hover:translate-x-1" />
+                        <div className="flex items-center justify-between w-full mt-0.5">
+                            <div className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-white/40 group-hover:text-primary transition-colors duration-300">
+                                Čítaj viac <ArrowRight size={9} className="transition-transform duration-300 group-hover:translate-x-1" />
+                            </div>
+                            {commentCount !== null && commentCount > 0 && (
+                                <div className="flex items-center gap-1 text-[9px] font-bold text-white/35">
+                                    <MessageSquare size={9} />
+                                    {commentCount}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
