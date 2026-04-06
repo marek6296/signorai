@@ -327,11 +327,12 @@ export function Navbar() {
 
                 {/* Mobile Dropdown Nav */}
                 <div className={cn(
-                    "md:hidden absolute top-full left-0 w-full bg-background/95 backdrop-blur shadow-2xl border-b border-border/40 flex flex-col items-center py-6 gap-2 transition-all duration-300 ease-in-out origin-top",
+                    "md:hidden absolute top-full left-0 w-full bg-background/95 backdrop-blur shadow-2xl border-b border-border/40 flex flex-col items-center py-5 gap-2 transition-all duration-300 ease-in-out origin-top overflow-y-auto",
+                    "max-h-[calc(100vh-70px)]",
                     isMenuOpen ? "scale-y-100 opacity-100" : "scale-y-0 opacity-0 pointer-events-none"
                 )}>
                     {/* Mobile Search */}
-                    <div className="w-11/12 max-w-sm mb-4">
+                    <div className="w-11/12 max-w-sm mb-2">
                         <form onSubmit={handleSearch} className="relative">
                             <input
                                 type="text"
@@ -346,6 +347,59 @@ export function Navbar() {
                             </button>
                         </form>
                     </div>
+
+                    {/* Mobile user auth — shown at TOP so always visible */}
+                    {user ? (
+                        <div className="w-11/12 max-w-sm mb-1 border border-border/20 rounded-2xl bg-muted/10 px-3 py-3">
+                            {(() => {
+                                const avatarUrl = user.user_metadata?.avatar_url;
+                                const name = user.user_metadata?.full_name || user.email || "Používateľ";
+                                const initials = name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
+                                return (
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            {avatarUrl ? (
+                                                <Image src={avatarUrl} alt={name} width={38} height={38} className="w-10 h-10 rounded-full object-cover border-2 border-primary/40" unoptimized />
+                                            ) : (
+                                                <div className="w-10 h-10 rounded-full bg-primary/20 border-2 border-primary/30 flex items-center justify-center text-[12px] font-black text-primary">
+                                                    {initials}
+                                                </div>
+                                            )}
+                                            <div>
+                                                <p className="text-[12px] font-black text-foreground truncate max-w-[150px]">{name}</p>
+                                                <p className="text-[9px] font-semibold text-primary uppercase tracking-widest">Prihlásený</p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => { signOut(); setIsMenuOpen(false); }}
+                                            className="flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-red-400 hover:bg-red-500/10 rounded-xl transition-all border border-red-500/20"
+                                        >
+                                            <LogOut size={13} />
+                                            Odhlásiť
+                                        </button>
+                                    </div>
+                                );
+                            })()}
+                        </div>
+                    ) : (
+                        <div className="w-11/12 max-w-sm flex gap-2 mb-1">
+                            <Link
+                                href="/registracia"
+                                onClick={() => setIsMenuOpen(false)}
+                                className="flex-1 flex items-center justify-center py-3 rounded-xl text-[12px] font-black uppercase tracking-widest transition-all border border-border/60 text-muted-foreground hover:text-foreground hover:border-border"
+                            >
+                                Registrovať
+                            </Link>
+                            <Link
+                                href="/prihlasenie"
+                                onClick={() => setIsMenuOpen(false)}
+                                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[12px] font-black uppercase tracking-widest transition-all bg-primary text-primary-foreground hover:opacity-85"
+                            >
+                                <LogIn size={14} />
+                                Prihlásiť sa
+                            </Link>
+                        </div>
+                    )}
 
                     {allCategories.map((category) => {
                         const isActive = pathname === category.href || (category.href !== "/" && pathname.startsWith(category.href));
@@ -368,58 +422,6 @@ export function Navbar() {
                         );
                     })}
 
-                    {/* Mobile auth */}
-                    {user ? (
-                        <div className="w-11/12 max-w-sm mt-2 border-t border-border/30 pt-4">
-                            {(() => {
-                                const avatarUrl = user.user_metadata?.avatar_url;
-                                const name = user.user_metadata?.full_name || user.email || "Používateľ";
-                                const initials = name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
-                                return (
-                                    <div className="flex items-center justify-between px-2">
-                                        <div className="flex items-center gap-3">
-                                            {avatarUrl ? (
-                                                <Image src={avatarUrl} alt={name} width={36} height={36} className="w-9 h-9 rounded-full object-cover border-2 border-primary/30" unoptimized />
-                                            ) : (
-                                                <div className="w-9 h-9 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-[11px] font-black text-primary">
-                                                    {initials}
-                                                </div>
-                                            )}
-                                            <div>
-                                                <p className="text-[11px] font-black text-foreground truncate max-w-[160px]">{name}</p>
-                                                <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">Prihlásený</p>
-                                            </div>
-                                        </div>
-                                        <button
-                                            onClick={() => { signOut(); setIsMenuOpen(false); }}
-                                            className="flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-red-400 hover:bg-red-500/10 rounded-xl transition-all border border-red-500/20"
-                                        >
-                                            <LogOut size={13} />
-                                            Odhlásiť
-                                        </button>
-                                    </div>
-                                );
-                            })()}
-                        </div>
-                    ) : (
-                        <div className="w-11/12 max-w-sm flex gap-2 mt-2">
-                            <Link
-                                href="/registracia"
-                                onClick={() => setIsMenuOpen(false)}
-                                className="flex-1 flex items-center justify-center py-3.5 rounded-xl text-[12px] font-black uppercase tracking-widest transition-all border border-border/60 text-muted-foreground hover:text-foreground hover:border-border"
-                            >
-                                Registrovať
-                            </Link>
-                            <Link
-                                href="/prihlasenie"
-                                onClick={() => setIsMenuOpen(false)}
-                                className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl text-[12px] font-black uppercase tracking-widest transition-all bg-primary text-primary-foreground hover:opacity-85"
-                            >
-                                <LogIn size={14} />
-                                Prihlásiť sa
-                            </Link>
-                        </div>
-                    )}
                 </div>
             </header>
         </>
