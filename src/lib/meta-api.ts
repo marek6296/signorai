@@ -138,7 +138,8 @@ export async function publishToInstagram(imageUrl: string, caption: string) {
     if (!creationId) throw new Error("Meta API did not return a Media ID.");
 
     console.log(`[Meta API] Media container created: ${creationId}. Waiting for processing...`);
-    await new Promise(r => setTimeout(r, 2000));
+    // Wait longer for Instagram to process the image — 4 seconds is safer for background/cron execution
+    await new Promise(r => setTimeout(r, 4000));
 
     // 2. Publish Media Container
     const publishUrl = `https://graph.facebook.com/v22.0/${IG_BUSINESS_ACCOUNT_ID}/media_publish`;

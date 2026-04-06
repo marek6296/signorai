@@ -1,7 +1,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { publishToFacebook, publishToInstagram, commentOnFacebook, getPageAccessToken } from "@/lib/meta-api";
+import { publishToFacebook, publishToInstagram, getPageAccessToken } from "@/lib/meta-api";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -144,7 +144,7 @@ export async function POST(req: Request) {
 
             // ── Step 2: Post photo + text to Facebook ─────────────────────────────
             const finalMessage = `${post.content || ""}\n\nČlánok nájdete tu: ${articleUrl}`;
-            result = await publishToFacebook(finalMessage, undefined, fbImageUrl);
+            result = await publishToFacebook(finalMessage, articleUrl, fbImageUrl);
             // When posting a photo, FB returns { id: photo_id, post_id: "PAGE_ID_POST_ID" }
             // We MUST comment on post_id (the timeline post), not on id (the photo object)
             console.log(`[Facebook] Photo post raw response — id: ${result?.id}, post_id: ${result?.post_id}`);
@@ -184,18 +184,7 @@ export async function POST(req: Request) {
                 }
             }
 
-            // ── Step 3: Add article link as first comment ──────────────────────────
-            if (fbPostId) {
-                try {
-                    await commentOnFacebook(fbPostId, articleUrl);
-                    console.log(`[Facebook] ✓ Link comment added to post ${fbPostId}: ${articleUrl}`);
-                } catch (commentErr) {
-                    console.error("[Facebook] Comment with link failed:", commentErr);
-                    // Non-fatal — post is published even without comment
-                }
-            } else {
-                console.warn("[Facebook] No post_id recovered — cannot add comment");
-            }
+            // Link je už súčasťou caption textu — komentár nie je potrebný
         } else if (post.platform === 'Instagram') {
             // Instagram ideally needs a 1:1 image, but let's allow the publish attempt even if pre-render failed
             // Meta API will validate aspect ratio and reject if too far off

@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 const BASE_URL = "https://aiwai.news";
 
 export const metadata: Metadata = {
-  title: "Hlavné správy – AI Novinky & Technológie dnes",
+  title: { absolute: "AI-Tech Novinky | AIWai" },
   description: "Najnovšie správy o umelej inteligencii, technológiách a digitálnych trendoch. Denný prehľad AI noviniek, analýzy a návody pre Slovensko.",
   keywords: ["AI správy", "umelá inteligencia novinky", "technologické správy dnes", "AI novinky Slovensko", "tech správy", "ChatGPT novinky", "digitálne novinky"],
   alternates: { canonical: BASE_URL },

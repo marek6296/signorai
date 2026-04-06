@@ -92,8 +92,39 @@ export function Navbar() {
         <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className="container mx-auto flex flex-col items-center justify-center py-3 md:py-5 relative px-4 sm:px-6 lg:px-8">
 
-                {/* DESKTOP SEARCH + DROPDOWN MENU (Left Corner) */}
-                <div className="hidden md:flex absolute left-4 lg:left-10 top-1/2 -translate-y-1/2 flex-col items-start gap-1.5 z-50">
+                {/* DESKTOP MENU + SEARCH (Left Corner, in a row) */}
+                <div className="hidden md:flex absolute left-4 lg:left-10 top-1/2 -translate-y-1/2 flex-row items-center gap-3 z-50">
+
+                    {/* DROPDOWN MENU — vľavo */}
+                    <div className="relative group">
+                        <button className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors">
+                            Menu <ChevronDown size={12} className="transition-transform duration-300 group-hover:rotate-180" />
+                        </button>
+                        <div className="absolute top-full left-0 mt-2 w-52 bg-background/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden
+                            opacity-0 invisible translate-y-2
+                            group-hover:opacity-100 group-hover:visible group-hover:translate-y-0
+                            transition-all duration-300 ease-out z-50 flex flex-col p-2 gap-1">
+                            {allCategories.map((cat) => {
+                                const isActiveCat = pathname === cat.href || (cat.href !== "/" && pathname.startsWith(cat.href));
+                                return (
+                                    <Link
+                                        key={cat.name}
+                                        href={cat.href}
+                                        className={cn(
+                                            "flex items-center px-4 py-3 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all duration-200",
+                                            isActiveCat
+                                                ? "text-primary-foreground bg-primary shadow-md"
+                                                : "text-muted-foreground hover:text-foreground hover:bg-primary/10"
+                                        )}
+                                    >
+                                        {cat.name}
+                                    </Link>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* SEARCH — vpravo od menu */}
                     <div className="relative">
                         <form onSubmit={handleSearch} className="flex items-center group bg-muted/20 hover:bg-muted/40 rounded-full px-3 transition-all border border-white/5 focus-within:border-primary/50">
                             <button type="submit" className="p-1.5 text-muted-foreground group-focus-within:text-primary hover:text-primary transition-colors">
@@ -162,35 +193,6 @@ export function Navbar() {
                                 </div>
                             </div>
                         )}
-                    </div>
-
-                    {/* DROPDOWN MENU */}
-                    <div className="relative group ml-8 text-[11px]">
-                        <button className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors">
-                            Menu <ChevronDown size={12} className="transition-transform duration-300 group-hover:rotate-180" />
-                        </button>
-                        <div className="absolute top-full left-0 mt-2 w-52 bg-background/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden
-                            opacity-0 invisible translate-y-2
-                            group-hover:opacity-100 group-hover:visible group-hover:translate-y-0
-                            transition-all duration-300 ease-out z-50 flex flex-col p-2 gap-1">
-                            {allCategories.map((cat) => {
-                                const isActiveCat = pathname === cat.href || (cat.href !== "/" && pathname.startsWith(cat.href));
-                                return (
-                                    <Link
-                                        key={cat.name}
-                                        href={cat.href}
-                                        className={cn(
-                                            "flex items-center px-4 py-3 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all duration-200",
-                                            isActiveCat
-                                                ? "text-primary-foreground bg-primary shadow-md"
-                                                : "text-muted-foreground hover:text-foreground hover:bg-primary/10"
-                                        )}
-                                    >
-                                        {cat.name}
-                                    </Link>
-                                );
-                            })}
-                        </div>
                     </div>
                 </div>
 

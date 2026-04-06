@@ -45,8 +45,9 @@ export const metadata: Metadata = {
     },
   },
   icons: {
-    icon: "/logo/black.png",
-    apple: "/logo/black.png",
+    icon: "/aiwai-logo.png",
+    apple: "/aiwai-logo.png",
+    shortcut: "/aiwai-logo.png",
   },
   openGraph: {
     title: "AIWai – AI Správy, Technológie & Návody",
