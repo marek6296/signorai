@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { 
@@ -18,7 +18,7 @@ const MIN_ZOOM = 0.15;
 const MAX_ZOOM = 2.0;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type MType = "topic-scout"|"article-writer"|"image-sourcer"|"ai-image-gen"|"publisher"|"social-poster"|"filter"|"delay";
+type MType = "topic-scout"|"article-writer"|"image-sourcer"|"ai-image-gen"|"publisher"|"social-poster"|"conditional-check"|"rate-limiter"|"content-quality"|"content-cache";
 interface WModule { id:string; type:MType; x:number; y:number; settings:Record<string,unknown>; }
 interface WConn   { id:string; fromId:string; toId:string; }
 interface BotWorkflow { modules:WModule[]; connections:WConn[]; }
@@ -433,7 +433,7 @@ function ModuleNode({mod,selected,connecting,onMouseDown,onPortOut,onPortIn,stat
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-export default function BotLayoutPage(){
+function BotLayoutPageInner(){
   const searchParams = useSearchParams();
   const editBotId = searchParams.get("botId");
 
@@ -1231,5 +1231,13 @@ export default function BotLayoutPage(){
       )}
 
     </div>
+  );
+}
+
+export default function BotLayoutPage() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: "100vh", background: "#080808" }} />}>
+      <BotLayoutPageInner />
+    </Suspense>
   );
 }

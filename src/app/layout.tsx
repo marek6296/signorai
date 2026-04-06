@@ -6,6 +6,7 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { AnalyticsTracker } from "@/components/AnalyticsTracker";
+import { UserProvider } from "@/contexts/UserContext";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const syne = Syne({ subsets: ["latin"], weight: ["400", "700", "800"], variable: "--font-syne" });
@@ -158,11 +159,13 @@ export default function RootLayout({
               })
             }}
           />
-          <AnalyticsTracker />
-          <ScrollToTop />
-          <Navbar />
-          <main className="flex-grow flex flex-col">{children}</main>
-          <Footer />
+          <UserProvider>
+            <AnalyticsTracker />
+            <ScrollToTop />
+            <Navbar />
+            <main className="flex-grow flex flex-col">{children}</main>
+            <Footer />
+          </UserProvider>
         </ThemeProvider>
       </body>
     </html>

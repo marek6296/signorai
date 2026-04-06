@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useUser } from "@/contexts/UserContext";
 
 type AdType = "native" | "468x60" | "300x250";
 
@@ -10,7 +11,7 @@ interface AdBannerProps {
 }
 
 const AD_CONFIGS: Record<AdType, { key: string; width: number; height: number; src: string } | null> = {
-    "native": null, // osobitná logika
+    "native": null,
     "468x60": {
         key: "2e6aaf30497f97ecc4c2db4cc3b536cf",
         width: 468,
@@ -26,14 +27,16 @@ const AD_CONFIGS: Record<AdType, { key: string; width: number; height: number; s
 };
 
 export function AdBanner({ type = "native", label = false }: AdBannerProps) {
+    const { user, loading } = useUser();
     const wrapperRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
+        // Don't inject ads if user is logged in or loading
+        if (user || loading) return;
         if (!wrapperRef.current) return;
         wrapperRef.current.innerHTML = "";
 
         if (type === "native") {
-            // Native banner — inject container + script
             const container = document.createElement("div");
             container.id = "container-504f1cf94792121bce7845f6a1c97ce7";
             wrapperRef.current.appendChild(container);
@@ -47,7 +50,6 @@ export function AdBanner({ type = "native", label = false }: AdBannerProps) {
             const config = AD_CONFIGS[type];
             if (!config) return;
 
-            // atOptions script
             const optionsScript = document.createElement("script");
             optionsScript.innerHTML = `
                 atOptions = {
@@ -60,7 +62,6 @@ export function AdBanner({ type = "native", label = false }: AdBannerProps) {
             `;
             wrapperRef.current.appendChild(optionsScript);
 
-            // invoke script
             const invokeScript = document.createElement("script");
             invokeScript.src = config.src;
             wrapperRef.current.appendChild(invokeScript);
@@ -69,7 +70,12 @@ export function AdBanner({ type = "native", label = false }: AdBannerProps) {
         return () => {
             if (wrapperRef.current) wrapperRef.current.innerHTML = "";
         };
-    }, [type]);
+    }, [type, user, loading]);
+
+    // Logged-in users see no ads
+    if (user) return null;
+    // While loading auth state, render nothing (avoids flash of ads)
+    if (loading) return null;
 
     return (
         <div className="w-full my-3">
