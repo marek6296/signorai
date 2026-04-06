@@ -9,9 +9,32 @@ import { supabase } from "@/lib/supabase";
 import { getGeminiClient } from "@/lib/generate-logic";
 import { GoogleGenAI } from "@google/genai";
 import { revalidatePath } from "next/cache";
+import Parser from "rss-parser";
 
 const VALID_CATEGORIES = ["AI", "Tech", "Návody & Tipy"];
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=1200";
+
+// ─── RSS fallback feeds (keď nie sú v DB) ─────────────────────────────────────
+const RSS_FALLBACK_FEEDS: Record<string, { name: string; url: string }[]> = {
+  "AI": [
+    { name: "The Verge AI", url: "https://www.theverge.com/ai-artificial-intelligence/rss/index.xml" },
+    { name: "TechCrunch AI", url: "https://techcrunch.com/category/artificial-intelligence/feed/" },
+    { name: "VentureBeat AI", url: "https://venturebeat.com/category/ai/feed/" },
+    { name: "Ars Technica AI", url: "https://arstechnica.com/ai/feed/" },
+    { name: "Hugging Face Blog", url: "https://huggingface.co/blog/feed.xml" },
+    { name: "TLDR AI", url: "https://tldr.tech/ai/rss" },
+  ],
+  "Tech": [
+    { name: "The Verge", url: "https://www.theverge.com/rss/index.xml" },
+    { name: "TechCrunch", url: "https://techcrunch.com/feed/" },
+    { name: "Engadget", url: "https://www.engadget.com/rss.xml" },
+    { name: "Ars Technica", url: "https://feeds.feedburner.com/arstechnica/index" },
+  ],
+  "Návody & Tipy": [
+    { name: "How-To Geek", url: "https://www.howtogeek.com/feed/" },
+    { name: "MakeUseOf AI", url: "https://www.makeuseof.com/category/artificial-intelligence/feed/" },
+  ],
+};
 
 export interface WorkflowModule {
   id: string;
@@ -47,6 +70,7 @@ export interface BotConfig {
   auto_publish_social?: boolean;
   last_run?: string | null;
   processed_count?: number;
+  last_category?: string;       // last successfully used category (for rotation)
   workflow?: BotWorkflow;       // visual workflow from Bot Layout
 }
 
@@ -54,6 +78,7 @@ export interface BotCycleResult {
   success: boolean;
   articleId?: string;
   articleTitle?: string;
+  usedCategory?: string;        // which category was used this run
   error?: string;
 }
 
@@ -165,12 +190,20 @@ export function getEffectiveBotConfig(bot: BotConfig) {
     // content-cache
     cacheExpiry: (contentCache?.cacheExpiry as number) ?? 24,
     
+    // trigger / schedule
+    triggerEnabled: (trigger?.enabled as boolean) ?? bot.enabled ?? true,
+    // scheduleHours from trigger module (string array) → convert to number array
+    scheduleHoursFromWorkflow: (() => {
+      const raw = (trigger?.scheduleHours as string[]) ?? [];
+      const nums = raw.map(h => parseInt(h, 10)).filter(h => !isNaN(h));
+      return nums.length > 0 ? nums : null;
+    })(),
+    intervalHoursFromWorkflow: (trigger?.intervalHours as number) ?? 0,
+
     // legacy/derived
     type: hasSocialPoster ? "full" as const : bot.type,
     post_instagram: hasSocialPoster ? ((socialPoster?.platforms as string[]) ?? []).includes("Instagram") : (bot.post_instagram ?? true),
     post_facebook: hasSocialPoster ? ((socialPoster?.platforms as string[]) ?? []).includes("Facebook") : (bot.post_facebook ?? false),
-    triggerEnabled: (trigger?.enabled as boolean) ?? true,
-    schedule: (trigger?.schedule as string) ?? "0 * * * *",
   };
 }
 
@@ -431,10 +464,11 @@ async function executeContentCache(
   }
 }
 
-// ─── Fetch one topic from Gemini for given categories ─────────────────────────
+// ─── Fetch one topic from Gemini (single attempt, varied by attemptIndex) ────
 async function fetchGeminiTopic(
   categories: string[],
-  ai: GoogleGenAI
+  ai: GoogleGenAI,
+  attemptIndex: number = 0
 ): Promise<{ title: string; summary: string; url: string | null; category: string } | null> {
   const categoryDescriptions: Record<string, string> = {
     AI: "umelá inteligencia, nové AI modely (GPT, Claude, Gemini, Grok), AI výskum, AI agenti",
@@ -467,12 +501,22 @@ async function fetchGeminiTopic(
     .map((c) => `- ${c}: ${categoryDescriptions[c] || c}`)
     .join("\n");
 
+  // Each attempt uses slightly different framing to avoid same failure
+  const attemptVariants = [
+    `Nájdi JEDNU najnovšiu, najtrendovejšiu správu pre tieto kategórie:\n${catDescList}\n\nSprávа musí byť zo dneška alebo včera (max 48h).`,
+    `Použi Google Search a nájdi JEDNU konkrétnu novinku z posledných 24 hodín pre:\n${catDescList}\n\nHľadaj čo najčerstvejšiu správu.`,
+    `Prehľadaj technologické správy a vyber JEDNU zaujímavú tému z posledných 2 dní:\n${catDescList}\n\nZameriaj sa na niečo, čo ešte nie je masovo pokryté.`,
+    `Nájdi JEDNU prekvapivú alebo dôležitú správu z oblasti:\n${catDescList}\n\nMôže byť zo dneška alebo z posledných 48 hodín.`,
+    `Vyhľadaj JEDNU aktuálnu správu — kľudne aj menej mainstreamovú, ale zaujímavú — z oblasti:\n${catDescList}\n\nČasový rozsah: posledné 3 dni.`,
+  ];
+
+  const variant = attemptVariants[attemptIndex % attemptVariants.length];
+
   const prompt = `Dnes je ${today}. Si expert na technologické správy.
 ${dedupeBlock}
-Nájdi JEDNU najnovšiu, najtrendovejšiu správu pre tieto kategórie:
-${catDescList}
+${variant}
 
-Správa musí byť zo dneška alebo včera (max 48h). Vráť JSON objekt:
+Vráť JSON objekt:
 {
   "title": "slovenský titulok max 80 znakov",
   "summary": "zhrnutie v 2-3 vetách",
@@ -504,9 +548,172 @@ Vráť ČISTÝ JSON bez markdown blokov.`;
       category: VALID_CATEGORIES.includes(parsed.category) ? parsed.category : usedCats[0],
     };
   } catch (e) {
-    console.error("[BotCycle] fetchGeminiTopic error:", e);
+    console.error(`[BotCycle] fetchGeminiTopic attempt ${attemptIndex + 1} error:`, e);
     return null;
   }
+}
+
+// ─── RSS fallback: fetch fresh topic from stored RSS sources ──────────────────
+async function fetchTopicFromRSS(
+  categories: string[]
+): Promise<{ title: string; summary: string; url: string | null; category: string } | null> {
+  const validCats = categories.filter((c) => VALID_CATEGORIES.includes(c));
+  const usedCats = validCats.length > 0 ? validCats : ["AI"];
+
+  console.log("[BotCycle] RSS fallback: loading feeds from DB...");
+
+  // Load feeds from DB (filtered by bot categories), fallback to hardcoded
+  let feeds: { name: string; url: string; category: string }[] = [];
+  try {
+    const { data: dbSources } = await supabase
+      .from("discovery_sources")
+      .select("source_name, feed_url, category")
+      .eq("is_active", true)
+      .in("category", usedCats);
+
+    if (dbSources && dbSources.length > 0) {
+      feeds = dbSources.map((s) => ({ name: s.source_name, url: s.feed_url, category: s.category }));
+    }
+  } catch (e) {
+    console.warn("[BotCycle] RSS: DB sources load failed, using hardcoded fallback");
+  }
+
+  // If DB empty, use hardcoded fallback
+  if (feeds.length === 0) {
+    for (const cat of usedCats) {
+      const catFeeds = RSS_FALLBACK_FEEDS[cat] || [];
+      catFeeds.forEach((f) => feeds.push({ ...f, category: cat }));
+    }
+  }
+
+  if (feeds.length === 0) {
+    console.warn("[BotCycle] RSS: no feeds available");
+    return null;
+  }
+
+  // Get already published URLs + titles to avoid duplicates
+  const { data: existingArticles } = await supabase
+    .from("articles")
+    .select("source_url, title")
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  const usedUrls = new Set(
+    (existingArticles || []).map((a) => (a.source_url || "").split("?")[0].toLowerCase().trim().replace(/\/$/, ""))
+  );
+  const usedTitles = new Set(
+    (existingArticles || []).map((a) => (a.title || "").toLowerCase().trim())
+  );
+
+  const parser = new Parser({ timeout: 8000 });
+  const maxAgeMs = 3 * 24 * 60 * 60 * 1000; // 3 days
+  const now = Date.now();
+
+  // Shuffle feeds so we don't always start from the same source
+  const shuffled = [...feeds].sort(() => Math.random() - 0.5);
+  const candidates: { title: string; summary: string; url: string; category: string; pubDate: number }[] = [];
+
+  for (const feed of shuffled.slice(0, 8)) { // max 8 feeds to avoid timeout
+    try {
+      console.log(`[BotCycle] RSS: parsing ${feed.name}...`);
+      const feedData = await parser.parseURL(feed.url);
+
+      for (const item of feedData.items.slice(0, 15)) {
+        if (!item.link || !item.title) continue;
+
+        const normalizedUrl = item.link.split("?")[0].toLowerCase().trim().replace(/\/$/, "");
+        if (usedUrls.has(normalizedUrl)) continue;
+        if (usedTitles.has((item.title || "").toLowerCase().trim())) continue;
+
+        const pubDate = new Date(item.isoDate || item.pubDate || "").getTime();
+        if (isNaN(pubDate) || now - pubDate > maxAgeMs) continue;
+
+        candidates.push({
+          title: item.title,
+          summary: item.contentSnippet || item.content?.replace(/<[^>]+>/g, " ").slice(0, 300) || "",
+          url: item.link,
+          category: feed.category,
+          pubDate,
+        });
+      }
+
+      if (candidates.length >= 10) break; // enough candidates
+    } catch (e) {
+      console.warn(`[BotCycle] RSS: feed ${feed.name} failed:`, e);
+    }
+  }
+
+  if (candidates.length === 0) {
+    console.warn("[BotCycle] RSS: no fresh candidates found");
+    return null;
+  }
+
+  // Pick the most recent one
+  candidates.sort((a, b) => b.pubDate - a.pubDate);
+  const pick = candidates[0];
+
+  console.log(`[BotCycle] RSS fallback picked: "${pick.title}" from ${pick.url}`);
+  return {
+    title: pick.title,
+    summary: pick.summary,
+    url: pick.url,
+    category: pick.category,
+  };
+}
+
+// ─── Main topic fetcher: rotácia kategórií, 5x Gemini na každú → RSS fallback ─
+// lastCategory = posledná úspešne použitá kategória → začíname od NASLEDUJÚCEJ
+async function fetchTopicWithFallback(
+  categories: string[],
+  ai: GoogleGenAI,
+  lastCategory?: string
+): Promise<{ title: string; summary: string; url: string | null; category: string }> {
+  const MAX_ATTEMPTS_PER_CAT = 5;
+
+  const validCats = categories.filter((c) => VALID_CATEGORIES.includes(c));
+  const cats = validCats.length > 0 ? validCats : ["AI"];
+
+  // Rotácia: začni od kategórie NASLEDUJÚCEJ po lastCategory
+  let startIndex = 0;
+  if (lastCategory) {
+    const lastIdx = cats.indexOf(lastCategory);
+    if (lastIdx >= 0) startIndex = (lastIdx + 1) % cats.length;
+  }
+
+  // Zoraď kategórie od startIndex: napr. ["Tech","Návody & Tipy","AI"]
+  const orderedCats = [...cats.slice(startIndex), ...cats.slice(0, startIndex)];
+
+  console.log(`[BotCycle] Category rotation: ${orderedCats.join(" → ")} (last used: ${lastCategory || "none"})`);
+
+  for (const cat of orderedCats) {
+    console.log(`[BotCycle] Trying category: "${cat}"...`);
+
+    for (let attempt = 0; attempt < MAX_ATTEMPTS_PER_CAT; attempt++) {
+      console.log(`[BotCycle]   Gemini attempt ${attempt + 1}/${MAX_ATTEMPTS_PER_CAT} for "${cat}"...`);
+      const topic = await fetchGeminiTopic([cat], ai, attempt);
+      if (topic) {
+        console.log(`[BotCycle] ✅ Found topic in "${cat}" on attempt ${attempt + 1}: "${topic.title}"`);
+        return topic;
+      }
+      if (attempt < MAX_ATTEMPTS_PER_CAT - 1) {
+        await new Promise((r) => setTimeout(r, 1500 + attempt * 1000));
+      }
+    }
+
+    console.log(`[BotCycle] ❌ Category "${cat}" exhausted after ${MAX_ATTEMPTS_PER_CAT} attempts, trying next category...`);
+  }
+
+  // Všetky kategórie vyčerpané → RSS fallback (skúsi všetky kategórie bota)
+  console.log(`[BotCycle] All Gemini attempts for all categories failed. Falling back to RSS sources...`);
+  const rssTopic = await fetchTopicFromRSS(cats);
+  if (rssTopic) {
+    console.log(`[BotCycle] ✅ RSS fallback succeeded: "${rssTopic.title}"`);
+    return rssTopic;
+  }
+
+  throw new Error(
+    `Nepodarilo sa nájsť tému: vyčerpané všetky ${cats.length} kategórie (${MAX_ATTEMPTS_PER_CAT}x Gemini každá) aj RSS zdroje`
+  );
 }
 
 // ─── Execute workflow-based bot cycle ────────────────────────────────────────
@@ -538,9 +745,18 @@ async function executeWorkflow(
     ai,
   };
 
-  // Find trigger module (entry point)
-  const triggerMod = modules.find((m) => m.type === "trigger");
-  if (!triggerMod) throw new Error("No trigger module in workflow");
+  // Find trigger module (entry point) — if missing, use first module as fallback
+  const triggerMod = modules.find((m) => m.type === "trigger") || modules[0];
+  if (!triggerMod) throw new Error("No modules in workflow");
+
+  // Check if trigger module has bot disabled
+  if (triggerMod.type === "trigger") {
+    const triggerEnabled = (triggerMod.settings?.enabled as boolean) ?? true;
+    if (!triggerEnabled) {
+      console.log(`[BotCycle][${rid}] Trigger module has bot disabled — skipping`);
+      throw new Error("Bot je vypnutý v Cron module");
+    }
+  }
 
   // Build adjacency list for traversal
   const adj = new Map<string, string[]>();
@@ -609,14 +825,13 @@ async function executeWorkflow(
             timestamp: new Date().toISOString(),
           });
         }
-        const topic = await fetchGeminiTopic(cfg.categories, ai);
-        if (!topic) throw new Error("Failed to fetch topic");
+        const topic = await fetchTopicWithFallback(cfg.categories, ai, bot.last_category);
         ctx.topic = topic;
         // Progress: topic found
         if (onProgress) {
           await onProgress({
             type: "progress",
-            message: `Nájdená téma: "${topic.title}"`,
+            message: `Nájdená téma (${topic.category}): "${topic.title}"`,
             timestamp: new Date().toISOString(),
           });
         }
@@ -856,6 +1071,7 @@ ${ctx.topic.url ? `ZDROJ: ${ctx.topic.url}` : ""}`;
     success: true,
     articleId: ctx.publishedArticleId,
     articleTitle: ctx.article.title,
+    usedCategory: ctx.topic?.category,
   };
 }
 
@@ -878,9 +1094,8 @@ export async function runBotCycle(
     }
 
     // Legacy mode: hardcoded flow (backward compat for bots without workflow)
-    console.log(`[BotCycle][${rid}] Fetching topic for categories: ${cfg.categories.join(", ")}`);
-    const topic = await fetchGeminiTopic(cfg.categories, ai);
-    if (!topic) throw new Error("Nepodarilo sa nájsť tému");
+    console.log(`[BotCycle][${rid}] Fetching topic for categories: ${cfg.categories.join(", ")} (last: ${bot.last_category || "none"})`);
+    const topic = await fetchTopicWithFallback(cfg.categories, ai, bot.last_category);
     console.log(`[BotCycle][${rid}] Topic: "${topic.title}"`);
 
     const finalCategory = VALID_CATEGORIES.includes(topic.category)
@@ -1044,7 +1259,7 @@ ${topic.url ? `ZDROJ: ${topic.url}` : ""}`;
 
     revalidatePath("/", "layout");
 
-    return { success: true, articleId: inserted.id, articleTitle: inserted.title };
+    return { success: true, articleId: inserted.id, articleTitle: inserted.title, usedCategory: topic.category };
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error(`[BotCycle][${rid}] ERROR:`, msg);
@@ -1071,13 +1286,34 @@ export function shouldBotRunNow(bot: BotConfig): boolean {
   if (!bot.enabled) return false;
 
   const now = new Date();
-  // Use Slovak timezone — matches what the user configured in the UI
   const currentHour = getSlovakHour(now);
 
+  // ── Determine effective schedule_hours: workflow trigger module takes priority ──
+  let effectiveScheduleHours: number[] | undefined = bot.schedule_hours;
+  let effectiveIntervalHours: number = bot.interval_hours ?? 4;
+
+  if (bot.workflow?.modules) {
+    const triggerMod = bot.workflow.modules.find(m => m.type === "trigger");
+    if (triggerMod) {
+      // Check trigger enabled flag
+      const triggerEnabled = (triggerMod.settings?.enabled as boolean) ?? true;
+      if (!triggerEnabled) {
+        console.log(`[BotCycle] Bot "${bot.name}" — disabled in Cron module`);
+        return false;
+      }
+      // Extract scheduleHours from trigger module
+      const raw = (triggerMod.settings?.scheduleHours as string[]) ?? [];
+      const nums = raw.map(h => parseInt(h, 10)).filter(h => !isNaN(h));
+      if (nums.length > 0) effectiveScheduleHours = nums;
+      const interval = (triggerMod.settings?.intervalHours as number) ?? 0;
+      if (interval > 0) effectiveIntervalHours = interval;
+    }
+  }
+
   // ── schedule_hours mode: run at specific hours of day (SK time) ──
-  if (bot.schedule_hours && bot.schedule_hours.length > 0) {
-    if (!bot.schedule_hours.includes(currentHour)) {
-      console.log(`[BotCycle] Bot "${bot.name}" — SK hour ${currentHour}h not in schedule [${bot.schedule_hours.join(",")}]`);
+  if (effectiveScheduleHours && effectiveScheduleHours.length > 0) {
+    if (!effectiveScheduleHours.includes(currentHour)) {
+      console.log(`[BotCycle] Bot "${bot.name}" — SK hour ${currentHour}h not in schedule [${effectiveScheduleHours.join(",")}]`);
       return false;
     }
     // Check we haven't already run in this hour slot
@@ -1085,7 +1321,7 @@ export function shouldBotRunNow(bot: BotConfig): boolean {
       const lastRun = new Date(bot.last_run);
       const lastRunHour = getSlovakHour(lastRun);
       const sameHour = lastRunHour === currentHour
-        && (now.getTime() - lastRun.getTime()) < 55 * 60 * 1000; // within 55 min
+        && (now.getTime() - lastRun.getTime()) < 55 * 60 * 1000;
       if (sameHour) {
         console.log(`[BotCycle] Bot "${bot.name}" — already ran this SK hour (${currentHour}h)`);
         return false;
@@ -1095,8 +1331,8 @@ export function shouldBotRunNow(bot: BotConfig): boolean {
     return true;
   }
 
-  // ── Fallback: interval_hours mode (legacy) ──
-  const intervalHours = bot.interval_hours ?? 4;
+  // ── Fallback: interval_hours mode (legacy / trigger intervalHours) ──
+  const intervalHours = effectiveIntervalHours > 0 ? effectiveIntervalHours : (bot.interval_hours ?? 4);
   if (!bot.last_run) {
     console.log(`[BotCycle] Bot "${bot.name}" has never run — triggering now`);
     return true;

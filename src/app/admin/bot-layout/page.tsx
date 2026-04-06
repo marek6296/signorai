@@ -3,10 +3,10 @@
 import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { 
-  Zap, Search, PenTool, Link, Sparkles, 
+import {
+  Zap, Search, PenTool, Link, Sparkles,
   Rocket, Megaphone, Filter, Hourglass, CheckCircle, Database,
-  FileText, Layers, Trash2, Edit2, Play, Plus, X
+  FileText, Layers, Trash2, Edit2, Play, Plus, X, Clock
 } from "lucide-react";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -18,7 +18,7 @@ const MIN_ZOOM = 0.15;
 const MAX_ZOOM = 2.0;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type MType = "topic-scout"|"article-writer"|"image-sourcer"|"ai-image-gen"|"publisher"|"social-poster"|"conditional-check"|"rate-limiter"|"content-quality"|"content-cache";
+type MType = "trigger"|"topic-scout"|"article-writer"|"image-sourcer"|"ai-image-gen"|"publisher"|"social-poster"|"conditional-check"|"rate-limiter"|"content-quality"|"content-cache";
 interface WModule { id:string; type:MType; x:number; y:number; settings:Record<string,unknown>; }
 interface WConn   { id:string; fromId:string; toId:string; }
 interface BotWorkflow { modules:WModule[]; connections:WConn[]; }
@@ -31,6 +31,7 @@ interface BotEntry {
   type: "article_only" | "full";
   enabled: boolean;
   interval_hours: number;
+  schedule_hours?: number[];   // hodiny (SK čas) kedy sa spúšťa
   categories: string[];
   post_instagram?: boolean;
   post_facebook?: boolean;
@@ -38,6 +39,7 @@ interface BotEntry {
   auto_publish_social?: boolean;
   last_run?: string | null;
   processed_count?: number;
+  last_category?: string;
   workflow?: BotWorkflow;
 }
 
@@ -55,7 +57,16 @@ interface MDef {
   defaults:Record<string,unknown>;fields:FieldDef[];
 }
 
+// Generate hour options 0-23 for the cron trigger
+const HOUR_OPTIONS = Array.from({length:24},(_,i)=>({value:String(i),label:(i<10?"0"+i:String(i))+":01"}));
+
 const DEFS: Record<MType, MDef> = {
+  "trigger":{label:"Cron / Spúšťač",desc:"Kedy a ako často sa bot spustí",emoji:"⏰",icon:Clock,color:"#f59e0b",bg:"rgba(245,158,11,0.15)",border:"rgba(245,158,11,0.4)",hasIn:false,hasOut:true,
+    defaults:{enabled:true,scheduleHours:["8","14","20"],intervalHours:0},
+    fields:[
+      {key:"enabled",label:"Bot aktívny",type:"toggle",default:true},
+      {key:"scheduleHours",label:"Hodiny spustenia (SK čas)",type:"multiselect",options:HOUR_OPTIONS,default:["8","14","20"]},
+      {key:"intervalHours",label:"Alebo každých N hodín (0 = vypnuté)",type:"number",default:0,min:0,max:24}]},
   "topic-scout":{label:"Prieskum Tém",desc:"Hľadá aktuálne témy cez Gemini",emoji:"🔍",icon:Search,color:"#3b82f6",bg:"rgba(59,130,246,0.15)",border:"rgba(59,130,246,0.3)",hasIn:true,hasOut:true,
     defaults:{categories:["AI"],timeRange:"48h",googleSearch:true,dedup:true},
     fields:[
@@ -120,7 +131,7 @@ const DEFS: Record<MType, MDef> = {
       {key:"cacheExpiry",label:"Cache platný (hodiny)",type:"number",default:24,min:1,max:168}]},
 };
 
-const PALETTE: MType[] = ["topic-scout","article-writer","image-sourcer","ai-image-gen","publisher","social-poster","conditional-check","rate-limiter","content-quality","content-cache"];
+const PALETTE: MType[] = ["trigger","topic-scout","article-writer","image-sourcer","ai-image-gen","publisher","social-poster","conditional-check","rate-limiter","content-quality","content-cache"];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function uid() { return `m_${Date.now()}_${Math.random().toString(36).slice(2,7)}`; }
@@ -134,6 +145,7 @@ function outPt(m:WModule){return{x:m.x+MOD_SIZE,y:m.y+MOD_SIZE/2};}
 function inPt(m:WModule) {return{x:m.x,   y:m.y+MOD_SIZE/2};}
 
 function defaultWF(): BotWorkflow {
+  const tr = {id:uid(),type:"trigger"        as MType,x:0,   y:300,settings:{...DEFS["trigger"].defaults}};
   const s  = {id:uid(),type:"topic-scout"    as MType,x:200, y:300,settings:{...DEFS["topic-scout"].defaults}};
   const a  = {id:uid(),type:"article-writer" as MType,x:400, y:200,settings:{...DEFS["article-writer"].defaults}};
   const im = {id:uid(),type:"image-sourcer"  as MType,x:400, y:400,settings:{...DEFS["image-sourcer"].defaults}};
@@ -141,8 +153,9 @@ function defaultWF(): BotWorkflow {
   const p  = {id:uid(),type:"publisher"      as MType,x:800,y:300,settings:{...DEFS["publisher"].defaults}};
   const so = {id:uid(),type:"social-poster"  as MType,x:1000,y:300,settings:{...DEFS["social-poster"].defaults}};
   return {
-    modules:[s,a,im,g,p,so],
+    modules:[tr,s,a,im,g,p,so],
     connections:[
+      {id:cuid(),fromId:tr.id,toId:s.id},
       {id:cuid(),fromId:s.id, toId:a.id},
       {id:cuid(),fromId:s.id, toId:im.id},
       {id:cuid(),fromId:a.id, toId:g.id},
@@ -155,32 +168,51 @@ function defaultWF(): BotWorkflow {
 
 // Derive bot config from workflow modules
 function deriveConfigFromWorkflow(wf: BotWorkflow) {
-  const topicScout = wf.modules.find(m => m.type === "topic-scout");
+  const triggerMod   = wf.modules.find(m => m.type === "trigger");
+  const topicScout   = wf.modules.find(m => m.type === "topic-scout");
   const socialPoster = wf.modules.find(m => m.type === "social-poster");
   const hasSocial = !!socialPoster;
 
   const categories = (topicScout?.settings?.categories as string[]) ?? ["AI"];
-  const platforms = (socialPoster?.settings?.platforms as string[]) ?? [];
+  const platforms  = (socialPoster?.settings?.platforms as string[]) ?? [];
+
+  // Extract schedule from trigger module
+  const scheduleHoursRaw = (triggerMod?.settings?.scheduleHours as string[]) ?? [];
+  const scheduleHours = scheduleHoursRaw.map(h => parseInt(h, 10)).filter(h => !isNaN(h));
+  const intervalHours = (triggerMod?.settings?.intervalHours as number) ?? 0;
+  const botEnabled = (triggerMod?.settings?.enabled as boolean) ?? true;
 
   return {
+    enabled: botEnabled,
     type: (hasSocial ? "full" : "article_only") as "article_only" | "full",
     categories,
     post_instagram: platforms.includes("Instagram"),
     post_facebook: platforms.includes("Facebook"),
     instagram_format: (socialPoster?.settings?.imageFormat as string) ?? "photo",
     auto_publish_social: (socialPoster?.settings?.autoPublish as boolean) ?? true,
+    schedule_hours: scheduleHours.length > 0 ? scheduleHours : undefined,
+    interval_hours: intervalHours > 0 ? intervalHours : 4,
   };
 }
 
 function generateWorkflowFromLegacyConfig(bot: BotEntry): BotWorkflow {
+  // Restore schedule_hours from bot config into trigger module (string array for multiselect)
+  const savedHours = (bot.schedule_hours || []).map(h => String(h));
+  const tr = {id:uid(),type:"trigger" as MType,x:0,y:300,settings:{
+    ...DEFS["trigger"].defaults,
+    enabled: bot.enabled ?? true,
+    scheduleHours: savedHours.length > 0 ? savedHours : DEFS["trigger"].defaults.scheduleHours,
+    intervalHours: bot.interval_hours ?? 0,
+  }};
   const s  = {id:uid(),type:"topic-scout"    as MType,x:200, y:300,settings:{...DEFS["topic-scout"].defaults,categories:bot.categories}};
   const a  = {id:uid(),type:"article-writer" as MType,x:400, y:200,settings:{...DEFS["article-writer"].defaults}};
   const im = {id:uid(),type:"image-sourcer"  as MType,x:400, y:400,settings:{...DEFS["image-sourcer"].defaults}};
   const g  = {id:uid(),type:"ai-image-gen"   as MType,x:600,y:300,settings:{...DEFS["ai-image-gen"].defaults}};
   const p  = {id:uid(),type:"publisher"      as MType,x:800,y:300,settings:{...DEFS["publisher"].defaults}};
 
-  const modules: WModule[] = [s,a,im,g,p];
+  const modules: WModule[] = [tr,s,a,im,g,p];
   const connections: WConn[] = [
+    {id:cuid(),fromId:tr.id,toId:s.id},
     {id:cuid(),fromId:s.id, toId:a.id},
     {id:cuid(),fromId:s.id, toId:im.id},
     {id:cuid(),fromId:a.id, toId:g.id},
@@ -699,10 +731,10 @@ function BotLayoutPageInner(){
       const botToSave: BotEntry = {
         id: activeBotId!,
         name: botName,
-        enabled: true,
-        ...derived,
         last_run: existingIdx >= 0 ? newAllBots[existingIdx].last_run : null,
         processed_count: existingIdx >= 0 ? newAllBots[existingIdx].processed_count : 0,
+        last_category: existingIdx >= 0 ? newAllBots[existingIdx].last_category : undefined,
+        ...derived,   // includes enabled, schedule_hours, interval_hours from trigger module
         workflow: wf,
       };
 

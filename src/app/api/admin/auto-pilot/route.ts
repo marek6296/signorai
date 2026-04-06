@@ -96,6 +96,8 @@ async function handleAutopilot(request: NextRequest) {
               ...b,
               last_run: now,
               processed_count: (b.processed_count || 0) + (result.success ? 1 : 0),
+              // Save last used category for rotation on next run
+              ...(result.success && result.usedCategory ? { last_category: result.usedCategory } : {}),
             }
           : b
       );

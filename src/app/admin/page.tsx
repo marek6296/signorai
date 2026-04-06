@@ -14,18 +14,14 @@ interface Article {
   slug?: string;
 }
 
-interface SiteVisit {
-  id: string;
-  visitor_id: string;
-  created_at: string;
-  path: string;
-}
 
 export default function AdminDashboard() {
   const router = useRouter();
   const [articles, setArticles] = useState<Article[]>([]);
-  const [todayVisits, setTodayVisits] = useState<SiteVisit[]>([]);
-  const [allVisits, setAllVisits] = useState<SiteVisit[]>([]);
+  const [todayVisitsCount, setTodayVisitsCount] = useState(0);
+  const [allVisitsCount, setAllVisitsCount] = useState(0);
+  const [uniqueTodayVisitors, setUniqueTodayVisitors] = useState(0);
+  const [uniqueAllVisitors, setUniqueAllVisitors] = useState(0);
   const [subscribers, setSubscribers] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -36,15 +32,9 @@ export default function AdminDashboard() {
   const todayStr = new Date().toISOString().split("T")[0];
   const todayPublished = published.filter((a) => a.published_at?.startsWith(todayStr)).length;
 
-  // Calculate unique visitors properly
-  const uniqueTodayVisitors = new Set(todayVisits.map(v => v.visitor_id).filter(Boolean)).size;
-  const uniqueAllVisitors = new Set(allVisits.map(v => v.visitor_id).filter(Boolean)).size;
-  const todayVisitsCount = todayVisits.length;
-
-  // 7-day stats
+  // 7-day stats (articles only — visits counted server-side)
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  const visitsLast7Days = allVisits.filter(v => new Date(v.created_at) >= sevenDaysAgo);
   const publishedLast7Days = published.filter((a) => {
     const d = new Date(a.published_at);
     return d >= sevenDaysAgo;
@@ -73,27 +63,45 @@ export default function AdminDashboard() {
       const today = new Date().toISOString().split("T")[0];
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const thirtyDaysAgoISO = thirtyDaysAgo.toISOString();
+      const todayStart = today + "T00:00:00";
 
-      const [articlesRes, todayVisRes, allVisRes, subsRes] = await Promise.all([
+      const [
+        articlesRes,
+        todayCountRes,
+        thirtyDayCountRes,
+        todayUniqueRes,
+        thirtyDayUniqueRes,
+        subsRes,
+      ] = await Promise.all([
         supabase.from("articles").select("id,title,status,published_at,category,slug").order("published_at", { ascending: false }).limit(500),
-        supabase.from("site_visits").select("id,visitor_id,created_at,path").gte("created_at", today + "T00:00:00").order("created_at", { ascending: false }),
-        supabase.from("site_visits").select("id,visitor_id,created_at,path").gte("created_at", thirtyDaysAgo.toISOString()).order("created_at", { ascending: false }).limit(10000),
+        // COUNT — nevraciaj riadky, len číslo (obchádza limit 1000)
+        supabase.from("site_visits").select("*", { count: "exact", head: true }).gte("created_at", todayStart),
+        supabase.from("site_visits").select("*", { count: "exact", head: true }).gte("created_at", thirtyDaysAgoISO),
+        // Unique visitors cez RPC (funguje na ľubovoľný objem)
+        supabase.rpc("count_unique_visitors", { since: todayStart }).maybeSingle(),
+        supabase.rpc("count_unique_visitors", { since: thirtyDaysAgoISO }).maybeSingle(),
         supabase.from("newsletter_subscribers").select("*", { count: "exact", head: true }),
       ]);
 
       if (articlesRes.error) throw articlesRes.error;
-      if (todayVisRes.error) throw todayVisRes.error;
-      if (allVisRes.error) throw allVisRes.error;
-      if (subsRes.error) throw subsRes.error;
 
-      console.log("[Dashboard] Articles loaded:", articlesRes.data?.length || 0);
-      console.log("[Dashboard] Today visits:", todayVisRes.data?.length || 0);
-      console.log("[Dashboard] All visits (30d):", allVisRes.data?.length || 0);
-      console.log("[Dashboard] Subscribers:", subsRes.count || 0);
+      const todayCount = todayCountRes.count ?? 0;
+      const thirtyDayCount = thirtyDayCountRes.count ?? 0;
+      const todayUnique = todayUniqueRes.data?.count ?? 0;
+      const thirtyDayUnique = thirtyDayUniqueRes.data?.count ?? 0;
+
+      console.log("[Dashboard] Articles:", articlesRes.data?.length || 0);
+      console.log("[Dashboard] Today visits (exact count):", todayCount);
+      console.log("[Dashboard] 30d visits (exact count):", thirtyDayCount);
+      console.log("[Dashboard] Today unique:", todayUnique);
+      console.log("[Dashboard] 30d unique:", thirtyDayUnique);
 
       setArticles(articlesRes.data || []);
-      setTodayVisits(todayVisRes.data || []);
-      setAllVisits(allVisRes.data || []);
+      setTodayVisitsCount(todayCount);
+      setAllVisitsCount(thirtyDayCount);
+      setUniqueTodayVisitors(todayUnique);
+      setUniqueAllVisitors(thirtyDayUnique);
       setSubscribers(subsRes.count || 0);
       setTime(new Date().toLocaleTimeString("sk-SK", { hour: "2-digit", minute: "2-digit" }));
     } catch (e) {
@@ -201,7 +209,7 @@ export default function AdminDashboard() {
           />
           <StatBox
             label="30 dní"
-            value={allVisits.length}
+            value={allVisitsCount}
             sub={`${uniqueAllVisitors} unikátnych`}
             icon={<TrendingUp className="w-4 h-4" />}
             trend={publishedLast7Days > 0 ? `+${publishedLast7Days} za 7 dní` : undefined}
