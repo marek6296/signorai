@@ -283,6 +283,13 @@ export default function TvorbaPage() {
     setSuggestedNews(suggestedNews.filter((i) => i.id !== id));
   };
 
+  const deleteAllTopics = async () => {
+    if (!confirm(`Naozaj vymazať všetkých ${suggestedNews.length} nájdených tém?`)) return;
+    await supabase.from("suggested_news").update({ status: "ignored" }).eq("status", "pending");
+    setSuggestedNews([]);
+    showToast("Všetky témy vymazané", "success");
+  };
+
   const confirmProcess = async (asDraft: boolean) => {
     if (!confirmModal) return;
     const suggestion = confirmModal;
@@ -564,6 +571,15 @@ export default function TvorbaPage() {
                 {suggestedNews.length}
               </span>
               <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.04)" }} />
+              <button
+                onClick={deleteAllTopics}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all"
+                style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}
+                title="Vymazať všetky témy"
+              >
+                <Trash2 className="w-3 h-3" />
+                Vymazať všetky
+              </button>
               <button
                 onClick={fetchSuggestedNews}
                 className="p-1.5 rounded-lg"

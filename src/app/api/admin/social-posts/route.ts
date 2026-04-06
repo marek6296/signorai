@@ -69,7 +69,20 @@ export async function PATCH(req: Request) {
 
 export async function DELETE(req: Request) {
     try {
-        const { id } = await req.json();
+        const body = await req.json();
+
+        // Bulk delete all drafts
+        if (body.deleteAllDrafts) {
+            const { error } = await supabase
+                .from("social_posts")
+                .delete()
+                .eq("status", "draft");
+            if (error) throw error;
+            return NextResponse.json({ success: true, deleted: "all_drafts" });
+        }
+
+        // Single delete
+        const { id } = body;
         const { error } = await supabase
             .from("social_posts")
             .delete()

@@ -138,6 +138,20 @@ export default function SocialnePage() {
     showToast("Príspevok zmazaný");
   };
 
+  const deleteAllDrafts = async () => {
+    const count = posts.filter((p) => p.status === "draft").length;
+    if (!confirm(`Naozaj vymazať všetkých ${count} draftov? Táto akcia sa nedá vrátiť.`)) return;
+    setLoading(true);
+    await fetch("/api/admin/social-posts", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deleteAllDrafts: true }),
+    });
+    await fetchPosts();
+    setLoading(false);
+    showToast(`Vymazaných ${count} draftov`, "success");
+  };
+
   const publishPost = async (id: string) => {
     const res = await fetch("/api/admin/publish-social-post", {
       method: "POST",
@@ -317,6 +331,17 @@ export default function SocialnePage() {
                 {tab === "draft" ? `Drafty (${draftPosts.length})` : `Publikované (${postedPosts.length})`}
               </button>
             ))}
+            {activeTab === "draft" && draftPosts.length > 0 && (
+              <button
+                onClick={deleteAllDrafts}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ml-1"
+                style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", color: "#f87171", whiteSpace: "nowrap" }}
+                title="Vymazať všetky drafty"
+              >
+                <Trash2 className="w-3 h-3" />
+                Vymazať všetky
+              </button>
+            )}
           </div>
 
           {/* Posts grid */}
