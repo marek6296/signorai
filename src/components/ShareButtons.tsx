@@ -10,9 +10,38 @@ interface ShareButtonsProps {
 
 export function ShareButtons({ url, title }: ShareButtonsProps) {
   const [copied, setCopied] = useState(false);
+  const [instaCopied, setInstaCopied] = useState(false);
 
-  const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
-  const twitterUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`;
+  // Facebook: u = URL, quote = predvyplnený text príspevku
+  const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(title)}`;
+  // Twitter/X: predvyplnený tweet s názvom a odkazom
+  const twitterUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title + " 👇")}`;
+
+  const handleInstagram = async () => {
+    // Na mobile: native share sheet → užívateľ vyberie Instagram
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, text: title, url });
+        return;
+      } catch {
+        // užívateľ zrušil alebo nepodporované
+      }
+    }
+    // Na desktope: skopíruje URL a otvorí instagram.com
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      const el = document.createElement("textarea");
+      el.value = url;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand("copy");
+      document.body.removeChild(el);
+    }
+    window.open("https://www.instagram.com/", "_blank", "noopener,noreferrer");
+    setInstaCopied(true);
+    setTimeout(() => setInstaCopied(false), 3000);
+  };
 
   const handleCopy = async () => {
     try {
@@ -42,6 +71,23 @@ export function ShareButtons({ url, title }: ShareButtonsProps) {
           </span>
         </div>
 
+        {/* Instagram */}
+        <button
+          onClick={handleInstagram}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all hover:scale-105 active:scale-95"
+          style={{
+            background: instaCopied ? "rgba(225, 48, 108, 0.15)" : "rgba(225, 48, 108, 0.1)",
+            border: "1px solid rgba(225, 48, 108, 0.25)",
+            color: instaCopied ? "#f472b6" : "#e1306c",
+          }}
+          aria-label="Zdieľať na Instagrame"
+        >
+          <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z" />
+          </svg>
+          {instaCopied ? "Odkaz skopírovaný!" : "Instagram"}
+        </button>
+
         {/* Facebook */}
         <a
           href={facebookUrl}
@@ -49,8 +95,8 @@ export function ShareButtons({ url, title }: ShareButtonsProps) {
           rel="noopener noreferrer"
           className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all hover:scale-105 active:scale-95"
           style={{
-            background: "rgba(24, 119, 242, 0.15)",
-            border: "1px solid rgba(24, 119, 242, 0.3)",
+            background: "rgba(24, 119, 242, 0.12)",
+            border: "1px solid rgba(24, 119, 242, 0.25)",
             color: "#4a9af5",
           }}
           aria-label="Zdieľať na Facebooku"
