@@ -13,14 +13,17 @@ export const maxDuration = 60;
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { id } = body;
+        const { id, variant } = body;
 
         if (!id) return NextResponse.json({ error: "Missing ID" }, { status: 400 });
+
+        // variant = 'studio' (default, dark background) or 'photo' (article image as background)
+        const imageVariant = variant || 'studio';
 
         const headerHost = req.headers.get("x-forwarded-host") || req.headers.get("host") || "aiwai.news";
         const protocol = headerHost.includes("localhost") ? "http" : "https";
         const dynamicAppUrl = `${protocol}://${headerHost}`;
-        const generatorUrl = `${dynamicAppUrl}/api/social-image/${id}.png?t=${Date.now()}`;
+        const generatorUrl = `${dynamicAppUrl}/api/social-image/${id}.png?variant=${imageVariant}&t=${Date.now()}`;
 
         console.log(`>>> [Pre-render Storage] Generating: ${generatorUrl}`);
 

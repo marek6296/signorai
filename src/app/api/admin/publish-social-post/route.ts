@@ -14,17 +14,21 @@ export async function POST(req: Request) {
     try {
         const contentType = req.headers.get("content-type") || "";
         let id: string, secret: string, customImageUrl: string | undefined;
+        let imageVariant: string = 'studio'; // default
 
         if (contentType.includes("multipart/form-data")) {
             const formData = await req.formData();
             id = formData.get("id") as string;
             secret = formData.get("secret") as string;
-            // image from formData is deliberately ignored for Instagram to force Satori pre-render
+            imageVariant = (formData.get("variant") as string) || 'studio';
+            // image blob from formData is ignored for Instagram — we use server-side Satori instead
+            // (but we now forward the variant so the server renders the correct style)
         } else {
             const body = await req.json();
             id = body.id;
             secret = body.secret;
             customImageUrl = body.imageUrl;
+            imageVariant = body.variant || 'studio';
         }
 
         // 1. Auth check
@@ -68,11 +72,11 @@ export async function POST(req: Request) {
                 const protocol = headerHost.includes("localhost") ? "http" : "https";
                 const preRenderEndpoint = `${protocol}://${headerHost}/api/admin/pre-render-social-image`;
 
-                console.log(`[Instagram Satori Vizuál] Forcing fresh server-side generation...`);
+                console.log(`[Instagram Satori Vizuál] Forcing fresh server-side generation (variant: ${imageVariant})...`);
                 const res = await fetch(preRenderEndpoint, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ id: post.id })
+                    body: JSON.stringify({ id: post.id, variant: imageVariant })
                 });
 
                 if (res.ok) {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import { supabase } from "@/lib/supabase";
 import { CATEGORY_MAP } from "@/lib/data";
+import { getRawRssArticles } from "@/lib/discovery-logic";
 
 export const runtime = "nodejs";
 export const dynamic = 'force-dynamic';
@@ -10,17 +11,17 @@ export const maxDuration = 60;
 const ALLOWED_CATEGORIES = Object.values(CATEGORY_MAP);
 const ADMIN_SECRET = process.env.ADMIN_SECRET || "make-com-webhook-secret";
 
-async function executeGeminiDiscovery(categories: string[], query: string, secret: string | null) {
+async function executeGeminiDiscovery(categories: string[], query: string, secret: string | null, count: number = 8, useRss: boolean = false) {
     if (secret !== ADMIN_SECRET) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const geminiApiKey = process.env.GEMINI_API_KEY || "AIzaSyBwslaqe7TRYOwgEtmMbNxbjDJcbVSr5K4";
-    if (!geminiApiKey || geminiApiKey === 'your_gemini_api_key_here') {
+    const geminiApiKey = process.env.GEMINI_API_KEY;
+    if (!geminiApiKey) {
         console.error(">>> [Gemini Topics] GEMINI_API_KEY nie je nastavený!");
         return NextResponse.json({
-            error: "GEMINI_API_KEY nie je nakonfigurovaný na serveri.",
-            message: "Skús namiesto toho 'Hľadať cez RSS' (OpenAI variant).",
+            error: "GEMINI_API_KEY nie je nakonfigurovaný v .env.local.",
+            message: "Skús namiesto toho 'Hľadať cez RSS' (OpenAI variant) alebo pridaj kľúč do .env.local.",
             code: "MISSING_API_KEY"
         }, { status: 500 });
     }
@@ -30,6 +31,32 @@ async function executeGeminiDiscovery(categories: string[], query: string, secre
     const targetCategories = categories.length > 0
         ? categories.filter((c: string) => ALLOWED_CATEGORIES.includes(c))
         : ALLOWED_CATEGORIES;
+
+    let rssContext = "";
+    if (useRss) {
+        console.log(">>> [Gemini Topics] Using RSS Sources...");
+        const rawRss = await getRawRssArticles(3, targetCategories);
+        if (rawRss.length > 0) {
+            const rssList = rawRss.slice(0, 60).map(i => `- Titulok: ${i.title}\n  Zdroj: ${i.source}\n  Obsah: ${i.contentSnippet.substring(0, 150)}\n  URL: ${i.url}\n  Kategória: ${i.groupHint}`).join("\n\n");
+            rssContext = `TU SÚ NAJNOVŠIE ČLÁNKY Z NAŠICH RSS ZDROJOV:\n${rssList}\n\n`;
+        } else {
+            console.log(">>> [Gemini Topics] No RSS articles found, falling back to Google Search.");
+            useRss = false; // Fallback ak nenašlo nič
+        }
+    }
+
+    // Deduplicate: fetch already published articles + all suggestions (any status)
+    const [{ data: existingArticles }, { data: existingSuggestions }] = await Promise.all([
+        supabase.from('articles').select('title').order('created_at', { ascending: false }).limit(60),
+        supabase.from('suggested_news').select('title').order('created_at', { ascending: false }).limit(40)
+    ]);
+    const usedTitles = [
+        ...(existingArticles || []).map((a: { title: string }) => a.title),
+        ...(existingSuggestions || []).map((s: { title: string }) => s.title)
+    ].filter(Boolean);
+    const dedupeBlock = usedTitles.length > 0
+        ? `\nTIETO TÉMY UŽ MÁME — NAVRHNI VÝHRADNE ODLIŠNÉ TÉMY (žiadne podobné ani variácie):\n${usedTitles.map(t => `- ${t}`).join('\n')}\n`
+        : "";
 
     const today = new Date().toLocaleDateString('sk-SK', { day: 'numeric', month: 'long', year: 'numeric' });
     const customQueryPart = query ? `\nPrioritu daj témam súvisiacim s: "${query}".\n` : "";
@@ -44,19 +71,23 @@ async function executeGeminiDiscovery(categories: string[], query: string, secre
         .map(c => `- ${c}: ${categoryDescriptions[c] || c}`)
         .join("\n");
 
-    const prompt = `Dnes je ${today}. Si expert na AI a technologické správy.${customQueryPart}
-Pomocou Google Search nájdi 8-12 najnovších, najtrendovejších a najzaujímavejších správ z oblasti:
+    const prompt = `Dnes je ${today}. Si expert na technologické správy.${customQueryPart}
+${useRss ? rssContext : ""}${dedupeBlock}
+Tvojou úlohou je vybrať presne ${count} najnovších, najtrendovejších a najzaujímavejších správ striktne LEN pre tieto kategórie:
 ${catDescList}
 
 POŽIADAVKY:
+${useRss ? "- TÉMY MUSÍŠ VYBRAŤ EXKLUZÍVNE IBA Z POSKYTNUTÉHO ZOZNAMU RSS ČLÁNKOV VYŠŠIE!" : "- Pomocou Google Search nájdi najaktuálnejšie správy."}
 - Správy musia byť zo dneška alebo včera (maximálne 48 hodín staré)
 - Uprednostni správy s vysokým dopadom a viralitou
 - Každá téma musí byť unikátna a zaujímavá pre slovenských čitateľov
+- Nájdené témy MUSIA patriť LEN do vyššie spomenutých povolených kategórií! Z iných oblastí správy vôbec nehľadaj a nevracaj.
+- NIKDY nepridaj tému, ktorá je rovnaká alebo veľmi podobná ako niektorá z už spracovaných tém uvedených vyššie.
 
-Pre každú nájdenú správu vráť JSON objekt s poliami:
-- "title": Slovenský titulok (preloži z angličtiny, max 80 znakov)
+Pre každú vybranú správu vráť JSON objekt s poliami:
+- "title": Slovenský titulok (preloží z angličtiny, max 80 znakov)
 - "summary": Slovenské zhrnutie v 2-3 vetách, výstižné a informatívne
-- "category": PRESNE jedna z: ${ALLOWED_CATEGORIES.join(" | ")}
+- "category": PRESNE jedna z: ${targetCategories.join(" | ")} (musí stopercentne sedieť na túto kategóriu)
 - "url": Priamy odkaz na originálny článok
 - "source": Názov portálu (napr. "TechCrunch", "The Verge", "Wired")
 
@@ -64,14 +95,14 @@ Odpoveď vráť AKO ČISTÉ JSON POLE - bez markdown, bez \`\`\` blokov, iba [{"
 
     try {
         const response = await ai.models.generateContent({
-            model: "gemini-2.0-flash",
+            model: "gemini-2.5-flash",
             contents: [
                 {
                     parts: [{ text: prompt }]
                 }
             ],
             config: {
-                tools: [{ googleSearch: {} }],
+                ...(useRss ? {} : { tools: [{ googleSearch: {} }] })
             }
         });
 
@@ -182,8 +213,8 @@ Odpoveď vráť AKO ČISTÉ JSON POLE - bez markdown, bez \`\`\` blokov, iba [{"
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { secret, categories = [], query = "" } = body;
-        return executeGeminiDiscovery(categories, query, secret);
+        const { secret, categories = [], query = "", count = 8, useRss = false } = body;
+        return executeGeminiDiscovery(categories, query, secret, count, useRss);
     } catch (e: unknown) {
         return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
@@ -194,6 +225,8 @@ export async function GET(req: Request) {
     const secret = url.searchParams.get("secret");
     const categoriesRaw = url.searchParams.get("categories");
     const query = url.searchParams.get("query") || "";
+    const count = parseInt(url.searchParams.get("count") || "8");
+    const useRss = url.searchParams.get("useRss") === "true";
     const categories = categoriesRaw ? categoriesRaw.split(",").filter(Boolean) : [];
-    return executeGeminiDiscovery(categories, query, secret);
+    return executeGeminiDiscovery(categories, query, secret, count, useRss);
 }

@@ -3,6 +3,8 @@ import { Readability } from "@mozilla/readability";
 import OpenAI from "openai";
 import { supabase } from "@/lib/supabase";
 import { revalidatePath } from "next/cache";
+import { GoogleGenAI } from "@google/genai";
+import { createClient } from "@supabase/supabase-js";
 
 let openaiClient: OpenAI | null = null;
 export function getOpenAIClient() {
@@ -13,7 +15,18 @@ export function getOpenAIClient() {
     return openaiClient;
 }
 
-export async function runFinalReviewAndPublish(articleId: string) {
+let geminiClient: GoogleGenAI | null = null;
+export function getGeminiClient() {
+    if (geminiClient) return geminiClient;
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+        throw new Error("GEMINI_API_KEY nie je nastavený v .env.local.");
+    }
+    geminiClient = new GoogleGenAI({ apiKey });
+    return geminiClient;
+}
+
+export async function runFinalReviewAndPublish(articleId: string, keepAsDraft: boolean = false) {
     const { data: article, error: fetchError } = await supabase
         .from('articles')
         .select('*')
@@ -36,9 +49,9 @@ Tvoje úlohy:
 1. Skontrolovať gramatiku, štylistiku a odstrániť z 'excerpt' a 'ai_summary' akékoľvek HTML značky (napr. <p>). Ponechaj text čistý.
 2. Skontrolovať zhodu textu, preklepy. 
 3. Vybrať najvhodnejšiu kategóriu (povolené: AI, Tech, Návody & Tipy).
-4. Zhodnotiť poskytnutú fotografiu (ak je k dispozícii). Ak je fotka kvalitná a súvisí s témou, ponechaj "image_needs_replacement": false. Ak obrázok nedáva zmysel, je nekvalitný, chýba alebo ide o nejaké divné logo/miniatúru, nastav true a poskytni presný ANGLICKÝ 2-4 slovný vyhľadávací dotaz do Googlu pre získanie novej fotky.
+4. Zhodnotiť poskytnutú úvodnú fotografiu (ak je k dispozícii). Ak je fotka kvalitná a súvisí s témou (je to skutočná novinárska fotografia alebo relevantný záber), ponechaj "image_needs_replacement": false. Ak obrázok nedáva zmysel, je nekvalitný, pixelový alebo ide len o ikonu/logo, nastav "image_needs_replacement": true.
+5. Vráť LEN čistý JSON, žiadny iný text.
 
-Zároveň vrátiš upravené texty podľa bodu 1 a 2.
 Vráť LEN JSON objekt v tvare:
 {
   "title": "upravený nadpis",
@@ -46,8 +59,7 @@ Vráť LEN JSON objekt v tvare:
   "ai_summary": "čisté zhrnutie bez HTML",
   "content": "upravený HTML obsah",
   "category": "Vybraná Kategória",
-  "image_needs_replacement": boolean,
-  "new_image_search_query": "anglický dotaz alebo prázdny string"
+  "image_needs_replacement": boolean
 }`
         }
     ];
@@ -113,26 +125,74 @@ OBSAH: ${article.content}`
     console.log(`>>> [Final Review] AI decision:`, reviewedData);
 
     let finalImageUrl = article.main_image;
-    if (reviewedData.image_needs_replacement && reviewedData.new_image_search_query) {
-        console.log(`>>> [Final Review] Finding new image with query: ${reviewedData.new_image_search_query}`);
-        const newImg = await searchImage(reviewedData.new_image_search_query);
-        if (newImg) {
-            finalImageUrl = newImg;
+    if (reviewedData.image_needs_replacement) {
+        console.log(`>>> [Final Review] Image flagged as bad. Generating a new photorealistic replacement via Gemini...`);
+        try {
+            const ai = getGeminiClient();
+            const prompt = `Generate a photorealistic, ultra-high quality cinematic cover image representing this technology news article.
+Theme: ${reviewedData.title || article.title}
+Context: ${reviewedData.excerpt || article.excerpt}
+
+CRITICAL INSTRUCTIONS TO AVOID ERRORS:
+- MUST NOT contain specific real-world public figures (e.g. Elon Musk, Sam Altman) or trademarked logos. Provide generic photorealistic alternatives.
+- Style: Realistic photography, editorial, high detail cover image.
+- NO text, NO watermarks.`;
+
+            const imageResult = await ai.models.generateContent({
+                model: 'gemini-3.1-flash-image-preview',
+                contents: prompt,
+                config: {
+                    // @ts-ignore
+                    aspectRatio: "16:9",
+                    personGeneration: "ALLOW_ADULT"
+                }
+            });
+
+            if (imageResult.candidates?.[0]?.content?.parts) {
+                for (const part of imageResult.candidates[0].content.parts) {
+                    if (part.inlineData && part.inlineData.data) {
+                        const buffer = Buffer.from(part.inlineData.data, 'base64');
+                        const ext = (part.inlineData.mimeType || 'image/png').includes('png') ? 'png' : 'jpg';
+                        const filename = `article-generated/${Date.now()}-${Math.floor(Math.random() * 1000)}.${ext}`;
+                        
+                        const adminSupabase = createClient(
+                            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                            process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+                        );
+
+                        const { data: uploadData, error: uploadError } = await adminSupabase.storage
+                            .from('social-images')
+                            .upload(filename, buffer, { contentType: part.inlineData.mimeType || 'image/png', upsert: true });
+
+                        if (!uploadError && uploadData) {
+                            const { data: urlData } = adminSupabase.storage.from('social-images').getPublicUrl(filename);
+                            finalImageUrl = urlData.publicUrl;
+                            console.log(`>>> [Final Review] Successfully generated new main image: ${finalImageUrl}`);
+                        }
+                        break;
+                    }
+                }
+            }
+        } catch (e) {
+            console.error(">>> [Final Review] Failed to generate replacement main image:", e);
         }
     }
 
+    const updatePayload: Record<string, unknown> = {
+        title: reviewedData.title || article.title,
+        excerpt: reviewedData.excerpt || article.excerpt,
+        ai_summary: reviewedData.ai_summary || article.ai_summary,
+        content: reviewedData.content || article.content,
+        category: reviewedData.category || article.category,
+        main_image: finalImageUrl,
+    };
+    if (!keepAsDraft) {
+        updatePayload.status = 'published';
+        updatePayload.published_at = article.published_at || new Date().toISOString();
+    }
     const { error: updateError } = await supabase
         .from('articles')
-        .update({
-            title: reviewedData.title || article.title,
-            excerpt: reviewedData.excerpt || article.excerpt,
-            ai_summary: reviewedData.ai_summary || article.ai_summary,
-            content: reviewedData.content || article.content,
-            category: reviewedData.category || article.category,
-            main_image: finalImageUrl,
-            status: 'published',
-            published_at: article.published_at || new Date().toISOString()
-        })
+        .update(updatePayload)
         .eq('id', articleId);
 
     if (updateError) throw updateError;
@@ -261,19 +321,21 @@ export async function scrapeUrl(url: string): Promise<string> {
     }
 }
 
-export async function processArticleFromUrl(url: string, targetStatus: 'draft' | 'published' = 'draft', forcedCategory?: string) {
+export async function processArticleFromUrl(url: string, targetStatus: 'draft' | 'published' = 'draft', forcedCategory?: string, model: 'gpt-4o' | 'gemini' = 'gpt-4o') {
     try {
         // 1. Scraping
+        console.log(`>>> [Logic] Scraping URL with timeout: ${url}`);
         const response = await fetch(url, {
             headers: {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
                 "Accept-Language": "en-US,en;q=0.5"
             },
+            signal: AbortSignal.timeout(15000) // 15s timeout
         });
 
         if (!response.ok) {
-            throw new Error(`Failed to fetch URL, status: ${response.status}`);
+            throw new Error(`Nepodarilo sa načítať URL (status ${response.status})`);
         }
 
         const html = await response.text();
@@ -282,75 +344,227 @@ export async function processArticleFromUrl(url: string, targetStatus: 'draft' |
         const parsedArticle = reader.parse();
 
         if (!parsedArticle || !parsedArticle.textContent) {
-            throw new Error("Could not parse article from the provided URL");
+            throw new Error("Nepodarilo sa extrahovať obsah článku. Web môže blokovať botov.");
         }
 
-        // 2. Generate article with OpenAI
+        // 2. Define the instructions
         const promptSystem = `Si šéfredaktor a špičkový copywriter pre prestížny AI & Tech magazín AIWai. Bude ti zadaný zdrojový text z nejakého webu.
-Tvojou úlohou je napísať z neho prémiový, pútavý a odborne presný článok o UMELEJ INTELIGENCII alebo TECHNOLÓGIÁCH v STOPERCENTNEJ, ČISTEJ a PRIRODZENEJ SLOVENČINE.
+Tvojou úlohou je napísať z neho prémiový, pútavý a odborne presný článok v STOPERCENTNEJ, ČISTEJ SLOVENČINE.
 
-ZÁVÄZNÉ PRAVIDLÁ PRE KVALITU TEXTU:
-1. STRIKTNÁ SLOVENČINA: Text musí byť písaný výhradne v slovenčine. Je PRÍSNE ZAKÁZANÉ používať české slová alebo bohemizmy.
-2. ŽIADNY STROJOVÝ PREKLAD: Text musí znieť tak, akoby ho napísal rodený Slovák, ktorý je expertom na AI a technológie.
-3. KRITICKÁ GRAMATIKA: Gramatické pády a rody musia byť 100% správne.
-4. Plynulý žurnalistický štýl. Vyhni sa anglicizmom a krkolomným prekladom.
-5. Bezchybná slovenská štylistika. Ak je zdroj v češtine, dôkladne PRELOŽ.
-6. Rozčleň text na menšie odseky s podnadpismi (h2 alebo h3).
-7. ZÁKAZ KOPÍROVANIA: SYNTETIZUJ a napíš ÚPLNE NOVÝ TEXT pri zachovaní faktov.
-8. PONECHAJ OBRÁZKY: img tagy vlož presne na miesto.
-9. CLICKBAIT: Nadpis musí byť extrémne pútavý a čestne odkazovať na tému.
+ZÁVÄZNÉ PRAVIDLÁ:
+1. STRIKTNÁ SLOVENČINA: Žiadne české slová, žiadne bohemizmy.
+2. ŽIADNY STROJOVÝ PREKLAD: Text ako od slovenského technologického novinára.
+3. Plynulý žurnalistický štýl. Vyhni sa anglicizmom, odborné pojmy vysvetľuj.
+4. Rozčleň text na odseky s h2/h3 podnadpismi.
+5. CLICKBAIT nadpis – pútavý, čestný, vzbudzuje zvedavosť.
 
 PRAVIDLÁ PRE KATEGORIZÁCIU:
 - AI: Vývoj AI, nové modely (GPT, Claude, Gemini, Grok), výskum AI, GPU čipy, agenty, AI bezpečnosť, regulácia AI.
 - Tech: Spotrebná elektronika, smartfóny, softvér, sociálne siete, internet.
 - Návody & Tipy: Praktické tutoriály na AI nástroje.
 
-Tvoj výstup VŽDY EXAKTNE VO FORMÁTE JSON:
+Tvoj výstup VŽDY EXAKTNE VO FORMÁTE JSON (žiadny markdown okolo JSON):
 {
     "title": "Virálny nadpis v dokonalej slovenčine",
     "slug": "url-friendly-nazov-bez-diakritiky-a-medzier",
-    "excerpt": "Perex: 1 až 2 pútavé odseky.",
-    "content": "Článok v HTML s p, strong, h2, h3 a img.",
-    "ai_summary": "Zhrnutie (10-15 viet) pre audio verziu.",
+    "excerpt": "Perex: 1 až 2 pútavé vety.",
+    "content": "Článok v HTML s p, strong, h2, h3.",
+    "ai_summary": "PRESNE 1-2 krátke vety. Výstižné zhrnutie jadra správy pre audio. Nie viac.",
     "category": "JEDNA Z TÝCHTO: AI, Tech, Návody & Tipy"
 }
-Nikdy nevracaj inú kategóriu.`;
+Nikdy nevracaj inú kategóriu. Nikdy nevracaj markdown bloky okolo JSON.`;
 
-        const completion = await getOpenAIClient().chat.completions.create({
-            model: "gpt-4o",
-            messages: [
-                { role: "system", content: promptSystem },
-                { role: "user", content: `Spracuj tento článok: ${parsedArticle.title}\n\nZdrojové HTML:\n${parsedArticle.content}` }
-            ],
-            response_format: { type: "json_object" }
-        });
 
-        const gptResponse = completion.choices[0].message.content;
-        if (!gptResponse) throw new Error("Empty response from OpenAI");
+        // 3. Generate article content with chosen AI
+        let articleData: any = null;
 
-        console.log("OpenAI raw response received");
-        const articleData = JSON.parse(gptResponse);
-        console.log("OpenAI JSON parsed successfully, article title:", articleData.title);
+        if (model === 'gemini') {
+            console.log(">>> [Logic] Generating article with Gemini 2.5 Flash...");
+            const client = getGeminiClient();
+            
+            // Build the full prompt in one string per official docs pattern
+            const finalPrompt = `${promptSystem}
 
-        // Image extraction
-        let mainImage = `https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=1200`;
+Spracuj tento článok zo zdroja:
+TITULOK: ${parsedArticle.title}
+OBSAH: ${parsedArticle.textContent?.substring(0, 8000)}
+
+DÔLEŽITÉ: Odpovedaj VÝHRADNE v čistom JSON formáte. Žiadny markdown, žiadny text pred ani po JSON.`;
+
+            try {
+                const result = await client.models.generateContent({
+                    model: "gemini-2.5-flash",
+                    contents: finalPrompt,
+                });
+
+                const text = result.text || "";
+                console.log(">>> [Logic] Gemini response received, length:", text.length);
+                
+                if (!text) {
+                    const reason = result.candidates?.[0]?.finishReason;
+                    throw new Error(`Gemini vrátil prázdnu odpoveď (finishReason: ${reason || 'unknown'}).`);
+                }
+
+                // Robust JSON parsing - strip any markdown wrappers
+                const cleaned = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+                const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+                if (!jsonMatch) {
+                    console.error(">>> [Logic] Raw Gemini text:", text.substring(0, 500));
+                    throw new Error("Gemini nevrátil platný JSON.");
+                }
+                articleData = JSON.parse(jsonMatch[0]);
+                console.log(">>> [Logic] Gemini Article parsed successfully:", articleData.title);
+            } catch (geminiError: any) {
+                console.error(">>> [Logic] Gemini Error:", geminiError.message || geminiError);
+                throw new Error(`Gemini chyba: ${geminiError.message || "API error"}`);
+            }
+        } else {
+            console.log(">>> [Logic] Generating with OpenAI (GPT-4o)...");
+            const completion = await getOpenAIClient().chat.completions.create({
+                model: "gpt-4o",
+                messages: [
+                    { role: "system", content: promptSystem },
+                    { role: "user", content: `Spracuj tento článok: ${parsedArticle.title}\n\nZdrojové HTML:\n${parsedArticle.content}` }
+                ],
+                response_format: { type: "json_object" }
+            });
+
+            const gptResponse = completion.choices[0].message.content;
+            if (!gptResponse) throw new Error("Empty response from OpenAI");
+            articleData = JSON.parse(gptResponse);
+            console.log("OpenAI JSON parsed successfully, article title:", articleData.title);
+        }
+
+        // ── Image extraction & validation ──────────────────────────────────────
+        const AI_FALLBACK_IMAGE = `https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=1200`;
+        let mainImage = AI_FALLBACK_IMAGE;
+
+        // Helper: check if image URL responds with 2xx
+        const isImageAlive = async (imgUrl: string): Promise<boolean> => {
+            if (!imgUrl || !imgUrl.startsWith('http')) return false;
+            try {
+                const ctrl = new AbortController();
+                const tid = setTimeout(() => ctrl.abort(), 5000);
+                const res = await fetch(imgUrl, { method: 'HEAD', signal: ctrl.signal });
+                clearTimeout(tid);
+                return res.ok;
+            } catch {
+                return false;
+            }
+        };
+
         try {
             const document = doc.window.document;
             const ogImage = document.querySelector('meta[property="og:image"]')?.getAttribute('content');
             const twitterImage = document.querySelector('meta[name="twitter:image"]')?.getAttribute('content');
             const firstImg = document.querySelector('article img')?.getAttribute('src') || document.querySelector('img')?.getAttribute('src');
 
-            const foundImage = ogImage || twitterImage || firstImg;
-            if (foundImage) {
-                if (foundImage.startsWith('http')) {
-                    mainImage = foundImage;
-                } else if (foundImage.startsWith('/')) {
-                    const urlObj = new URL(url);
-                    mainImage = `${urlObj.origin}${foundImage}`;
+            const candidates = [ogImage, twitterImage, firstImg].filter(Boolean) as string[];
+            for (const candidate of candidates) {
+                const absolute = candidate.startsWith('http')
+                    ? candidate
+                    : candidate.startsWith('/')
+                        ? `${new URL(url).origin}${candidate}`
+                        : null;
+                if (absolute && await isImageAlive(absolute)) {
+                    mainImage = absolute;
+                    break;
                 }
             }
         } catch (e) {
-            console.error("Failed to extract image", e);
+            console.error("Failed to extract/validate main image:", e);
+        }
+
+        // ── Strip all original inline images unconditionally ────────────────────
+        let cleanContent: string = articleData.content || '';
+        if (cleanContent) {
+            // Remove completely all original <img> tags
+            cleanContent = cleanContent.replace(/<img[^>]*>/gi, '');
+
+            console.log(">>> [Logic] Generating TWO fresh AI inline images...");
+            
+            const generateInlineImage = async (suffix: string) => {
+                try {
+                    const ai = getGeminiClient();
+                    const prompt = `Generate a photorealistic, ultra-high quality cinematic image representing a specific detail or concept from this technology news article. Focus on visual concept: ${suffix}.
+Theme: ${articleData.title}
+Context: ${articleData.excerpt || 'Teaser'}
+
+CRITICAL INSTRUCTIONS TO AVOID ERRORS:
+- MUST NOT contain specific real-world public figures (e.g. Elon Musk, Sam Altman) or trademarked logos. Provide generic photorealistic alternatives.
+- Style: Realistic photography, editorial, high detail.
+- NO text, NO watermarks.`;
+
+                    const imageResult = await ai.models.generateContent({
+                        model: 'gemini-3.1-flash-image-preview',
+                        contents: prompt,
+                        config: {
+                            // @ts-ignore
+                            aspectRatio: "16:9",
+                            personGeneration: "ALLOW_ADULT"
+                        }
+                    });
+
+                    if (imageResult.candidates?.[0]?.content?.parts) {
+                        for (const part of imageResult.candidates[0].content.parts) {
+                            if (part.inlineData && part.inlineData.data) {
+                                const buffer = Buffer.from(part.inlineData.data, 'base64');
+                                const ext = (part.inlineData.mimeType || 'image/png').includes('png') ? 'png' : 'jpg';
+                                const filename = `article-generated/${Date.now()}-${Math.floor(Math.random() * 10000)}.${ext}`;
+                                
+                                const adminSupabase = createClient(
+                                    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                                    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+                                );
+
+                                const { data: uploadData, error: uploadError } = await adminSupabase.storage
+                                    .from('social-images')
+                                    .upload(filename, buffer, { contentType: part.inlineData.mimeType || 'image/png', upsert: true });
+
+                                if (!uploadError && uploadData) {
+                                    const { data: urlData } = adminSupabase.storage.from('social-images').getPublicUrl(filename);
+                                    return urlData.publicUrl;
+                                }
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error(">>> [Logic] Failed to generate inline image:", e);
+                }
+                return null;
+            };
+
+            // Generate two images in parallel to avoid linear timeouts
+            const [url1, url2] = await Promise.all([
+                generateInlineImage("The innovative hardware, product, or core subject"),
+                generateInlineImage("The futuristic impact, environment, or global context")
+            ]);
+
+            // Inject the generated images gracefully after the 1st and 4th paragraphs
+            let pCount = 0;
+            let successCount = 0;
+            cleanContent = cleanContent.replace(/<\/p>/gi, (match) => {
+                pCount++;
+                if (pCount === 1 && url1) {
+                    successCount++;
+                    return `</p>\n<figure class="my-8"><img src="${url1}" alt="Ilustračný obrázok k článku" class="rounded-2xl w-full object-cover aspect-video shadow-md"/></figure>\n`;
+                }
+                if (pCount === 4 && url2) {
+                    successCount++;
+                    return `</p>\n<figure class="my-8"><img src="${url2}" alt="Doplnkový obrázok k článku" class="rounded-2xl w-full object-cover aspect-video shadow-md"/></figure>\n`;
+                }
+                return match;
+            });
+            
+            // If article was too short for the 4th paragraph but we generated url2, append it at the end
+            if (url2 && pCount < 4) {
+                successCount++;
+                cleanContent += `\n<figure class="my-8"><img src="${url2}" alt="Doplnkový obrázok k článku" class="rounded-2xl w-full object-cover aspect-video shadow-md"/></figure>\n`;
+            }
+
+            console.log(`>>> [Logic] Successfully added ${successCount} AI-generated inline images.`);
+
+            articleData.content = cleanContent;
         }
 
         // Category validation
@@ -375,13 +589,14 @@ Nikdy nevracaj inú kategóriu.`;
         }
 
         // 3. Save to Supabase
+        // 3. Save to Supabase (Upsert approach for slug, insert for unique source_url)
         const dbData = {
-            title: articleData.title,
-            slug: articleData.slug,
-            excerpt: articleData.excerpt,
-            content: articleData.content,
+            title: articleData.title || parsedArticle.title || "Bez názvu",
+            slug: (articleData.slug || 'article-' + Date.now()) + "-" + Math.random().toString(36).substring(2, 7),
+            excerpt: articleData.excerpt || "Spracovaný obsah cez AI.",
+            content: articleData.content || parsedArticle.content || "Obsah sa nepodarilo vygenerovať správne.",
             category: finalCategory,
-            ai_summary: articleData.ai_summary,
+            ai_summary: articleData.ai_summary || "",
             main_image: mainImage,
             source_url: url,
             status: targetStatus,
@@ -399,13 +614,15 @@ Nikdy nevracaj inú kategóriu.`;
 
         console.log("Supabase save success, ID:", data.id);
 
-        if (targetStatus === 'published') {
-            console.log("Running final review before publishing...");
-            await runFinalReviewAndPublish(data.id);
-            // Fetch the updated data after review to return it
-            const { data: updatedData } = await supabase.from('articles').select().eq('id', data.id).single();
-            if (updatedData) data = updatedData;
+        // Always run GPT quality review — for drafts keepAsDraft=true (no publish), for published keepAsDraft=false
+        console.log(`>>> [Logic] Running GPT quality review (keepAsDraft=${targetStatus !== 'published'})...`);
+        try {
+            await runFinalReviewAndPublish(data.id, targetStatus !== 'published');
+        } catch (reviewErr) {
+            console.warn(">>> [Logic] GPT review failed (non-fatal), article saved as-is:", reviewErr);
         }
+        const { data: updatedData } = await supabase.from('articles').select().eq('id', data.id).single();
+        if (updatedData) data = updatedData;
 
         // 4. Revalidate
         revalidatePath("/", "layout");

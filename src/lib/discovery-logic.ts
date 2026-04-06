@@ -62,7 +62,7 @@ export const FEED_GROUPS: Record<string, { name: string, url: string }[]> = {
 
 export const normalizeUrl = (u: string) => u.split('?')[0].toLowerCase().trim().replace(/\/$/, "");
 
-export async function discoverNewNews(maxDays: number, targetCategories: string[] = []) {
+export async function getRawRssArticles(maxDays: number, targetCategories: string[] = []): Promise<DiscoveryItem[]> {
     const newsByGroup: Record<string, DiscoveryItem[]> = {};
     const now = new Date();
     const maxAgeMs = maxDays * 24 * 60 * 60 * 1000;
@@ -77,7 +77,6 @@ export async function discoverNewNews(maxDays: number, targetCategories: string[
     if (dbSources && dbSources.length > 0) {
         allFeeds = dbSources.map(s => ({ name: s.source_name, url: s.feed_url, category: s.category }));
     } else {
-        // Fallback to hardcoded groups from before
         for (const [group, feeds] of Object.entries(FEED_GROUPS)) {
             feeds.forEach(f => {
                 allFeeds.push({ ...f, category: group });
@@ -85,14 +84,12 @@ export async function discoverNewNews(maxDays: number, targetCategories: string[
         }
     }
 
-    // Filter only those that match categories to fetch
     const categoriesToFetch = targetCategories.length > 0
         ? targetCategories.filter(c => ALLOWED_CATEGORIES.includes(c))
         : [...ALLOWED_CATEGORIES];
 
     const currentFeeds = allFeeds.filter(f => categoriesToFetch.includes(f.category));
 
-    // Pre-fetch all known URLs to avoid thousands of DB queries
     const { data: seenArticles } = await supabase.from('articles').select('source_url');
     const { data: seenSuggestions } = await supabase.from('suggested_news').select('url');
 
@@ -101,7 +98,6 @@ export async function discoverNewNews(maxDays: number, targetCategories: string[
         ...(seenSuggestions?.map(s => normalizeUrl(s.url || "")) || [])
     ]);
 
-    // Processing using currentFeeds instead of FEED_GROUPS
     for (const feed of currentFeeds) {
         const groupName = feed.category;
         if (!newsByGroup[groupName]) newsByGroup[groupName] = [];
@@ -147,10 +143,6 @@ export async function discoverNewNews(maxDays: number, targetCategories: string[
         }
     }
 
-    // Rest of the discovery-logic.ts remains the same but correctly using processed newsByGroup.
-
-
-    // 2. Initial Selection & URL Accessibility Check
     const candidatesByGroup: Record<string, DiscoveryItem[]> = {};
     for (const [groupName, items] of Object.entries(newsByGroup)) {
         if (items.length === 0) continue;
@@ -179,13 +171,9 @@ export async function discoverNewNews(maxDays: number, targetCategories: string[
             });
             clearTimeout(timeoutId);
 
-            if (res.status >= 400 && res.status !== 416) {
-                console.warn(`[Discovery] URL blocked (status: ${res.status}): ${url}`);
-                return false;
-            }
+            if (res.status >= 400 && res.status !== 416) return false;
             return true;
         } catch {
-            console.warn(`[Discovery] URL unreachable (network error): ${url}`);
             return false;
         }
     };
@@ -198,7 +186,6 @@ export async function discoverNewNews(maxDays: number, targetCategories: string[
         const accessible: DiscoveryItem[] = [];
         for (const item of candidates) {
             if (accessible.length >= MAX_ACCESSIBLE_PER_GROUP) break;
-
             const isOk = await checkUrlAccessible(item.url);
             if (isOk) accessible.push(item);
         }
@@ -223,7 +210,13 @@ export async function discoverNewNews(maxDays: number, targetCategories: string[
         const dateB = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
         return dateB - dateA;
     });
-    const cappedPool = pool.slice(0, 120);
+    return pool.slice(0, 120);
+}
+
+export async function discoverNewNews(maxDays: number, targetCategories: string[] = []) {
+    const cappedPool = await getRawRssArticles(maxDays, targetCategories);
+
+    if (cappedPool.length === 0) return [];
 
     const suggestionsWithAI: { url: string; title: string; source: string; summary: string; category: string; status: string }[] = [];
     const processedUrls = new Set<string>();
@@ -273,62 +266,5 @@ Vráť EXAKTNE JSON: {"title": "Slovenský titulok", "summary": "Slovenské zhrn
             console.error("AI discovery error:", item.title, e);
         }
     }
-
-    // Doplnenie
-    const byCategory = new Map<string, typeof suggestionsWithAI>();
-    for (const s of suggestionsWithAI) {
-        const list = byCategory.get(s.category) || [];
-        list.push(s);
-        byCategory.set(s.category, list);
-    }
-
-    const targetCats = categoriesToFetch.length > 0 ? categoriesToFetch : groupNames;
-    for (const cat of targetCats) {
-        const count = byCategory.get(cat)?.length ?? 0;
-        if (count >= MIN_PER_CATEGORY) continue;
-
-        const candidates = accessibleByGroup[cat] ?? [];
-        const toProcess = candidates.filter(c => !processedUrls.has(normalizeUrl(c.url))).slice(0, Math.max(0, MIN_PER_CATEGORY - count + 2));
-
-        for (const item of toProcess) {
-            try {
-                const completion = await getOpenAIClient().chat.completions.create({
-                    model: "gpt-4o",
-                    messages: [
-                        {
-                            role: "system",
-                            content: `Si profesionálny redaktor AI & Tech portálu. Priraď tému do PRESNE JEDNEJ kategórie.
-Kategória MUSÍ byť presne jedna z: ${ALLOWED_CATEGORIES.join(" | ")}.
-Vráť EXAKTNE JSON: {"title": "Slovenský titulok", "summary": "Slovenské zhrnutie...", "category": "jedna z uvedených kategórií"}`
-                        },
-                        { role: "user", content: `Pôvodný titulok: ${item.title}\nUkážka: ${item.contentSnippet.substring(0, 500)}\nOdporúčaná kategória: ${item.groupHint}` }
-                    ],
-                    response_format: { type: "json_object" }
-                });
-
-                const aiData = JSON.parse(completion.choices[0].message.content || "{}");
-                const aiCategory = (aiData.category || "").trim();
-                const lowerAssigned = aiCategory.toLowerCase();
-                const matchedCat = ALLOWED_CATEGORIES.find(c =>
-                    c.toLowerCase() === lowerAssigned || lowerAssigned.includes(c.toLowerCase()) || c.toLowerCase().includes(lowerAssigned)
-                );
-
-                const assignedCategory = matchedCat || "AI";
-                processedUrls.add(normalizeUrl(item.url));
-                suggestionsWithAI.push({
-                    url: item.url,
-                    title: aiData.title || item.title,
-                    source: item.source,
-                    summary: aiData.summary || "Zaujímavá AI téma na spracovanie.",
-                    category: assignedCategory,
-                    status: 'pending'
-                });
-                if (suggestionsWithAI.filter(s => s.category === cat).length >= MIN_PER_CATEGORY) break;
-            } catch (e) {
-                console.error("AI discovery top-up error:", item.title, e);
-            }
-        }
-    }
-
     return suggestionsWithAI;
 }
