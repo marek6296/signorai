@@ -34,7 +34,7 @@ function UserAuthButton() {
         const initials = name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
 
         return (
-            <div className="relative">
+            <div className="relative hidden md:block">
                 <button
                     onClick={() => setMenuOpen(!menuOpen)}
                     className="flex items-center gap-2 rounded-full transition-all hover:opacity-80"
