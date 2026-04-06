@@ -97,7 +97,7 @@ function Section({ icon: Icon, title, color, children }: {
 function LoadingOverlay({ stage }: { stage: string }) {
   return (
     <div
-      className="fixed inset-x-0 top-0 z-50 flex justify-center pt-5"
+      className="fixed inset-x-0 top-0 z-[200] flex justify-center pt-5"
       style={{ pointerEvents: "none" }}
     >
       <div
@@ -136,7 +136,9 @@ function ConfirmModal({ item, onConfirm, onCancel, isLoading }: {
 }) {
   return (
     <div
-      className="fixed inset-x-0 top-0 z-50 flex justify-center pt-5 px-4"
+      className="fixed inset-0 z-[200] flex items-center justify-center px-4"
+      style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }}
+      onClick={onCancel}
     >
       <div
         className="rounded-2xl p-6 max-w-md w-full"
@@ -146,6 +148,7 @@ function ConfirmModal({ item, onConfirm, onCancel, isLoading }: {
           boxShadow: "0 8px 40px rgba(0,0,0,0.8), 0 0 24px rgba(96,165,250,0.10)",
           animation: "slideDownModal 0.3s ease",
         }}
+        onClick={e => e.stopPropagation()}
       >
         <style>{`@keyframes slideDownModal { from { opacity:0; transform:translateY(-16px); } to { opacity:1; transform:translateY(0); } }`}</style>
         <div className="flex items-start gap-3 mb-4">
@@ -167,7 +170,7 @@ function ConfirmModal({ item, onConfirm, onCancel, isLoading }: {
           <button
             onClick={() => onConfirm(true)}
             disabled={isLoading}
-            className="flex flex-col items-center gap-2 p-4 rounded-xl transition-all disabled:opacity-50"
+            className="flex flex-col items-center gap-2 p-4 rounded-xl transition-all disabled:opacity-50 cursor-pointer"
             style={{ background: "rgba(250,204,21,0.08)", border: "1px solid rgba(250,204,21,0.2)" }}
           >
             <FileText className="w-5 h-5 text-yellow-400" />
@@ -177,7 +180,7 @@ function ConfirmModal({ item, onConfirm, onCancel, isLoading }: {
           <button
             onClick={() => onConfirm(false)}
             disabled={isLoading}
-            className="flex flex-col items-center gap-2 p-4 rounded-xl transition-all disabled:opacity-50"
+            className="flex flex-col items-center gap-2 p-4 rounded-xl transition-all disabled:opacity-50 cursor-pointer"
             style={{ background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)" }}
           >
             <Globe className="w-5 h-5 text-green-400" />
