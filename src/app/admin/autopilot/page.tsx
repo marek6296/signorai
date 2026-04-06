@@ -287,11 +287,10 @@ export default function BotsPage() {
   const runBot = async (bot: Bot) => {
     setRunningBotId(bot.id);
     const steps: RunStep[] = [
-      { label: "Hľadám tému & generujem článok...", status: "pending" },
-      { label: "Generujem AI obrázky...", status: "pending" },
-      { label: "Publikujem na stránku...", status: "pending" },
+      { label: "Spúšťam automatizáciu...", status: "pending" },
+      { label: "Spracúvam článok...", status: "pending" },
       ...(bot.type === "full"
-        ? [{ label: "Zverejňujem na soc. siete...", status: "pending" as const }]
+        ? [{ label: "Sociálne siete...", status: "pending" as const }]
         : []),
     ];
     setRunSteps(steps);
@@ -301,67 +300,32 @@ export default function BotsPage() {
     };
 
     try {
-      // Steps 0+1+2: bot-generate handles topic fetch + article + images + save (all in one)
       setStep(0, "running");
-      setStep(1, "running");
-      const botRes = await fetch("/api/admin/bot-generate", {
+      
+      const botRes = await fetch(`/api/admin/auto-pilot?manual=true&botId=${bot.id}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          secret: "make-com-webhook-secret",
-          bot,
-        }),
+        headers: { 
+          "Content-Type": "application/json",
+          "x-api-key": "make-com-webhook-secret"
+        }
       });
+
       if (!botRes.ok) {
         const errData = await botRes.json().catch(() => ({}));
-        throw new Error(errData.message || "Chyba pri generovaní článku");
+        throw new Error(errData.message || "Chyba pri spúšťaní bota");
       }
-      const botData = await botRes.json();
-      const articleId = botData.articleId;
+
       setStep(0, "done");
       setStep(1, "done");
+      if (bot.type === "full") setStep(2, "done");
 
-      // Step 2: article is already published by bot-generate (status: published)
-      setStep(2, "done");
-
-      // Step 3 (full only): social posts
-      if (bot.type === "full") {
-        setStep(3, "running");
-        const platforms: string[] = [];
-        if (bot.post_instagram) platforms.push("Instagram");
-        if (bot.post_facebook) platforms.push("Facebook");
-        if (platforms.length > 0 && articleId) {
-          const socialRes = await fetch("/api/admin/social-autopilot", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              secret: "make-com-webhook-secret",
-              articleId,
-              platforms,
-              instagramVariant: bot.instagram_format || "studio",
-              autoPublish: bot.auto_publish_social,
-            }),
-          });
-          if (!socialRes.ok) {
-            const errData = await socialRes.json().catch(() => ({}));
-            throw new Error(errData.error || "Chyba pri generovaní social postov");
-          }
-        }
-        setStep(3, "done");
-      }
-
-      // Update last_run and processed_count
-      const updated = bots.map((b) =>
-        b.id === bot.id
-          ? { ...b, last_run: new Date().toISOString(), processed_count: (b.processed_count || 0) + 1 }
-          : b
-      );
-      setBots(updated);
-      await saveBots(updated);
       showToast("Bot úspešne dokončil beh", "success");
+      
+      // CRITICAL: Refresh from DB to see the new processed_count and last_run!
+      await loadBots();
     } catch (err) {
-      const failIdx = runSteps.findIndex((s) => s.status === "running");
-      if (failIdx >= 0) setStep(failIdx, "error");
+      const failIdx = runSteps.findIndex((s) => s.status === "running") || 0;
+      setStep(failIdx, "error");
       showToast(err instanceof Error ? err.message : "Chyba pri spúšťaní bota", "error");
     } finally {
       setTimeout(() => {
@@ -392,65 +356,115 @@ export default function BotsPage() {
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
-        @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
-        @keyframes slideDown { from { opacity:0; transform:translateX(-50%) translateY(-16px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes fadeInCenter { from { opacity:0; transform:translate(-50%,-50%) scale(0.96); } to { opacity:1; transform:translate(-50%,-50%) scale(1); } }
       `}</style>
 
-      {/* ── FIXED TOP RUNNING OVERLAY ── */}
+      {/* ── CENTERED RUNNING OVERLAY ── */}
       {runningBotId && runSteps.length > 0 && (() => {
         const runningBot = bots.find(b => b.id === runningBotId);
         const C = runningBot?.type === "full"
-          ? { primary: "#a78bfa", border: "rgba(167,139,250,0.3)", dim: "rgba(167,139,250,0.08)" }
-          : { primary: "#f59e0b", border: "rgba(245,158,11,0.3)", dim: "rgba(245,158,11,0.08)" };
+          ? { primary: "#a78bfa", border: "rgba(167,139,250,0.3)", dim: "rgba(167,139,250,0.08)", glow: "rgba(167,139,250,0.12)" }
+          : { primary: "#f59e0b", border: "rgba(245,158,11,0.3)", dim: "rgba(245,158,11,0.08)", glow: "rgba(245,158,11,0.12)" };
         const currentStep = runSteps.find(s => s.status === "running");
         const doneCount = runSteps.filter(s => s.status === "done").length;
         return (
-          <div style={{
-            position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)",
-            zIndex: 9999, animation: "slideDown 0.3s ease",
-            background: "linear-gradient(145deg, #141414 0%, #0f0f0f 100%)",
-            border: `1px solid ${C.border}`,
-            borderRadius: 16, padding: "14px 20px", minWidth: 320, maxWidth: 480,
-            boxShadow: `0 8px 40px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.04), 0 0 24px ${C.primary}18`,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              {/* Spinner */}
-              <div style={{ position: "relative", width: 32, height: 32, flexShrink: 0 }}>
-                <div style={{ position: "absolute", inset: 0, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.06)" }} />
-                <div style={{ position: "absolute", inset: 0, borderRadius: "50%", border: `2px solid transparent`, borderTopColor: C.primary, borderRightColor: `${C.primary}40`, animation: "spin 0.8s linear infinite" }} />
-                <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: C.primary, animation: "pulse 1.5s infinite" }} />
+          <>
+            {/* Backdrop */}
+            <div style={{
+              position: "fixed", inset: 0, zIndex: 9998,
+              background: "rgba(0,0,0,0.65)",
+              backdropFilter: "blur(6px)",
+              animation: "fadeIn 0.25s ease",
+            }} />
+            {/* Card — centered */}
+            <div style={{
+              position: "fixed", top: "50%", left: "50%",
+              transform: "translate(-50%, -50%)",
+              zIndex: 9999, animation: "fadeInCenter 0.3s ease",
+              background: "linear-gradient(145deg, #161616 0%, #111111 100%)",
+              border: `1px solid ${C.border}`,
+              borderRadius: 24, padding: "32px 36px", width: 420,
+              boxShadow: `0 24px 80px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.04), 0 0 60px ${C.glow}`,
+            }}>
+              {/* Top: spinner + bot name */}
+              <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 28 }}>
+                {/* Spinner */}
+                <div style={{ position: "relative", width: 48, height: 48, flexShrink: 0 }}>
+                  <div style={{ position: "absolute", inset: 0, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.05)" }} />
+                  <div style={{ position: "absolute", inset: 0, borderRadius: "50%", border: `2px solid transparent`, borderTopColor: C.primary, borderRightColor: `${C.primary}50`, animation: "spin 0.9s linear infinite" }} />
+                  <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <div style={{ width: 12, height: 12, borderRadius: "50%", background: C.primary, animation: "pulse 1.5s infinite" }} />
+                  </div>
+                </div>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                    <span style={{ fontSize: 15, fontWeight: 800, color: "#fff", letterSpacing: "-0.01em" }}>
+                      {runningBot?.name || "Bot"} beží...
+                    </span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: C.primary, background: C.dim, border: `1px solid ${C.border}`, borderRadius: 7, padding: "2px 8px" }}>
+                      {doneCount}/{runSteps.length}
+                    </span>
+                  </div>
+                  <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", margin: 0 }}>
+                    {currentStep?.label || "Spracúvam..."}
+                  </p>
                 </div>
               </div>
-              {/* Info */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                  <span style={{ fontSize: 12, fontWeight: 800, color: "#fff" }}>
-                    {runningBot?.name || "Bot"} beží...
-                  </span>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: C.primary, background: C.dim, border: `1px solid ${C.border}`, borderRadius: 6, padding: "1px 6px" }}>
-                    {doneCount}/{runSteps.length}
-                  </span>
-                </div>
-                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {currentStep?.label || "Spracúvam..."}
-                </p>
+
+              {/* Steps list */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
+                {runSteps.map((step, i) => {
+                  const isDone = step.status === "done";
+                  const isRunning = step.status === "running";
+                  const isError = step.status === "error";
+                  const stepColor = isDone ? "#22c55e" : isError ? "#ef4444" : isRunning ? C.primary : "rgba(255,255,255,0.18)";
+                  return (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      {/* Status dot */}
+                      <div style={{ position: "relative", width: 20, height: 20, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        {isRunning ? (
+                          <>
+                            <div style={{ position: "absolute", inset: 0, borderRadius: "50%", border: `2px solid transparent`, borderTopColor: C.primary, animation: "spin 0.7s linear infinite" }} />
+                            <div style={{ width: 6, height: 6, borderRadius: "50%", background: C.primary }} />
+                          </>
+                        ) : isDone ? (
+                          <div style={{ width: 16, height: 16, borderRadius: "50%", background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <svg width="8" height="8" viewBox="0 0 8 8"><path d="M1 4l2 2 4-4" stroke="#22c55e" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>
+                          </div>
+                        ) : isError ? (
+                          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#ef4444" }} />
+                        ) : (
+                          <div style={{ width: 6, height: 6, borderRadius: "50%", background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.1)" }} />
+                        )}
+                      </div>
+                      <span style={{
+                        fontSize: 12, fontWeight: isRunning ? 600 : 400,
+                        color: isRunning ? "#fff" : isDone ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.25)",
+                        transition: "color 0.3s",
+                      }}>
+                        {step.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Progress bar */}
+              <div style={{ display: "flex", gap: 5 }}>
+                {runSteps.map((step, i) => (
+                  <div key={i} style={{
+                    flex: 1, height: 3, borderRadius: 99,
+                    background: step.status === "done" ? "#22c55e"
+                      : step.status === "running" ? C.primary
+                      : step.status === "error" ? "#ef4444"
+                      : "rgba(255,255,255,0.07)",
+                    transition: "background 0.4s",
+                  }} />
+                ))}
               </div>
             </div>
-            {/* Step progress bar */}
-            <div style={{ marginTop: 12, display: "flex", gap: 4 }}>
-              {runSteps.map((step, i) => (
-                <div key={i} style={{
-                  flex: 1, height: 3, borderRadius: 99,
-                  background: step.status === "done" ? "#22c55e"
-                    : step.status === "running" ? C.primary
-                    : step.status === "error" ? "#ef4444"
-                    : "rgba(255,255,255,0.08)",
-                  transition: "background 0.3s",
-                }} />
-              ))}
-            </div>
-          </div>
+          </>
         );
       })()}
 
