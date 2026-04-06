@@ -1,727 +1,370 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
-import Link from "next/link";
-import {
-  Zap, Sparkles, FileText, Share2, BarChart3, Settings,
-  RefreshCw, ArrowRight, CheckCircle, Clock, TrendingUp,
-  Eye, Edit, Globe, AlertTriangle, PlayCircle, ArrowUpRight,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
+import { ArrowRight, RefreshCw } from "lucide-react";
 
-/* ─── Types ─────────────────────────────────────────────────────── */
-type AutopilotSettings = {
-  enabled: boolean;
-  last_run: string | null;
-  processed_count: number;
-};
-type RecentArticle = {
-  id: string; title: string; slug: string; category: string;
-  status: string; published_at: string;
-};
-type SocialDraft = {
-  id: string; platform: string; content: string;
-  articles?: { title: string; slug: string };
-};
-type DashboardStats = {
-  todayArticles: number; totalPublished: number; pendingTopics: number;
-  socialDrafts: number; todayVisits: number;
-};
-
-const todayStr = () => new Date().toISOString().split("T")[0];
-
-function categoryColor(cat: string) {
-  if (cat === "AI") return { bg: "rgba(59,130,246,0.12)", text: "#93c5fd", border: "rgba(59,130,246,0.25)" };
-  if (cat === "Tech") return { bg: "rgba(168,85,247,0.12)", text: "#c4b5fd", border: "rgba(168,85,247,0.25)" };
-  if (cat === "Návody & Tipy") return { bg: "rgba(34,197,94,0.12)", text: "#86efac", border: "rgba(34,197,94,0.25)" };
-  return { bg: "rgba(255,255,255,0.06)", text: "rgba(255,255,255,0.4)", border: "rgba(255,255,255,0.1)" };
+interface Article {
+  id: string;
+  title: string;
+  status: string;
+  created_at: string;
+  category?: string;
+  slug?: string;
 }
 
-function platformStyle(p: string) {
-  if (p === "Instagram") return { bg: "rgba(236,72,153,0.12)", text: "#f9a8d4", border: "rgba(236,72,153,0.25)" };
-  if (p === "Facebook") return { bg: "rgba(59,130,246,0.12)", text: "#93c5fd", border: "rgba(59,130,246,0.25)" };
-  return { bg: "rgba(255,255,255,0.06)", text: "rgba(255,255,255,0.4)", border: "rgba(255,255,255,0.1)" };
-}
+const AMBER = "#f59e0b";
+const AMBER_DIM = "rgba(245,158,11,0.08)";
+const AMBER_BORDER = "rgba(245,158,11,0.2)";
 
-function fmtDate(d: string) {
-  return new Date(d).toLocaleDateString("sk-SK", { day: "numeric", month: "short" });
-}
-
-/* ─── Premium Card component ─────────────────────────────────────── */
-function Card({ children, className }: { children: React.ReactNode; className?: string }) {
-  return (
-    <div
-      className={cn("relative rounded-2xl overflow-hidden", className)}
-      style={{
-        background: "linear-gradient(145deg, #111111 0%, #0d0d0d 100%)",
-        border: "1px solid rgba(255,255,255,0.07)",
-        boxShadow: "0 4px 24px rgba(0,0,0,0.4)",
-      }}
-    >
-      {/* Subtle inner top glow */}
-      <div
-        className="absolute top-0 left-6 right-6 h-px pointer-events-none"
-        style={{
-          background: "linear-gradient(to right, transparent, rgba(255,255,255,0.08), transparent)",
-        }}
-      />
-      {children}
-    </div>
-  );
-}
-
-/* ─── Component ─────────────────────────────────────────────────── */
 export default function AdminDashboard() {
-  const [stats, setStats] = useState<DashboardStats>({
-    todayArticles: 0, totalPublished: 0, pendingTopics: 0,
-    socialDrafts: 0, todayVisits: 0,
-  });
-  const [autopilot, setAutopilot] = useState<AutopilotSettings>({ enabled: false, last_run: null, processed_count: 0 });
-  const [recentArticles, setRecentArticles] = useState<RecentArticle[]>([]);
-  const [socialDrafts, setSocialDrafts] = useState<SocialDraft[]>([]);
+  const router = useRouter();
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [visits, setVisits] = useState(0);
+  const [subscribers, setSubscribers] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [runningAutopilot, setRunningAutopilot] = useState(false);
-  const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
-  const [now, setNow] = useState(new Date());
+  const [refreshing, setRefreshing] = useState(false);
+  const [time, setTime] = useState("");
 
-  useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(t);
-  }, []);
+  const published = articles.filter((a) => a.status === "published");
+  const drafts = articles.filter((a) => a.status === "draft");
+  const todayStr = new Date().toISOString().split("T")[0];
+  const todayPublished = published.filter((a) => a.created_at?.startsWith(todayStr)).length;
+  const thisWeek = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return published.filter((a) => new Date(a.created_at) >= d).length;
+  })();
 
-  const showToast = (msg: string, type: "success" | "error" = "success") => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 3500);
-  };
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    const dateStr = d.toISOString().split("T")[0];
+    return {
+      dateStr,
+      label: d.toLocaleDateString("sk-SK", { weekday: "short" }).toUpperCase().substring(0, 2),
+      count: published.filter((a) => a.created_at?.startsWith(dateStr)).length,
+      isToday: i === 6,
+    };
+  });
+  const maxDay = Math.max(...weekDays.map((d) => d.count), 1);
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true);
+  const recent = [...published]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 6);
+
+  const fetchData = useCallback(async () => {
     try {
-      const today = todayStr();
-      const [
-        { count: todayArticles },
-        { count: totalPublished },
-        { count: pendingTopics },
-        { count: socialDraftsCount },
-        { count: todayVisits },
-        { data: apData },
-        { data: articles },
-        { data: drafts },
-      ] = await Promise.all([
-        supabase.from("articles").select("id", { count: "exact", head: true }).gte("published_at", today),
-        supabase.from("articles").select("id", { count: "exact", head: true }).eq("status", "published"),
-        supabase.from("suggested_news").select("id", { count: "exact", head: true }).eq("status", "pending"),
-        supabase.from("social_posts").select("id", { count: "exact", head: true }).eq("status", "draft"),
-        supabase.from("site_visits").select("id", { count: "exact", head: true }).gte("created_at", today),
-        supabase.from("site_settings").select("value").eq("key", "auto_pilot").single(),
-        supabase.from("articles").select("id,title,slug,category,status,published_at").order("published_at", { ascending: false }).limit(6),
-        supabase.from("social_posts").select("id,platform,content,articles(title,slug)").eq("status", "draft").order("created_at", { ascending: false }).limit(5),
+      const today = new Date().toISOString().split("T")[0];
+      const [{ data: arts }, { data: vis }, { count: subs }] = await Promise.all([
+        supabase.from("articles").select("id,title,status,created_at,category,slug").limit(500),
+        supabase.from("site_visits").select("created_at").gte("created_at", today + "T00:00:00"),
+        supabase.from("newsletter_subscribers").select("*", { count: "exact", head: true }),
       ]);
-
-      setStats({
-        todayArticles: todayArticles ?? 0,
-        totalPublished: totalPublished ?? 0,
-        pendingTopics: pendingTopics ?? 0,
-        socialDrafts: socialDraftsCount ?? 0,
-        todayVisits: todayVisits ?? 0,
-      });
-      if (apData) setAutopilot(apData.value as AutopilotSettings);
-      setRecentArticles((articles ?? []) as RecentArticle[]);
-      setSocialDrafts((drafts ?? []) as unknown as SocialDraft[]);
+      setArticles(arts || []);
+      setVisits(vis?.length || 0);
+      setSubscribers(subs || 0);
+      setTime(new Date().toLocaleTimeString("sk-SK", { hour: "2-digit", minute: "2-digit" }));
     } catch (e) {
-      console.error("Dashboard fetch error:", e);
+      console.error(e);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
-  const runAutopilot = async () => {
-    setRunningAutopilot(true);
-    try {
-      const res = await fetch(`/api/admin/auto-pilot?secret=make-com-webhook-secret&force=true`);
-      const data = await res.json();
-      if (res.ok) {
-        showToast("Autopilot spustený ✓");
-        fetchAll();
-      } else {
-        showToast(data.message || "Chyba autopilota", "error");
-      }
-    } catch {
-      showToast("Chyba pri spúšťaní", "error");
-    } finally {
-      setRunningAutopilot(false);
-    }
-  };
+  if (loading) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#080808", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <div style={{ width: 36, height: 36, border: `2px solid ${AMBER_BORDER}`, borderTopColor: AMBER, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+      </div>
+    );
+  }
 
-  const timeStr = now.toLocaleTimeString("sk-SK", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-  const dateStr = now.toLocaleDateString("sk-SK", { weekday: "long", day: "numeric", month: "long" });
+  const pipelinePct =
+    published.length + drafts.length > 0
+      ? Math.round((published.length / (published.length + drafts.length)) * 100)
+      : 0;
 
-  const statCards = [
-    {
-      label: "Dnes vydané",
-      value: stats.todayArticles,
-      icon: TrendingUp,
-      accent: { color: "#4ade80", bg: "rgba(74,222,128,0.1)", border: "rgba(74,222,128,0.2)", glow: "rgba(74,222,128,0.08)" },
-    },
-    {
-      label: "Všetky článkov",
-      value: stats.totalPublished,
-      icon: FileText,
-      accent: { color: "#60a5fa", bg: "rgba(96,165,250,0.1)", border: "rgba(96,165,250,0.2)", glow: "rgba(96,165,250,0.08)" },
-    },
-    {
-      label: "Čakajúce témy",
-      value: stats.pendingTopics,
-      icon: AlertTriangle,
-      accent: { color: "#facc15", bg: "rgba(250,204,21,0.1)", border: "rgba(250,204,21,0.2)", glow: "rgba(250,204,21,0.08)" },
-    },
-    {
-      label: "Social drafty",
-      value: stats.socialDrafts,
-      icon: Share2,
-      accent: { color: "#f472b6", bg: "rgba(244,114,182,0.1)", border: "rgba(244,114,182,0.2)", glow: "rgba(244,114,182,0.08)" },
-    },
-    {
-      label: "Návštevy dnes",
-      value: stats.todayVisits,
-      icon: Eye,
-      accent: { color: "#fb923c", bg: "rgba(251,146,60,0.1)", border: "rgba(251,146,60,0.2)", glow: "rgba(251,146,60,0.08)" },
-    },
-  ];
-
-  const quickNav = [
-    { href: "/admin/autopilot", label: "Autopilot", icon: Zap, color: "#facc15", bg: "rgba(250,204,21,0.1)", desc: "Automatizácia" },
-    { href: "/admin/tvorba", label: "Tvorba", icon: Sparkles, color: "#c084fc", bg: "rgba(192,132,252,0.1)", desc: "Generovanie" },
-    { href: "/admin/clanky", label: "Články", icon: FileText, color: "#4ade80", bg: "rgba(74,222,128,0.1)", desc: "Správa" },
-    { href: "/admin/socialne", label: "Sociálne", icon: Share2, color: "#f472b6", bg: "rgba(244,114,182,0.1)", desc: "Promo" },
-    { href: "/admin/analytika", label: "Analytika", icon: BarChart3, color: "#fb923c", bg: "rgba(251,146,60,0.1)", desc: "Štatistiky" },
-    { href: "/admin/zdroje", label: "Zdroje", icon: Settings, color: "#60a5fa", bg: "rgba(96,165,250,0.1)", desc: "Nastavenia" },
+  const QUICK_ACTIONS = [
+    { label: "Vytvoriť článok", sub: "AI generovanie obsahu", path: "/admin/tvorba", color: "#a855f7" },
+    { label: "Správa článkov", sub: `${drafts.length} draft${drafts.length !== 1 ? "y" : ""} · ${published.length} live`, path: "/admin/clanky", color: "#22c55e" },
+    { label: "Sociálne siete", sub: "Instagram · Facebook", path: "/admin/socialne", color: "#ec4899" },
+    { label: "AI Boty", sub: "Automatizácia obsahu", path: "/admin/autopilot", color: AMBER },
+    { label: "Analytika", sub: `${visits} návštev dnes`, path: "/admin/analytika", color: "#f97316" },
+    { label: "Zdroje", sub: "RSS a discovery", path: "/admin/zdroje", color: "#3b82f6" },
   ];
 
   return (
-    <div className="p-5 md:p-7 space-y-6 min-h-full" style={{ background: "#080808" }}>
+    <div style={{ minHeight: "100vh", background: "#080808", color: "#fff" }}>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+        .qa-btn:hover { background: rgba(255,255,255,0.04) !important; }
+        .recent-row:hover { opacity: 0.6; }
+      `}</style>
 
-      {/* ── Toast ── */}
-      {toast && (
-        <div
-          className="fixed top-5 right-5 z-50 px-5 py-3 rounded-xl text-sm font-semibold animate-in fade-in slide-in-from-top-2"
-          style={
-            toast.type === "success"
-              ? { background: "rgba(74,222,128,0.12)", border: "1px solid rgba(74,222,128,0.3)", color: "#4ade80", boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }
-              : { background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171", boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }
-          }
-        >
-          {toast.msg}
-        </div>
-      )}
+      <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 32px 64px" }}>
 
-      {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <h1
-              className="text-2xl md:text-3xl font-black uppercase tracking-tight"
-              style={{
-                background: "linear-gradient(135deg, #ffffff 0%, rgba(255,255,255,0.6) 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
-            >
-              Dashboard
-            </h1>
-          </div>
-          <p className="text-white/30 text-sm capitalize">{dateStr}</p>
-        </div>
-        <div className="flex items-center gap-3 shrink-0">
-          <div
-            className="font-mono text-sm hidden sm:block px-3 py-1.5 rounded-lg"
-            style={{ color: "rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
-          >
-            {timeStr}
-          </div>
-          <button
-            onClick={fetchAll}
-            disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all disabled:opacity-50"
-            style={{
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              color: "rgba(255,255,255,0.5)",
-            }}
-          >
-            <RefreshCw className={cn("w-3.5 h-3.5", loading && "animate-spin")} />
-            Aktualizovať
-          </button>
-        </div>
-      </div>
-
-      {/* ── Autopilot Banner ── */}
-      <div
-        className="rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center gap-4 relative overflow-hidden"
-        style={
-          autopilot.enabled
-            ? {
-                background: "linear-gradient(135deg, rgba(74,222,128,0.08) 0%, rgba(74,222,128,0.02) 100%)",
-                border: "1px solid rgba(74,222,128,0.2)",
-                boxShadow: "0 0 40px rgba(74,222,128,0.05)",
-              }
-            : {
-                background: "linear-gradient(145deg, #111111 0%, #0d0d0d 100%)",
-                border: "1px solid rgba(255,255,255,0.07)",
-              }
-        }
-      >
-        {/* Glow orb for active state */}
-        {autopilot.enabled && (
-          <div
-            className="absolute -top-10 -right-10 w-40 h-40 rounded-full pointer-events-none"
-            style={{
-              background: "radial-gradient(circle, rgba(74,222,128,0.12) 0%, transparent 70%)",
-            }}
-          />
-        )}
-
-        <div className="flex items-center gap-4 flex-1 min-w-0 relative">
-          <div
-            className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
-            style={
-              autopilot.enabled
-                ? { background: "rgba(74,222,128,0.15)", boxShadow: "0 0 20px rgba(74,222,128,0.2)" }
-                : { background: "rgba(255,255,255,0.05)" }
-            }
-          >
-            <Zap
-              className="w-5 h-5"
-              style={{ color: autopilot.enabled ? "#4ade80" : "rgba(255,255,255,0.25)" }}
-            />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <span className="text-sm font-black text-white uppercase tracking-wide">
-                AI Autopilot
-              </span>
-              <span
-                className="text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider"
-                style={
-                  autopilot.enabled
-                    ? { background: "rgba(74,222,128,0.15)", color: "#4ade80", border: "1px solid rgba(74,222,128,0.3)" }
-                    : { background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.3)", border: "1px solid rgba(255,255,255,0.08)" }
-                }
-              >
-                {autopilot.enabled ? "● Aktívny" : "○ Vypnutý"}
-              </span>
+        {/* ── STATUS BAR ── */}
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "14px 0",
+          borderBottom: "1px solid rgba(255,255,255,0.05)",
+          marginBottom: 48,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#22c55e", animation: "pulse 2s infinite" }} />
+              <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.2em", color: "#22c55e" }}>LIVE</span>
             </div>
-            <p className="text-[11px] text-white/30 mt-0.5">
-              {autopilot.last_run
-                ? `Posledný beh: ${new Date(autopilot.last_run).toLocaleDateString("sk-SK")} · ${autopilot.processed_count} článkov`
-                : "Ešte nebol spustený"}
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", letterSpacing: "0.15em", fontWeight: 600 }}>POSTOVINKY.NEWS</span>
+            <span style={{ color: "rgba(255,255,255,0.1)", fontSize: 10 }}>·</span>
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", letterSpacing: "0.15em", fontWeight: 600 }}>ADMIN CENTRUM</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {time && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.18)", letterSpacing: "0.1em" }}>AKTUÁLNE {time}</span>}
+            <button
+              onClick={() => { setRefreshing(true); fetchData(); }}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.25)", padding: 4, display: "flex" }}
+            >
+              <RefreshCw size={13} style={{ animation: refreshing ? "spin 0.8s linear infinite" : "none" }} />
+            </button>
+          </div>
+        </div>
+
+        {/* ── HERO ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 200px", gap: 48, alignItems: "start", marginBottom: 56 }}>
+
+          {/* Left: main metric */}
+          <div>
+            <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.2em", color: "rgba(255,255,255,0.22)", textTransform: "uppercase", marginBottom: 20 }}>
+              Centrum obsahu
             </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0 relative">
-          <Link
-            href="/admin/autopilot"
-            className="px-4 py-2 rounded-xl text-xs font-semibold transition-all"
-            style={{
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              color: "rgba(255,255,255,0.5)",
-            }}
-          >
-            Nastavenia
-          </Link>
-          <button
-            onClick={runAutopilot}
-            disabled={runningAutopilot}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all disabled:opacity-50"
-            style={
-              autopilot.enabled
-                ? { background: "rgba(74,222,128,0.15)", border: "1px solid rgba(74,222,128,0.3)", color: "#4ade80" }
-                : { background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.5)" }
-            }
-          >
-            <PlayCircle className={cn("w-3.5 h-3.5", runningAutopilot && "animate-spin")} />
-            {runningAutopilot ? "Spúšťa sa..." : "Spustiť teraz"}
-          </button>
-        </div>
-      </div>
-
-      {/* ── Stats Grid ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        {statCards.map((s) => (
-          <div
-            key={s.label}
-            className="relative rounded-2xl p-4 md:p-5 overflow-hidden group"
-            style={{
-              background: `linear-gradient(145deg, #111111 0%, #0d0d0d 100%)`,
-              border: `1px solid rgba(255,255,255,0.07)`,
-              boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
-            }}
-          >
-            {/* Top accent glow line */}
-            <div
-              className="absolute top-0 left-0 right-0 h-px"
-              style={{
-                background: `linear-gradient(to right, transparent, ${s.accent.color}40, transparent)`,
-              }}
-            />
-            {/* Hover glow */}
-            <div
-              className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-              style={{ background: `radial-gradient(ellipse at top, ${s.accent.glow} 0%, transparent 70%)` }}
-            />
-
-            <div className="relative">
-              <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center mb-3"
-                style={{ background: s.accent.bg, border: `1px solid ${s.accent.border}` }}
-              >
-                <s.icon className="w-4 h-4" style={{ color: s.accent.color }} />
-              </div>
-              <div
-                className="text-2xl md:text-3xl font-black mb-1 tabular-nums"
-                style={loading ? { color: "rgba(255,255,255,0.1)" } : { color: "#ffffff" }}
-              >
-                {loading ? "—" : s.value.toLocaleString("sk-SK")}
-              </div>
-              <div
-                className="text-[10px] font-semibold uppercase tracking-wider leading-tight"
-                style={{ color: "rgba(255,255,255,0.3)" }}
-              >
-                {s.label}
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 20, marginBottom: 36 }}>
+              <span style={{
+                fontSize: "clamp(80px, 12vw, 128px)",
+                fontWeight: 900, lineHeight: 0.9, letterSpacing: "-0.05em",
+                fontVariantNumeric: "tabular-nums",
+                background: "linear-gradient(155deg, #ffffff 30%, rgba(255,255,255,0.38) 100%)",
+                WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", display: "block",
+              }}>
+                {published.length}
+              </span>
+              <div style={{ paddingBottom: 10 }}>
+                <p style={{ fontSize: 15, color: "rgba(255,255,255,0.38)", fontWeight: 500, lineHeight: 1.5 }}>
+                  publikovaných<br />článkov
+                </p>
+                {todayPublished > 0 && (
+                  <p style={{ fontSize: 13, color: "#22c55e", fontWeight: 700, marginTop: 6 }}>▲ +{todayPublished} dnes</p>
+                )}
               </div>
             </div>
-          </div>
-        ))}
-      </div>
 
-      {/* ── Quick Actions ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {/* Run Autopilot */}
-        <button
-          onClick={runAutopilot}
-          disabled={runningAutopilot}
-          className="flex items-center justify-between gap-3 p-4 md:p-5 rounded-2xl transition-all group text-left disabled:opacity-60"
-          style={{
-            background: "rgba(250,204,21,0.06)",
-            border: "1px solid rgba(250,204,21,0.15)",
-          }}
-        >
-          <div className="flex items-center gap-3">
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-              style={{ background: "rgba(250,204,21,0.12)", border: "1px solid rgba(250,204,21,0.2)" }}
-            >
-              <Zap className="w-4.5 h-4.5" style={{ color: "#facc15" }} />
-            </div>
-            <div>
-              <div className="text-sm font-black text-white">Spustiť Autopilot</div>
-              <div className="text-[11px]" style={{ color: "rgba(255,255,255,0.3)" }}>Nový článok + social</div>
-            </div>
-          </div>
-          <ArrowRight className="w-4 h-4 shrink-0 transition-all group-hover:translate-x-0.5" style={{ color: "rgba(250,204,21,0.4)" }} />
-        </button>
-
-        {/* New Article */}
-        <Link
-          href="/admin/tvorba"
-          className="flex items-center justify-between gap-3 p-4 md:p-5 rounded-2xl transition-all group"
-          style={{
-            background: "rgba(192,132,252,0.06)",
-            border: "1px solid rgba(192,132,252,0.15)",
-          }}
-        >
-          <div className="flex items-center gap-3">
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-              style={{ background: "rgba(192,132,252,0.12)", border: "1px solid rgba(192,132,252,0.2)" }}
-            >
-              <Sparkles className="w-4 h-4" style={{ color: "#c084fc" }} />
-            </div>
-            <div>
-              <div className="text-sm font-black text-white">Nový Článok</div>
-              <div className="text-[11px]" style={{ color: "rgba(255,255,255,0.3)" }}>Z URL / témy / synthesis</div>
-            </div>
-          </div>
-          <ArrowRight className="w-4 h-4 shrink-0 transition-all group-hover:translate-x-0.5" style={{ color: "rgba(192,132,252,0.4)" }} />
-        </Link>
-
-        {/* Social Posts */}
-        <Link
-          href="/admin/socialne"
-          className="flex items-center justify-between gap-3 p-4 md:p-5 rounded-2xl transition-all group"
-          style={{
-            background: "rgba(244,114,182,0.06)",
-            border: "1px solid rgba(244,114,182,0.15)",
-          }}
-        >
-          <div className="flex items-center gap-3">
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-              style={{ background: "rgba(244,114,182,0.12)", border: "1px solid rgba(244,114,182,0.2)" }}
-            >
-              <Share2 className="w-4 h-4" style={{ color: "#f472b6" }} />
-            </div>
-            <div>
-              <div className="text-sm font-black text-white">Social Príspevky</div>
-              <div className="text-[11px]" style={{ color: "rgba(255,255,255,0.3)" }}>
-                {stats.socialDrafts > 0 ? `${stats.socialDrafts} drafty čakajú` : "Generovať príspevky"}
-              </div>
-            </div>
-          </div>
-          <ArrowRight className="w-4 h-4 shrink-0 transition-all group-hover:translate-x-0.5" style={{ color: "rgba(244,114,182,0.4)" }} />
-        </Link>
-      </div>
-
-      {/* ── Two-column section ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Recent Articles */}
-        <Card>
-          <div
-            className="flex items-center justify-between px-5 py-4"
-            style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
-          >
-            <div className="flex items-center gap-2.5">
-              <div
-                className="w-7 h-7 rounded-lg flex items-center justify-center"
-                style={{ background: "rgba(74,222,128,0.12)", border: "1px solid rgba(74,222,128,0.2)" }}
-              >
-                <FileText className="w-3.5 h-3.5" style={{ color: "#4ade80" }} />
-              </div>
-              <h2 className="text-sm font-black text-white uppercase tracking-wide">Posledné Články</h2>
-            </div>
-            <Link
-              href="/admin/clanky"
-              className="flex items-center gap-1 text-[11px] font-semibold transition-colors"
-              style={{ color: "rgba(255,255,255,0.3)" }}
-            >
-              Všetky <ArrowUpRight className="w-3 h-3" />
-            </Link>
-          </div>
-          <div>
-            {loading
-              ? Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="px-5 py-3.5 flex items-center gap-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
-                    <div className="h-3 rounded-full animate-pulse w-2/3" style={{ background: "rgba(255,255,255,0.05)" }} />
-                    <div className="h-3 rounded-full animate-pulse w-12 ml-auto" style={{ background: "rgba(255,255,255,0.04)" }} />
+            {/* Sub-stats horizontal row */}
+            <div style={{ display: "flex", alignItems: "center" }}>
+              {[
+                { label: "Návštev dnes", value: visits.toLocaleString("sk-SK"), color: AMBER },
+                { label: "Odberateľov", value: subscribers.toString(), color: "#fff" },
+                { label: "Za 7 dní", value: `+${thisWeek}`, color: "#22c55e" },
+                { label: "V príprave", value: drafts.length.toString(), color: "rgba(255,255,255,0.45)" },
+              ].map((stat, i) => (
+                <div key={stat.label} style={{ display: "flex", alignItems: "center" }}>
+                  <div style={{ padding: "0 28px" }}>
+                    <p style={{ fontSize: 30, fontWeight: 800, letterSpacing: "-0.03em", fontVariantNumeric: "tabular-nums", color: stat.color, lineHeight: 1 }}>
+                      {stat.value}
+                    </p>
+                    <p style={{ fontSize: 10, color: "rgba(255,255,255,0.22)", textTransform: "uppercase", letterSpacing: "0.15em", marginTop: 5, fontWeight: 600 }}>
+                      {stat.label}
+                    </p>
                   </div>
-                ))
-              : recentArticles.length === 0
-              ? (
-                <div className="px-5 py-10 text-center text-sm" style={{ color: "rgba(255,255,255,0.2)" }}>
-                  Žiadne články
+                  {i < 3 && <div style={{ width: 1, height: 36, background: "rgba(255,255,255,0.06)" }} />}
                 </div>
-              )
-              : recentArticles.map((a, idx) => {
-                  const cat = categoryColor(a.category);
-                  return (
-                    <div
-                      key={a.id}
-                      className="flex items-center gap-3 px-5 py-3.5 group transition-colors"
-                      style={{
-                        borderBottom: idx < recentArticles.length - 1 ? "1px solid rgba(255,255,255,0.03)" : "none",
-                      }}
-                    >
-                      <div
-                        className="w-1.5 h-1.5 rounded-full shrink-0"
-                        style={{ background: a.status === "published" ? "#4ade80" : "#facc15" }}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate leading-tight" style={{ color: "rgba(255,255,255,0.8)" }}>
-                          {a.title}
-                        </p>
-                        <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.25)" }}>
-                          {fmtDate(a.published_at)}
-                        </p>
-                      </div>
-                      <span
-                        className="text-[9px] font-black px-2 py-0.5 rounded-full shrink-0 hidden sm:block"
-                        style={{ background: cat.bg, color: cat.text, border: `1px solid ${cat.border}` }}
-                      >
-                        {a.category}
-                      </span>
-                      <Link
-                        href={`/admin/clanky`}
-                        className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
-                        style={{ color: "rgba(255,255,255,0.5)", background: "rgba(255,255,255,0.06)" }}
-                      >
-                        <Edit className="w-3 h-3" />
-                      </Link>
-                    </div>
-                  );
-                })
-            }
+              ))}
+            </div>
           </div>
-        </Card>
 
-        {/* Social Drafts */}
-        <Card>
-          <div
-            className="flex items-center justify-between px-5 py-4"
-            style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
-          >
-            <div className="flex items-center gap-2.5">
-              <div
-                className="w-7 h-7 rounded-lg flex items-center justify-center"
-                style={{ background: "rgba(244,114,182,0.12)", border: "1px solid rgba(244,114,182,0.2)" }}
-              >
-                <Share2 className="w-3.5 h-3.5" style={{ color: "#f472b6" }} />
-              </div>
-              <h2 className="text-sm font-black text-white uppercase tracking-wide">Social Drafty</h2>
-              {stats.socialDrafts > 0 && (
-                <span
-                  className="text-[9px] font-black px-1.5 py-0.5 rounded-full"
-                  style={{ background: "rgba(244,114,182,0.15)", color: "#f472b6", border: "1px solid rgba(244,114,182,0.3)" }}
-                >
-                  {stats.socialDrafts}
+          {/* Right: 7-day chart */}
+          <div>
+            <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.2em", color: "rgba(255,255,255,0.22)", textTransform: "uppercase", marginBottom: 16 }}>
+              Aktivita 7 dní
+            </p>
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 5, height: 88 }}>
+              {weekDays.map((day) => {
+                const heightPct = (day.count / maxDay) * 100;
+                return (
+                  <div key={day.dateStr} title={`${day.count} článkov`} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", height: "100%", justifyContent: "flex-end", gap: 6 }}>
+                    <div style={{
+                      width: "100%",
+                      height: `${Math.max(heightPct, day.count > 0 ? 8 : 0)}%`,
+                      background: day.isToday ? AMBER : day.count > 0 ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.04)",
+                      borderRadius: "3px 3px 0 0",
+                      minHeight: day.count > 0 ? 4 : 2,
+                    }} />
+                    <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: "0.05em", color: day.isToday ? AMBER : "rgba(255,255,255,0.18)" }}>
+                      {day.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* ── SEPARATOR ── */}
+        <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.07), transparent)", marginBottom: 40 }} />
+
+        {/* ── PIPELINE ── */}
+        <div style={{ marginBottom: 48 }}>
+          <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.2em", color: "rgba(255,255,255,0.22)", textTransform: "uppercase", marginBottom: 20 }}>
+            Obsah Pipeline
+          </p>
+          <div style={{ display: "flex", alignItems: "stretch", gap: 0, height: 68 }}>
+            {/* Drafts */}
+            <div style={{
+              display: "flex", flexDirection: "column", justifyContent: "center",
+              padding: "0 28px", background: AMBER_DIM,
+              border: `1px solid ${AMBER_BORDER}`, borderRadius: "12px 0 0 12px", minWidth: 120,
+            }}>
+              <p style={{ fontSize: 28, fontWeight: 900, letterSpacing: "-0.03em", color: AMBER, fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
+                {drafts.length}
+              </p>
+              <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.18em", color: "rgba(255,255,255,0.28)", textTransform: "uppercase", marginTop: 4 }}>
+                Drafty
+              </p>
+            </div>
+            {/* Progress */}
+            <div style={{ flex: 1, position: "relative", overflow: "hidden", background: "rgba(255,255,255,0.02)", borderTop: "1px solid rgba(255,255,255,0.04)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+              <div style={{
+                position: "absolute", top: 0, left: 0, bottom: 0,
+                width: `${pipelinePct}%`,
+                background: `linear-gradient(90deg, ${AMBER_DIM}, transparent)`,
+                borderRight: `1px solid ${AMBER_BORDER}`,
+                transition: "width 1.2s ease",
+              }} />
+              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", padding: "0 24px", gap: 12 }}>
+                <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.05)" }} />
+                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.18)", fontWeight: 600, letterSpacing: "0.1em", whiteSpace: "nowrap" }}>
+                  {pipelinePct}% publikovaných
                 </span>
-              )}
+                <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.05)" }} />
+              </div>
             </div>
-            <Link
-              href="/admin/socialne"
-              className="flex items-center gap-1 text-[11px] font-semibold"
-              style={{ color: "rgba(255,255,255,0.3)" }}
-            >
-              Všetky <ArrowUpRight className="w-3 h-3" />
-            </Link>
+            {/* Published */}
+            <div style={{
+              display: "flex", flexDirection: "column", justifyContent: "center",
+              padding: "0 28px", background: "rgba(34,197,94,0.06)",
+              border: "1px solid rgba(34,197,94,0.15)", borderRadius: "0 12px 12px 0", minWidth: 120,
+            }}>
+              <p style={{ fontSize: 28, fontWeight: 900, letterSpacing: "-0.03em", color: "#22c55e", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
+                {published.length}
+              </p>
+              <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.18em", color: "rgba(255,255,255,0.28)", textTransform: "uppercase", marginTop: 4 }}>
+                Live
+              </p>
+            </div>
           </div>
+        </div>
+
+        {/* ── SEPARATOR ── */}
+        <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.07), transparent)", marginBottom: 40 }} />
+
+        {/* ── QUICK ACTIONS + RECENT ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "320px 1fr", gap: 60 }}>
+
+          {/* Quick Actions */}
           <div>
-            {loading
-              ? Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="px-5 py-4 flex items-start gap-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
-                    <div className="h-5 w-16 rounded-full animate-pulse shrink-0" style={{ background: "rgba(255,255,255,0.05)" }} />
-                    <div className="flex-1 space-y-1.5">
-                      <div className="h-3 rounded animate-pulse w-full" style={{ background: "rgba(255,255,255,0.04)" }} />
-                      <div className="h-3 rounded animate-pulse w-2/3" style={{ background: "rgba(255,255,255,0.03)" }} />
-                    </div>
+            <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.2em", color: "rgba(255,255,255,0.22)", textTransform: "uppercase", marginBottom: 20 }}>
+              Rýchle akcie
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {QUICK_ACTIONS.map((action) => (
+                <button
+                  key={action.path}
+                  className="qa-btn"
+                  onClick={() => router.push(action.path)}
+                  style={{
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: "12px 16px 12px 18px",
+                    background: "rgba(255,255,255,0.015)",
+                    border: "1px solid rgba(255,255,255,0.05)",
+                    borderLeft: `3px solid ${action.color}`,
+                    borderRadius: 10, cursor: "pointer", color: "#fff", textAlign: "left",
+                    transition: "background 0.15s",
+                  }}
+                >
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>{action.label}</p>
+                    <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{action.sub}</p>
                   </div>
-                ))
-              : socialDrafts.length === 0
-              ? (
-                <div className="px-5 py-10 text-center">
-                  <p className="text-sm mb-3" style={{ color: "rgba(255,255,255,0.2)" }}>Žiadne čakajúce drafty</p>
-                  <Link
-                    href="/admin/socialne"
-                    className="text-xs font-semibold"
-                    style={{ color: "#f472b6" }}
-                  >
-                    Generovať príspevky →
-                  </Link>
-                </div>
-              )
-              : socialDrafts.map((p, idx) => {
-                  const pl = platformStyle(p.platform);
-                  return (
-                    <div
-                      key={p.id}
-                      className="flex items-start gap-3 px-5 py-4"
-                      style={{ borderBottom: idx < socialDrafts.length - 1 ? "1px solid rgba(255,255,255,0.03)" : "none" }}
-                    >
-                      <span
-                        className="text-[9px] font-black px-2 py-1 rounded-lg shrink-0 mt-0.5"
-                        style={{ background: pl.bg, color: pl.text, border: `1px solid ${pl.border}` }}
-                      >
-                        {p.platform}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-medium truncate" style={{ color: "rgba(255,255,255,0.35)" }}>
-                          {(p as any).articles?.title ?? "Bez článku"}
-                        </p>
-                        <p
-                          className="text-xs mt-0.5 line-clamp-2 leading-relaxed"
-                          style={{ color: "rgba(255,255,255,0.55)" }}
-                        >
-                          {p.content}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })
-            }
+                  <ArrowRight size={13} style={{ color: "rgba(255,255,255,0.18)", flexShrink: 0 }} />
+                </button>
+              ))}
+            </div>
           </div>
-        </Card>
-      </div>
 
-      {/* ── Quick Navigation ── */}
-      <div>
-        <div className="flex items-center gap-3 mb-4">
-          <div
-            className="text-[9px] font-black uppercase tracking-[0.25em]"
-            style={{ color: "rgba(255,255,255,0.2)" }}
-          >
-            Rýchla Navigácia
-          </div>
-          <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.04)" }} />
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {quickNav.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="flex flex-col items-center gap-3 p-4 rounded-2xl transition-all group text-center"
-              style={{
-                background: "linear-gradient(145deg, #111111 0%, #0d0d0d 100%)",
-                border: "1px solid rgba(255,255,255,0.07)",
-              }}
-            >
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center transition-all"
-                style={{ background: item.bg }}
+          {/* Recent Articles */}
+          <div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+              <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.2em", color: "rgba(255,255,255,0.22)", textTransform: "uppercase" }}>
+                Posledné publikované
+              </p>
+              <button
+                onClick={() => router.push("/admin/clanky")}
+                style={{ fontSize: 11, color: "rgba(255,255,255,0.22)", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, fontWeight: 500 }}
               >
-                <item.icon className="w-4 h-4" style={{ color: item.color }} />
-              </div>
-              <div>
-                <div
-                  className="text-xs font-black transition-colors"
-                  style={{ color: "rgba(255,255,255,0.65)" }}
-                >
-                  {item.label}
-                </div>
-                <div
-                  className="text-[10px] mt-0.5"
-                  style={{ color: "rgba(255,255,255,0.2)" }}
-                >
-                  {item.desc}
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </div>
+                Všetky <ArrowRight size={11} />
+              </button>
+            </div>
 
-      {/* ── System Status ── */}
-      <div
-        className="flex flex-wrap items-center gap-4 pt-4"
-        style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}
-      >
-        <div className="flex items-center gap-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-          <span className="text-[10px] font-medium" style={{ color: "rgba(255,255,255,0.2)" }}>Systém funkčný</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <CheckCircle className="w-3 h-3" style={{ color: "rgba(255,255,255,0.2)" }} />
-          <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.2)" }}>Supabase Connected</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <Globe className="w-3 h-3" style={{ color: "rgba(255,255,255,0.2)" }} />
-          <a
-            href="https://aiwai.news"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[10px] transition-colors hover:text-white/50"
-            style={{ color: "rgba(255,255,255,0.2)" }}
-          >
-            aiwai.news
-          </a>
-        </div>
-        <div className="flex items-center gap-1.5 ml-auto">
-          <Clock className="w-3 h-3" style={{ color: "rgba(255,255,255,0.15)" }} />
-          <span className="text-[10px] font-mono" style={{ color: "rgba(255,255,255,0.15)" }}>{timeStr}</span>
+            {recent.length === 0 && (
+              <p style={{ color: "rgba(255,255,255,0.15)", fontSize: 13, padding: "24px 0" }}>Žiadne publikované články</p>
+            )}
+            {recent.map((article, idx) => (
+              <div
+                key={article.id}
+                className="recent-row"
+                onClick={() => router.push("/admin/clanky")}
+                style={{
+                  display: "flex", alignItems: "center", gap: 16,
+                  padding: "13px 0",
+                  borderBottom: "1px solid rgba(255,255,255,0.04)",
+                  cursor: "pointer", transition: "opacity 0.15s",
+                }}
+              >
+                <span style={{
+                  fontSize: 11, fontWeight: 800, letterSpacing: "0.05em",
+                  color: "rgba(255,255,255,0.15)", fontVariantNumeric: "tabular-nums",
+                  minWidth: 22, fontFamily: "monospace",
+                }}>
+                  {String(idx + 1).padStart(2, "0")}
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 2 }}>
+                    {article.title}
+                  </p>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    {article.category && (
+                      <span style={{ fontSize: 10, color: AMBER, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                        {article.category}
+                      </span>
+                    )}
+                    <span style={{ fontSize: 10, color: "rgba(255,255,255,0.15)" }}>·</span>
+                    <span style={{ fontSize: 10, color: "rgba(255,255,255,0.22)" }}>
+                      {new Date(article.created_at).toLocaleDateString("sk-SK", { day: "numeric", month: "short" })}
+                    </span>
+                  </div>
+                </div>
+                <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#22c55e", flexShrink: 0 }} />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
