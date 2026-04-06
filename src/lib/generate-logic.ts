@@ -139,7 +139,7 @@ CRITICAL INSTRUCTIONS TO AVOID ERRORS:
 - NO text, NO watermarks.`;
 
             const imageResult = await ai.models.generateContent({
-                model: 'gemini-3.1-flash-image-preview',
+                model: 'gemini-2.0-flash-preview-image-generation',
                 contents: prompt,
                 config: {
                     // @ts-ignore
@@ -323,6 +323,17 @@ export async function scrapeUrl(url: string): Promise<string> {
 
 export async function processArticleFromUrl(url: string, targetStatus: 'draft' | 'published' = 'draft', forcedCategory?: string, model: 'gpt-4o' | 'gemini' = 'gpt-4o') {
     try {
+        // 0. Validate URL — reject known unscrapable URL patterns
+        const BLOCKED_URL_PATTERNS = [
+            'vertexaisearch.cloud.google.com',
+            'grounding-api-redirect',
+        ];
+        for (const pattern of BLOCKED_URL_PATTERNS) {
+            if (url.includes(pattern)) {
+                throw new Error(`Táto URL je Google interný presmerovací odkaz a nedá sa priamo spracovať. Otvorte odkaz v prehliadači, skopírujte skutočnú URL článku a skúste znova.`);
+            }
+        }
+
         // 1. Scraping
         console.log(`>>> [Logic] Scraping URL with timeout: ${url}`);
         const response = await fetch(url, {
@@ -496,7 +507,7 @@ CRITICAL INSTRUCTIONS TO AVOID ERRORS:
 - NO text, NO watermarks.`;
 
                     const imageResult = await ai.models.generateContent({
-                        model: 'gemini-3.1-flash-image-preview',
+                        model: 'gemini-2.0-flash-preview-image-generation',
                         contents: prompt,
                         config: {
                             // @ts-ignore

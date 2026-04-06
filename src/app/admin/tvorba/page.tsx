@@ -310,8 +310,11 @@ export default function TvorbaPage() {
           secret: "make-com-webhook-secret",
         }),
       });
-      if (!res.ok) throw new Error("Generate failed");
-      const data = (await res.json()) as GeneratedArticle;
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || `Chyba servera (${res.status})`);
+      }
+      const { article: data } = await res.json() as { article: GeneratedArticle };
       await supabase.from("suggested_news").update({ status: "processed" }).eq("id", suggestion.id);
       setSuggestedNews(suggestedNews.filter((i) => i.id !== suggestion.id));
       setLastCreated(data);
@@ -335,8 +338,11 @@ export default function TvorbaPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: quickGenUrl, status: "draft", secret: "make-com-webhook-secret" }),
       });
-      if (!res.ok) throw new Error("Generate failed");
-      const data = (await res.json()) as GeneratedArticle;
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || `Chyba servera (${res.status})`);
+      }
+      const { article: data } = await res.json() as { article: GeneratedArticle };
       setQuickGenUrl("");
       setLastCreated(data);
       showToast(`Draft vytvorený ✓`);
