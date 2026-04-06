@@ -76,41 +76,84 @@ export async function GET(
 
         const titleLen = title.length;
 
-        // ── PHOTO VARIANT ──────────────────────────────
-        if (variant === 'photo' && imgUrl) {
-            const photoTitleSize = titleLen > 80 ? 46 : titleLen > 60 ? 54 : titleLen > 40 ? 62 : 68;
+        // ── PHOTO VARIANT — Studio layout + article image background ───
+        if (variant === 'photo') {
+            const photoTitleSize = titleLen > 80 ? 48 : titleLen > 60 ? 56 : titleLen > 40 ? 64 : 72;
 
             return new ImageResponse(
                 (
-                    <div style={{ width: 1080, height: 1080, position: 'relative', overflow: 'hidden', display: 'flex', backgroundColor: '#000' }}>
+                    <div style={{ width: 1080, height: 1080, position: 'relative', overflow: 'hidden', display: 'flex', backgroundColor: '#050505' }}>
 
-                        {/* Photo background */}
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={imgUrl} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                        {/* Article image background — full bleed */}
+                        {imgUrl && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={imgUrl} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                        )}
 
-                        {/* Gradient overlay */}
+                        {/* Dark overlay — heavy so text pops */}
                         <div style={{
                             position: 'absolute', inset: 0,
-                            background: 'linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 28%, rgba(0,0,0,0.15) 50%, rgba(0,0,0,0.72) 70%, rgba(0,0,0,0.97) 100%)',
+                            background: imgUrl
+                                ? 'linear-gradient(160deg, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.42) 40%, rgba(0,0,0,0.72) 70%, rgba(0,0,0,0.96) 100%)'
+                                : 'linear-gradient(135deg, #0a0a0f 0%, #0e0e18 40%, #08080f 100%)',
                             display: 'flex',
                         }} />
 
-                        {/* Top bar: Logo only */}
-                        <div style={{ position: 'absolute', top: 64, left: 64, display: 'flex', alignItems: 'baseline', gap: 10 }}>
-                            <span style={{ fontSize: 58, fontWeight: 900, letterSpacing: '-0.04em', textTransform: 'uppercase', color: '#ffffff', lineHeight: 1, fontFamily: syneBold ? 'Syne' : 'sans-serif' }}>AIWAI</span>
-                            <span style={{ fontSize: 15, fontWeight: 900, letterSpacing: '0.3em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)', fontFamily: interBlack ? 'Inter' : 'sans-serif' }}>NEWS</span>
+                        {/* Subtle top-left glow when no image */}
+                        {!imgUrl && (
+                            <div style={{ position: 'absolute', top: -200, left: -200, width: 700, height: 700, borderRadius: '50%', background: 'radial-gradient(circle, rgba(100,60,220,0.22) 0%, transparent 70%)' }} />
+                        )}
+
+                        {/* ── TOP: mini wordmark centered ── */}
+                        <div style={{ position: 'absolute', top: 68, left: 0, right: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 20 }}>
+                            <div style={{ width: 44, height: 2, background: 'rgba(255,255,255,0.35)', borderRadius: 2 }} />
+                            <span style={{ fontSize: 16, fontWeight: 900, letterSpacing: '0.52em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', fontFamily: interBlack ? 'Inter' : 'sans-serif' }}>
+                                AIWAI · NEWS
+                            </span>
+                            <div style={{ width: 44, height: 2, background: 'rgba(255,255,255,0.35)', borderRadius: 2 }} />
                         </div>
 
-                        {/* Bottom content */}
-                        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0 72px 80px', display: 'flex', flexDirection: 'column' }}>
-                            <div style={{ fontSize: photoTitleSize, fontWeight: 900, lineHeight: 1.1, color: '#ffffff', textTransform: 'uppercase', letterSpacing: '-0.01em', marginBottom: 40, fontFamily: interBlack ? 'Inter' : 'sans-serif' }}>
-                                {title}
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                <div style={{ width: 52, height: 4, background: '#ffffff', borderRadius: 4 }} />
-                                <span style={{ fontSize: 21, fontWeight: 900, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)', fontFamily: interBlack ? 'Inter' : 'sans-serif' }}>WWW.AIWAI.NEWS</span>
-                                <div style={{ width: 52, height: 4, background: '#ffffff', borderRadius: 4 }} />
-                            </div>
+                        {/* ── TOP: big AIWAI logo ── */}
+                        <div style={{ position: 'absolute', top: 108, left: 0, right: 0, display: 'flex', justifyContent: 'center', alignItems: 'baseline', gap: 14 }}>
+                            <span style={{ fontSize: 108, fontWeight: 900, letterSpacing: '-0.04em', textTransform: 'uppercase', color: '#ffffff', lineHeight: 1, fontFamily: syneBold ? 'Syne' : 'sans-serif' }}>
+                                AIWAI
+                            </span>
+                            <span style={{ fontSize: 26, fontWeight: 900, letterSpacing: '0.28em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.45)', fontFamily: interBlack ? 'Inter' : 'sans-serif' }}>
+                                NEWS
+                            </span>
+                        </div>
+
+                        {/* ── CENTER: separator + title + separator ── */}
+                        <div style={{
+                            position: 'absolute', top: 340, bottom: 210,
+                            left: 80, right: 80,
+                            display: 'flex', flexDirection: 'column',
+                            alignItems: 'center', justifyContent: 'center',
+                        }}>
+                            <div style={{ width: 64, height: 4, background: '#ffffff', borderRadius: 4, marginBottom: 48 }} />
+                            <div style={{
+                                fontSize: photoTitleSize,
+                                fontWeight: 900,
+                                lineHeight: 1.12,
+                                color: '#ffffff',
+                                textTransform: 'uppercase',
+                                letterSpacing: '-0.01em',
+                                textAlign: 'center',
+                                fontFamily: interBlack ? 'Inter' : 'sans-serif',
+                                textShadow: imgUrl ? '0 2px 24px rgba(0,0,0,0.9)' : 'none',
+                            }}>{title}</div>
+                            <div style={{ width: 64, height: 4, background: '#ffffff', borderRadius: 4, marginTop: 48 }} />
+                        </div>
+
+                        {/* ── BOTTOM: URL pill ── */}
+                        <div style={{ position: 'absolute', bottom: 84, left: 0, right: 0, display: 'flex', justifyContent: 'center' }}>
+                            <div style={{
+                                background: '#ffffff', color: '#000000',
+                                padding: '18px 52px', borderRadius: 100,
+                                fontSize: 24, fontWeight: 900,
+                                letterSpacing: '0.14em', textTransform: 'uppercase',
+                                fontFamily: interBlack ? 'Inter' : 'sans-serif',
+                            }}>WWW.AIWAI.NEWS</div>
                         </div>
                     </div>
                 ),
@@ -118,7 +161,7 @@ export async function GET(
             );
         }
 
-        // ── STUDIO VARIANT (default) ───────────────────
+        // ── STUDIO VARIANT (default dark) ─────────────
         const studioTitleSize = titleLen > 80 ? 52 : titleLen > 60 ? 60 : titleLen > 40 ? 68 : 76;
 
         return new ImageResponse(
