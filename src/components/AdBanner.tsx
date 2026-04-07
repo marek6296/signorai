@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useUser } from "@/contexts/UserContext";
 
 // ── ONLY standard banner formats ──
@@ -13,6 +13,8 @@ type AdType = "468x60" | "300x250";
 interface AdBannerProps {
     type?: AdType;
     label?: boolean;
+    onAdLoaded?: () => void;   // fires when the ad script loads successfully
+    onAdFailed?: () => void;   // fires when the ad script fails / times out
 }
 
 const AD_CONFIGS: Record<AdType, { key: string; width: number; height: number; src: string }> = {
@@ -30,10 +32,11 @@ const AD_CONFIGS: Record<AdType, { key: string; width: number; height: number; s
     },
 };
 
-export function AdBanner({ type = "468x60", label = false }: AdBannerProps) {
+export function AdBanner({ type = "468x60", label = false, onAdLoaded, onAdFailed }: AdBannerProps) {
     const { user, loading } = useUser();
     const containerRef = useRef<HTMLDivElement>(null);
     const injectedRef = useRef(false);
+    const [visible, setVisible] = useState(false);
 
     const config = AD_CONFIGS[type];
 
@@ -60,28 +63,42 @@ export function AdBanner({ type = "468x60", label = false }: AdBannerProps) {
         `;
         container.appendChild(optionsScript);
 
-        // Load the invoke script
+        // Load the invoke script — show banner only on successful load
         const invokeScript = document.createElement("script");
         invokeScript.type = "text/javascript";
         invokeScript.src = config.src;
         invokeScript.async = true;
+
+        invokeScript.onload = () => {
+            setVisible(true);
+            onAdLoaded?.();
+        };
+
+        invokeScript.onerror = () => {
+            onAdFailed?.();
+        };
+
+        // Fallback: if script neither loads nor errors in 5s, treat as failed
+        const timeout = setTimeout(() => {
+            if (!visible) onAdFailed?.();
+        }, 5000);
+
         container.appendChild(invokeScript);
 
         return () => {
-            // Cleanup on unmount
-            if (container) {
-                container.innerHTML = "";
-            }
+            clearTimeout(timeout);
+            if (container) container.innerHTML = "";
             injectedRef.current = false;
         };
-    }, [user, loading, config]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user, loading]);
 
     // Logged-in users and loading state → no ads
     if (user || loading) return null;
     if (!config) return null;
 
     return (
-        <div className="w-full my-3">
+        <div style={{ display: visible ? "block" : "none" }} className="w-full my-3">
             {label && (
                 <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/20 mb-1 pl-1">
                     Reklama
