@@ -747,7 +747,7 @@ Tvoj výstup VŽDY EXAKTNE VO FORMÁTE JSON (žiadny markdown okolo JSON):
     "title": "Profesionálny novinársky nadpis v slovenčine",
     "slug": "url-friendly-nazov-bez-diakritiky-a-medzier",
     "excerpt": "Perex: 1 až 2 informatívne vety ktoré zhŕňajú jadro správy.",
-    "content": "Článok v HTML s p, strong, h2, h3.",
+    "content": "Článok v HTML. POVOLENÉ: p, strong, em, h2, h3, ul, ol, li, a, blockquote. ZAKÁZANÉ: figure, img, picture — obrázky rieši systém.",
     "ai_summary": "Zhrnutie článku v 4-5 vetách. Vysvetli o čom je článok, čo je nové/zaujímavé a prečo to čitateľa zaujíma. Bez HTML tagov, čistý text.",
     "category": "JEDNA Z TÝCHTO: AI, Tech, Návody & Tipy"
 }
@@ -845,10 +845,13 @@ DÔLEŽITÉ: Odpovedaj VÝHRADNE v čistom JSON formáte. Žiadny markdown, žia
             AI_FALLBACK_IMAGE
         );
 
-        // ── Strip original inline images, then inject one real searched image ──
+        // ── Strip any GPT-generated figures/images, then inject one real searched image ──
         let cleanContent: string = articleData.content || '';
         if (cleanContent) {
-            cleanContent = cleanContent.replace(/<img[^>]*>/gi, '');
+            // Remove complete <figure>...</figure> blocks (GPT sometimes adds them)
+            cleanContent = cleanContent.replace(/<figure[^>]*>[\s\S]*?<\/figure>/gi, '');
+            // Remove any stray <img> tags
+            cleanContent = cleanContent.replace(/<img[^>]*\/?>/gi, '');
             articleData.content = cleanContent;
         }
 
@@ -1086,7 +1089,7 @@ ZÁVÄZNÉ PRAVIDLÁ:
    - Max 12 slov, BEZ HTML tagov (<strong> atď.)
    - PRÍSNY ZÁKAZ: "Revolúcia", "Neuveriteľné", "Navždy zmení", "Prelomový", "Šokujúce", "Tajomstvo"
    - Vzor dobrého nadpisu: "Anthropic vydáva Claude 3.7 s rozšíreným uvažovaním"
-4. HTML ŠTRUKTÚRA: p, strong, h2, h3 tagy (len v content poli, NIE v title).
+4. HTML ŠTRUKTÚRA: POVOLENÉ tagy v content: p, strong, em, h2, h3, ul, ol, li, a, blockquote. PRÍSNY ZÁKAZ: figure, img, picture, video — obrázky rieši systém automaticky.
 5. AKTUÁLNOSŤ: Sústreď sa na najnovšie informácie. Ak sú fakty staré, jasne to naznač.
 6. FAKTY: Použi konkrétne čísla, dátumy a citácie zo zdrojov. Nefantazíruj.
 
@@ -1140,7 +1143,16 @@ Napíš kompletný článok v JSON formáte. Obsah musí vychádzať z reálnych
             finalCategory = "AI";
         }
 
-        // ── PHASE 6: Append sources section to article content ───────────────
+        // ── PHASE 6: Strip GPT-generated figures/images from content ────────────
+        if (articleData.content) {
+            // Remove complete <figure>...</figure> blocks GPT sometimes adds
+            articleData.content = articleData.content.replace(/<figure[^>]*>[\s\S]*?<\/figure>/gi, '');
+            // Remove any stray <img> tags
+            articleData.content = articleData.content.replace(/<img[^>]*\/?>/gi, '');
+            console.log(`>>> [Logic] Phase 6: Stripped GPT-generated figure/img tags from content.`);
+        }
+
+        // ── PHASE 6b: Append sources section to article content ─────────────
         const sourcesSection = buildSourcesSection(allSources);
         if (sourcesSection) {
             articleData.content = (articleData.content || "") + sourcesSection;
