@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
     try {
-        const { text, voiceId = "dlGxemPxFMTY7iXagmOj" } = await req.json();
+        const { text, voiceId = "1SM7GgM6IMuvQlz2BwM3" } = await req.json();
         console.log(">>> [TTS] Text length:", text?.length);
 
         if (!text) {

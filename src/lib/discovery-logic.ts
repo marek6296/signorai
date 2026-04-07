@@ -218,7 +218,7 @@ export async function discoverNewNews(maxDays: number, targetCategories: string[
 
     if (cappedPool.length === 0) return [];
 
-    const suggestionsWithAI: { url: string; title: string; source: string; summary: string; category: string; status: string }[] = [];
+    const suggestionsWithAI: { url: string; title: string; source: string; summary: string; category: string; status: string; published_at?: string }[] = [];
     const processedUrls = new Set<string>();
 
     for (const item of cappedPool) {
@@ -260,7 +260,8 @@ Vráť EXAKTNE JSON: {"title": "Slovenský titulok", "summary": "Slovenské zhrn
                 source: item.source,
                 summary: aiData.summary || "Zaujímavá AI téma na spracovanie.",
                 category: assignedCategory,
-                status: 'pending'
+                status: 'pending',
+                published_at: item.publishedAt || undefined
             });
         } catch (e) {
             console.error("AI discovery error:", item.title, e);
