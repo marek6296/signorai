@@ -61,7 +61,7 @@ export const metadata: Metadata = {
     siteName: "AIWai",
     images: [
       {
-        url: "/og-image.png",
+        url: "/og-image-v2.png",
         width: 1200,
         height: 630,
         alt: "AIWai – AI správy a technológie",
@@ -74,7 +74,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "AIWai – AI Správy & Technológie",
     description: "Najnovšie správy o umelej inteligencii, technológiách a digitálnych trendoch.",
-    images: ["/og-image.png"],
+    images: ["/og-image-v2.png"],
   },
   ...(process.env.GOOGLE_SITE_VERIFICATION && {
     verification: {
