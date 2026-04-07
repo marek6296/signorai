@@ -1,19 +1,12 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useUser } from "@/contexts/UserContext";
 
-// ── ONLY banner formats — NO native, NO pop-under, NO redirect ads ──
-// Ad scripts are loaded inside a sandboxed <iframe> so they cannot:
-//   • add click listeners to the main document (no pop-unders)
-//   • navigate/redirect the parent page (no forced redirects)
-//   • access parent DOM or cookies
-// sandbox flags explained:
-//   allow-scripts              — ad JS can run inside the iframe
-//   allow-same-origin          — needed for Adsterra iframe render
-//   allow-popups               — clicking the ad opens advertiser in new tab
-//   allow-top-navigation-by-user-activation — explicit ad click can navigate top (normal ad click)
-//   ✗ allow-top-navigation     — blocked: scripts cannot redirect parent page
-//   ✗ allow-popups-to-escape-sandbox — blocked: opened windows stay sandboxed
+// ── ONLY standard banner formats ──
+// Native / Direct-Link / Pop-under formats are intentionally excluded.
+// Standard Adsterra banner invoke.js renders an <ins> element — it does NOT
+// add document-level click listeners, so no pop-unders or forced redirects.
 
 type AdType = "468x60" | "300x250";
 
@@ -39,34 +32,53 @@ const AD_CONFIGS: Record<AdType, { key: string; width: number; height: number; s
 
 export function AdBanner({ type = "468x60", label = false }: AdBannerProps) {
     const { user, loading } = useUser();
+    const containerRef = useRef<HTMLDivElement>(null);
+    const injectedRef = useRef(false);
+
+    const config = AD_CONFIGS[type];
+
+    useEffect(() => {
+        if (user || loading) return;
+        if (!config) return;
+        if (!containerRef.current) return;
+        if (injectedRef.current) return;
+        injectedRef.current = true;
+
+        const container = containerRef.current;
+
+        // Set atOptions before loading the script
+        const optionsScript = document.createElement("script");
+        optionsScript.type = "text/javascript";
+        optionsScript.text = `
+            atOptions = {
+                'key': '${config.key}',
+                'format': 'iframe',
+                'height': ${config.height},
+                'width': ${config.width},
+                'params': {}
+            };
+        `;
+        container.appendChild(optionsScript);
+
+        // Load the invoke script
+        const invokeScript = document.createElement("script");
+        invokeScript.type = "text/javascript";
+        invokeScript.src = config.src;
+        invokeScript.async = true;
+        container.appendChild(invokeScript);
+
+        return () => {
+            // Cleanup on unmount
+            if (container) {
+                container.innerHTML = "";
+            }
+            injectedRef.current = false;
+        };
+    }, [user, loading, config]);
 
     // Logged-in users and loading state → no ads
     if (user || loading) return null;
-
-    const config = AD_CONFIGS[type];
     if (!config) return null;
-
-    // Build the iframe HTML that loads the banner ad in isolation
-    const iframeDoc = `<!DOCTYPE html>
-<html>
-<head>
-<style>
-  * { margin:0; padding:0; border:0; overflow:hidden; }
-  body { background:transparent; display:flex; align-items:center; justify-content:center; }
-</style>
-<script>
-  atOptions = {
-    'key': '${config.key}',
-    'format': 'iframe',
-    'height': ${config.height},
-    'width': ${config.width},
-    'params': {}
-  };
-</script>
-<script src="${config.src}"></script>
-</head>
-<body></body>
-</html>`;
 
     return (
         <div className="w-full my-3">
@@ -75,17 +87,15 @@ export function AdBanner({ type = "468x60", label = false }: AdBannerProps) {
                     Reklama
                 </p>
             )}
-            <iframe
-                srcDoc={iframeDoc}
-                sandbox="allow-scripts allow-same-origin allow-popups allow-top-navigation-by-user-activation"
-                scrolling="no"
-                frameBorder="0"
-                style={
-                    type === "300x250"
-                        ? { width: 300, height: 250, border: "none", display: "block" }
-                        : { width: "100%", maxWidth: 468, height: 60, border: "none", display: "block" }
-                }
-                title="Reklama"
+            <div
+                ref={containerRef}
+                style={{
+                    width: config.width,
+                    height: config.height,
+                    maxWidth: "100%",
+                    display: "block",
+                    overflow: "hidden",
+                }}
             />
         </div>
     );
