@@ -8,7 +8,7 @@ import { type Article } from "@/lib/data";
 import Image from "next/image";
 import { stripHtml } from "@/lib/utils";
 import { AppPromo } from "@/components/AppPromo";
-import { AdBanner } from "@/components/AdBanner";
+import { AdBlock } from "@/components/AdBlock";
 import { useUser } from "@/contexts/UserContext";
 
 interface SidebarProps {
@@ -92,17 +92,8 @@ export function Sidebar({ articles, title = "Najnovšie správy" }: SidebarProps
                                 </div>
                             </div>
 
-                            {/* Reklama za 2. článkom — skrytá pre prihlásených */}
-                            {index === 1 && !user && (
-                                <div className="relative overflow-hidden rounded-2xl bg-zinc-900 border border-white/5 shadow-xl flex items-center justify-center" style={{ minHeight: 260 }}>
-                                    <div className="absolute top-3 left-4 z-10 pointer-events-none">
-                                        <span className="inline-flex items-center rounded-full bg-black/60 backdrop-blur-md border border-white/20 px-3 py-1 text-[8px] font-black uppercase tracking-[0.2em] text-white/40">
-                                            Reklama
-                                        </span>
-                                    </div>
-                                    <AdBanner type="300x250" />
-                                </div>
-                            )}
+                            {/* Reklama za 2. článkom — skrytá pre prihlásených, skryje sa keď sa nenačíta */}
+                            {index === 1 && <AdBlock />}
                         </Fragment>
                     );
                 })}

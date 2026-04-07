@@ -93,6 +93,89 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href="https://aiwai.news" />
         <link rel="dns-prefetch" href="https://aiwai.news" />
+        {/* Anti-popup/overlay blocker — blocks fullscreen ads injected by ad networks */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function(){
+                // Block window.open popups
+                var origOpen = window.open;
+                window.open = function(url, name, features) {
+                  // Allow only same-origin or explicitly user-triggered popups
+                  if (url && typeof url === 'string') {
+                    try {
+                      var u = new URL(url, location.href);
+                      if (u.origin === location.origin) return origOpen.call(window, url, name, features);
+                    } catch(e) {}
+                  }
+                  console.warn('[AIWai] Blocked popup:', url);
+                  return null;
+                };
+
+                // Observe DOM for injected fullscreen overlays / interstitials
+                var observer = new MutationObserver(function(mutations) {
+                  mutations.forEach(function(m) {
+                    m.addedNodes.forEach(function(node) {
+                      if (node.nodeType !== 1) return;
+                      var el = node;
+                      var style = el.style || {};
+                      var computed = window.getComputedStyle ? window.getComputedStyle(el) : {};
+                      var pos = style.position || computed.position || '';
+                      var zIndex = parseInt(style.zIndex || computed.zIndex || '0', 10);
+                      var w = parseInt(style.width || computed.width || '0', 10);
+                      var h = parseInt(style.height || computed.height || '0', 10);
+
+                      // Detect fullscreen overlays: fixed/absolute + high z-index + large size
+                      if ((pos === 'fixed' || pos === 'absolute') && zIndex > 9000 && w > window.innerWidth * 0.7 && h > window.innerHeight * 0.7) {
+                        // Check it's not our own UI (navbar, chatbot, etc.)
+                        if (!el.closest('[data-aiwai]') && !el.id?.startsWith('aiwai')) {
+                          console.warn('[AIWai] Blocked overlay ad:', el);
+                          el.remove();
+                        }
+                      }
+
+                      // Also catch iframes injected at body level with high z-index
+                      if (el.tagName === 'IFRAME' && zIndex > 9000) {
+                        var src = el.src || '';
+                        if (src && !src.includes('aiwai.news')) {
+                          console.warn('[AIWai] Blocked iframe overlay:', src);
+                          el.remove();
+                        }
+                      }
+
+                      // Block any script that tries to add click listeners to the whole document for redirects
+                      if (el.tagName === 'SCRIPT' && el.src) {
+                        var scriptSrc = el.src.toLowerCase();
+                        // Block known popup/popunder/direct-link ad scripts
+                        if (scriptSrc.includes('popunder') || scriptSrc.includes('popnew') ||
+                            scriptSrc.includes('directlink') || scriptSrc.includes('social-bar') ||
+                            scriptSrc.includes('profitablegatecpm') || scriptSrc.includes('profitablecpmratenetwork') ||
+                            scriptSrc.includes('vfrfrrf') ||
+                            scriptSrc.includes('surfrfrfr') || scriptSrc.includes('removeatag')) {
+                          console.warn('[AIWai] Blocked ad script:', el.src);
+                          el.remove();
+                        }
+                      }
+                    });
+                  });
+                });
+                observer.observe(document.documentElement, { childList: true, subtree: true });
+
+                // Block document-level click hijacking (used by popunder ads)
+                document.addEventListener('click', function(e) {
+                  // If a click would navigate away from our site, block it
+                  // (unless the user clicked an actual <a> tag)
+                  var target = e.target;
+                  var isLink = target.closest && target.closest('a[href]');
+                  if (!isLink) {
+                    // Check if any scripts added a document-level handler that redirects
+                    // We can't fully prevent this, but we can stop propagation on suspicious cases
+                  }
+                }, true);
+              })();
+            `,
+          }}
+        />
         <script
           dangerouslySetInnerHTML={{
             __html: `

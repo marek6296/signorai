@@ -8,7 +8,6 @@ import { sk } from "date-fns/locale";
 import { Sparkles, Calendar, Tag } from "lucide-react";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { ContentRenderer } from "@/components/ContentRenderer";
-import { AdBanner } from "@/components/AdBanner";
 import { ShareButtons } from "@/components/ShareButtons";
 import { BookmarkButton } from "@/components/BookmarkButton";
 import { Comments } from "@/components/Comments";
@@ -222,16 +221,16 @@ export default async function ArticlePage({ params, searchParams }: Props) {
                         </div>
                     )}
 
-                    {/* Banner 1 — za AI summary, pred obsahom (468x60) */}
-                    <AdBanner type="468x60" label />
-
+                    {/* Reklamy sú teraz vložené priamo do ContentRendereru
+                       - max 2 reklamy v článku
+                       - nie na začiatku, nie pri sebe
+                       - 1. reklama po ~40% článku
+                       - 2. reklama po ~80% článku alebo po obsahu */}
                     <ContentRenderer
                         content={article.content}
                         relatedArticles={relatedArticles}
+                        showAds={true}
                     />
-
-                    {/* Banner 2 — po obsahu, pred zdrojmi */}
-                    <AdBanner type="300x250" label />
 
                     {article.source_url && (
                     <div className="mt-12 pt-8 border-t">
