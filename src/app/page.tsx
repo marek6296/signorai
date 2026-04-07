@@ -5,8 +5,6 @@ import { NewsletterSidebar } from "@/components/NewsletterSidebar";
 import { SocialPromo } from "@/components/SocialPromo";
 import { LoadMoreGrid } from "@/components/LoadMoreGrid";
 import { AppPromo } from "@/components/AppPromo";
-import { AdBanner } from "@/components/AdBanner";
-import { AdBlock } from "@/components/AdBlock";
 import { TrendingSection } from "@/components/TrendingSection";
 import type { Metadata } from "next";
 
@@ -121,8 +119,6 @@ export default async function Home() {
         </section>
       </div>
 
-      {/* Adsterra Banner */}
-      <AdBanner type="468x60" />
 
       {/* Grid feed for all remaining mixed articles */}
       {remainingArticles.length > 0 && (
