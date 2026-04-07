@@ -34,7 +34,7 @@ export function AdBanner({ type = "468x60", label = false, onAdLoaded, onAdFaile
     const { user, loading } = useUser();
     const containerRef = useRef<HTMLDivElement>(null);
     const injectedRef = useRef(false);
-    const [visible, setVisible] = useState(false);
+    const callbackFiredRef = useRef(false);
 
     const config = AD_CONFIGS[type];
 
@@ -67,43 +67,26 @@ export function AdBanner({ type = "468x60", label = false, onAdLoaded, onAdFaile
         invokeScript.src = config.src;
         invokeScript.async = true;
 
-        // After script loads, check if actual ad content rendered
-        const checkAdRendered = () => {
-            if (!container) return false;
-            // Adsterra renders an iframe or ins element when ad is available
-            const hasIframe = container.querySelector("iframe");
-            const hasIns = container.querySelector("ins");
-            const hasContent = container.offsetHeight > 10;
-            return !!(hasIframe || hasIns || hasContent);
-        };
-
         invokeScript.onload = () => {
-            // Wait a moment for the ad to actually render content
-            let checks = 0;
-            const interval = setInterval(() => {
-                checks++;
-                if (checkAdRendered()) {
-                    clearInterval(interval);
-                    setVisible(true);
-                    onAdLoaded?.();
-                } else if (checks >= 10) {
-                    // After 5 seconds (10 x 500ms), ad didn't render — treat as failed
-                    clearInterval(interval);
-                    setVisible(false);
-                    onAdFailed?.();
-                }
-            }, 500);
+            // Script loaded — the ad content should render shortly
+            // Show the container immediately (script loaded = ad will likely render)
+            if (!callbackFiredRef.current) {
+                callbackFiredRef.current = true;
+                onAdLoaded?.();
+            }
         };
 
         invokeScript.onerror = () => {
-            setVisible(false);
-            onAdFailed?.();
+            if (!callbackFiredRef.current) {
+                callbackFiredRef.current = true;
+                onAdFailed?.();
+            }
         };
 
         // Fallback: if script neither loads nor errors in 8s, treat as failed
         const timeout = setTimeout(() => {
-            if (!visible) {
-                setVisible(false);
+            if (!callbackFiredRef.current) {
+                callbackFiredRef.current = true;
                 onAdFailed?.();
             }
         }, 8000);
@@ -114,6 +97,7 @@ export function AdBanner({ type = "468x60", label = false, onAdLoaded, onAdFaile
             clearTimeout(timeout);
             if (container) container.innerHTML = "";
             injectedRef.current = false;
+            callbackFiredRef.current = false;
         };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user, loading]);
@@ -122,7 +106,7 @@ export function AdBanner({ type = "468x60", label = false, onAdLoaded, onAdFaile
     if (!config) return null;
 
     return (
-        <div style={{ display: visible ? "block" : "none" }} className="w-full my-3">
+        <div className="w-full my-3">
             {label && (
                 <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/20 mb-1 pl-1">
                     Reklama

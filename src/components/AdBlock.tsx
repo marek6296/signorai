@@ -5,13 +5,13 @@ import { useUser } from "@/contexts/UserContext";
 import { AdBanner } from "@/components/AdBanner";
 
 /**
- * AdBlock — wrapper pre reklamný blok (karta "Reklama").
- * Celý kontajner (vrátane okna) sa zobrazí LEN keď reklama skutočne načíta.
- * Prázdne okno sa nikdy neukáže.
+ * AdBlock — wrapper pre reklamný blok v sidebar-e.
+ * Kontajner sa zobrazí keď sa skript načíta.
+ * Ak skript zlyhá alebo sa nenačíta do 8s, kontajner sa skryje.
  */
 export function AdBlock() {
   const { user } = useUser();
-  const [adLoaded, setAdLoaded] = useState(false);
+  const [status, setStatus] = useState<"loading" | "loaded" | "failed">("loading");
 
   if (user) return null;
 
@@ -19,8 +19,10 @@ export function AdBlock() {
     <div
       className="relative overflow-hidden rounded-2xl bg-zinc-900 border border-white/5 shadow-xl flex items-center justify-center"
       style={{
-        minHeight: adLoaded ? 260 : 0,
-        display: adLoaded ? "flex" : "none",
+        minHeight: status === "loaded" ? 260 : 0,
+        display: status === "failed" ? "none" : "flex",
+        opacity: status === "loading" ? 0 : 1,
+        transition: "opacity 0.3s ease",
       }}
     >
       <div className="absolute top-3 left-4 z-10 pointer-events-none">
@@ -30,8 +32,8 @@ export function AdBlock() {
       </div>
       <AdBanner
         type="300x250"
-        onAdLoaded={() => setAdLoaded(true)}
-        onAdFailed={() => setAdLoaded(false)}
+        onAdLoaded={() => setStatus("loaded")}
+        onAdFailed={() => setStatus("failed")}
       />
     </div>
   );
