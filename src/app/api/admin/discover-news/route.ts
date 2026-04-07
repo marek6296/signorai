@@ -8,8 +8,8 @@ export const maxDuration = 300;
 
 const LEGACY_SECRET = "make-com-webhook-secret";
 
-async function executeDiscovery(days: number, targetCategories: string[], secret: string | null, authHeader: string | null) {
-    console.log(">>> [API Discovery] Starting with params:", { days, targetCategories, secretProvided: !!secret });
+async function executeDiscovery(days: number, targetCategories: string[], secret: string | null, authHeader: string | null, countPerCategory = 5) {
+    console.log(">>> [API Discovery] Starting with params:", { days, targetCategories, countPerCategory, secretProvided: !!secret });
 
     if (
         secret !== process.env.ADMIN_SECRET &&
@@ -26,7 +26,7 @@ async function executeDiscovery(days: number, targetCategories: string[], secret
 
     try {
         console.log(">>> [API Discovery] Calling library function...");
-        const newsItems = await discoverNewNews(days, targetCategories);
+        const newsItems = await discoverNewNews(days, targetCategories, countPerCategory);
 
         if (newsItems.length === 0) {
             return NextResponse.json({ message: "Nenašli sa žiadne nové správy.", count: 0 }, { status: 404 });
@@ -69,9 +69,9 @@ export async function POST(req: Request) {
     console.log(">>> [API Discovery] POST received");
     try {
         const body = await req.json();
-        const { days = 3, categories = [], secret = null } = body;
+        const { days = 3, categories = [], secret = null, count = 5 } = body;
         const authHeader = req.headers.get("authorization");
-        return await executeDiscovery(days, categories, secret, authHeader);
+        return await executeDiscovery(days, categories, secret, authHeader, Math.max(1, Math.min(15, Number(count))));
     } catch (e: unknown) {
         console.error(">>> [API Discovery] POST parse error:", e instanceof Error ? e.message : String(e));
         return NextResponse.json({ message: "Invalid JSON body" }, { status: 400 });
@@ -86,6 +86,7 @@ export async function GET(req: Request) {
     const maxDays = parseInt(url.searchParams.get("days") || "3");
     const categoriesRaw = url.searchParams.get("categories");
     const targetCategories = categoriesRaw ? categoriesRaw.split(",").filter(Boolean) : [];
+    const countPerCategory = Math.max(1, Math.min(15, parseInt(url.searchParams.get("count") || "5")));
 
-    return await executeDiscovery(maxDays, targetCategories, secret, authHeader);
+    return await executeDiscovery(maxDays, targetCategories, secret, authHeader, countPerCategory);
 }

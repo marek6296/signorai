@@ -62,7 +62,7 @@ export const FEED_GROUPS: Record<string, { name: string, url: string }[]> = {
 
 export const normalizeUrl = (u: string) => u.split('?')[0].toLowerCase().trim().replace(/\/$/, "");
 
-export async function getRawRssArticles(maxDays: number, targetCategories: string[] = []): Promise<DiscoveryItem[]> {
+export async function getRawRssArticles(maxDays: number, targetCategories: string[] = [], countPerCategory = 5): Promise<DiscoveryItem[]> {
     const newsByGroup: Record<string, DiscoveryItem[]> = {};
     const now = new Date();
     const maxAgeMs = maxDays * 24 * 60 * 60 * 1000;
@@ -143,6 +143,9 @@ export async function getRawRssArticles(maxDays: number, targetCategories: strin
         }
     }
 
+    // Buffer factor: scrape 3× more than needed to account for inaccessible URLs
+    const bufferPerCategory = Math.max(countPerCategory * 3, 9);
+
     const candidatesByGroup: Record<string, DiscoveryItem[]> = {};
     for (const [groupName, items] of Object.entries(newsByGroup)) {
         if (items.length === 0) continue;
@@ -151,7 +154,7 @@ export async function getRawRssArticles(maxDays: number, targetCategories: strin
             const dateB = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
             return dateB - dateA;
         });
-        candidatesByGroup[groupName] = sorted.slice(0, 15);
+        candidatesByGroup[groupName] = sorted.slice(0, bufferPerCategory);
     }
 
     const checkUrlAccessible = async (url: string): Promise<boolean> => {
@@ -179,13 +182,13 @@ export async function getRawRssArticles(maxDays: number, targetCategories: strin
     };
 
     const accessibleByGroup: Record<string, DiscoveryItem[]> = {};
-    const MIN_PER_CATEGORY = 3;
-    const MAX_ACCESSIBLE_PER_GROUP = 10;
+    // Stop accessibility-checking early once we have enough per group
+    const maxAccessiblePerGroup = Math.max(countPerCategory * 2, 6);
 
     for (const [groupName, candidates] of Object.entries(candidatesByGroup)) {
         const accessible: DiscoveryItem[] = [];
         for (const item of candidates) {
-            if (accessible.length >= MAX_ACCESSIBLE_PER_GROUP) break;
+            if (accessible.length >= maxAccessiblePerGroup) break;
             const isOk = await checkUrlAccessible(item.url);
             if (isOk) accessible.push(item);
         }
@@ -198,11 +201,9 @@ export async function getRawRssArticles(maxDays: number, targetCategories: strin
     if (allAccessible.length === 0) return [];
 
     const pool: DiscoveryItem[] = [];
-    const groupNames = Object.keys(accessibleByGroup);
-    const wantPerCategory = Math.max(MIN_PER_CATEGORY, Math.min(8, Math.floor(100 / groupNames.length)));
-
-    for (const groupName of groupNames) {
-        const items = accessibleByGroup[groupName].slice(0, wantPerCategory);
+    for (const groupName of Object.keys(accessibleByGroup)) {
+        // Only take countPerCategory items per group — this is the hard cap
+        const items = accessibleByGroup[groupName].slice(0, countPerCategory);
         pool.push(...items);
     }
     pool.sort((a, b) => {
@@ -210,11 +211,11 @@ export async function getRawRssArticles(maxDays: number, targetCategories: strin
         const dateB = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
         return dateB - dateA;
     });
-    return pool.slice(0, 120);
+    return pool;
 }
 
-export async function discoverNewNews(maxDays: number, targetCategories: string[] = []) {
-    const cappedPool = await getRawRssArticles(maxDays, targetCategories);
+export async function discoverNewNews(maxDays: number, targetCategories: string[] = [], countPerCategory = 5) {
+    const cappedPool = await getRawRssArticles(maxDays, targetCategories, countPerCategory);
 
     if (cappedPool.length === 0) return [];
 
