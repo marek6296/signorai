@@ -69,17 +69,17 @@ export async function POST(req: Request) {
         // ALWAYS use production URL — localhost/Vercel preview URLs break Facebook OG scraping
         const articleUrl = `https://aiwai.news/article/${article.slug}`;
 
-        let finalImageUrl = customImageUrl || post.image_url || article?.main_image;
+        const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=1200";
+        let finalImageUrl = customImageUrl || post.image_url || article?.main_image || FALLBACK_IMAGE;
 
-        // For Instagram, we ALWAYS want to use the server-side Satori image (not browser screenshots)
-        // to ensure 100% pixel-perfect matching across all bots, automations, and manual clicks.
+        // For Instagram, always try to use the server-side Satori image for pixel-perfect social cards.
         if (post.platform === 'Instagram') {
             try {
                 const headerHost = req.headers.get("x-forwarded-host") || req.headers.get("host") || "aiwai.news";
                 const protocol = headerHost.includes("localhost") ? "http" : "https";
                 const preRenderEndpoint = `${protocol}://${headerHost}/api/admin/pre-render-social-image`;
 
-                console.log(`[Instagram Satori Vizuál] Forcing fresh server-side generation (variant: ${imageVariant})...`);
+                console.log(`[Instagram Satori] Generating image (variant: ${imageVariant})...`);
                 const res = await fetch(preRenderEndpoint, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -90,16 +90,24 @@ export async function POST(req: Request) {
                     const dat = await res.json();
                     if (dat.url) {
                         finalImageUrl = dat.url;
-                        console.log(`[Instagram Satori Vizuál] Success, using exact URL: ${finalImageUrl}`);
-                        // The pre-render endpoint already waited 4s, but we'll add 2s extra buffer 
+                        console.log(`[Instagram Satori] ✅ Image ready: ${finalImageUrl}`);
                         await new Promise(r => setTimeout(r, 2000));
+                    } else {
+                        console.warn(`[Instagram Satori] ⚠️ Pre-render OK but no URL returned — using fallback: ${finalImageUrl}`);
                     }
                 } else {
-                    console.warn(`[Instagram Satori Vizuál] Failed, using cached or fallback.`);
+                    const errBody = await res.text().catch(() => "");
+                    console.warn(`[Instagram Satori] ⚠️ Pre-render failed (${res.status}): ${errBody} — using fallback: ${finalImageUrl}`);
                 }
             } catch (err) {
-                console.error("[Instagram Satori Vizuál Error]", err);
-                finalImageUrl = post.image_url || article?.main_image || customImageUrl;
+                console.error("[Instagram Satori] ❌ Pre-render exception — using fallback:", err);
+                // finalImageUrl already has the best available fallback from above
+            }
+
+            // Last-resort safety net — should never be empty at this point
+            if (!finalImageUrl) {
+                finalImageUrl = article?.main_image || FALLBACK_IMAGE;
+                console.warn(`[Instagram] ⚠️ No image after all fallbacks — using emergency fallback`);
             }
         }
 
