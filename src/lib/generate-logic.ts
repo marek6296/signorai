@@ -331,7 +331,7 @@ async function isPhotoSuitable(imageUrl: string): Promise<boolean> {
                     { type: "image_url", image_url: { url: imageUrl, detail: "low" } },
                     {
                         type: "text",
-                        text: "Is this image a real photograph suitable as a news website article header? Answer only YES or NO. Answer NO if it is: a UI screenshot, app mockup, presentation slide, marketing slide, screen recording, diagram, chart, infographic, or any image where text or computer interfaces dominate the frame."
+                        text: "Is this image a real-world photograph (taken by a camera) suitable as a news website article header? Answer only YES or NO.\n\nAnswer NO if it is ANY of these:\n- UI screenshot, app mockup, screen recording\n- Presentation slide, marketing slide, infographic, diagram, chart\n- 3D render, CGI image, computer-generated art\n- Digital illustration, digital painting, vector art\n- Abstract concept visualization (e.g. glowing orbs, neon lights, energy waves, particle effects, floating data, sci-fi environments)\n- Stock illustration or clip art\n- Any image that is clearly NOT a real photograph of the real world\n\nAnswer YES only if this is a genuine real-world photograph: people, buildings, offices, products, events, nature, etc."
                     }
                 ]
             }]
@@ -702,14 +702,28 @@ DÔLEŽITÉ: Odpovedaj VÝHRADNE v čistom JSON formáte. Žiadny markdown, žia
             const generateInlineImage = async (suffix: string) => {
                 try {
                     const ai = getGeminiClient();
-                    const prompt = `Generate a photorealistic, ultra-high quality cinematic image representing a specific detail or concept from this technology news article. Focus on visual concept: ${suffix}.
-Theme: ${articleData.title}
-Context: ${articleData.excerpt || 'Teaser'}
+                    const prompt = `Generate a photorealistic, editorial-quality photograph for a technology news article.
+Topic: ${articleData.title}
+Visual focus: ${suffix}
+Context: ${articleData.excerpt || ''}
 
-CRITICAL INSTRUCTIONS TO AVOID ERRORS:
-- MUST NOT contain specific real-world public figures (e.g. Elon Musk, Sam Altman) or trademarked logos. Provide generic photorealistic alternatives.
-- Style: Realistic photography, editorial, high detail.
-- NO text, NO watermarks.`;
+STYLE — think Associated Press or Reuters editorial photograph:
+- Real-world environment: corporate office, conference room, data center, product launch, university lab, city
+- Natural or professional studio lighting
+- People at work, engineers, product close-ups, office environments, company buildings
+
+STRICT PROHIBITIONS (generate NONE of these):
+- Glowing orbs, energy balls, plasma spheres
+- Neon lights, neon glow, neon-lit rooms
+- Electric lightning, sparks, electrical arcs
+- Sci-fi particle systems, floating particles, light streams
+- Abstract blue/purple energy waves
+- Holographic overlays, holographic displays
+- 3D renders, CGI, digital art, illustrations
+- Futuristic fantasy environments, any "AI visualization" clichés
+- 3D letters or text as the main subject
+
+OUTPUT: 16:9 landscape, NO text overlays, NO watermarks, NO trademarked logos, NO real celebrities.`;
 
                     const imageResult = await ai.models.generateContent({
                         model: 'gemini-2.0-flash-preview-image-generation',
@@ -1018,11 +1032,14 @@ Výstup VŽDY EXAKTNE VO FORMÁTE JSON:
             throw error;
         }
 
-        if (targetStatus === 'published') {
-            console.log(">>> [Logic] Running final review before publishing...");
-            await runFinalReviewAndPublish(data.id);
+        // Always run GPT quality review — for drafts keepAsDraft=true (no publish), for published keepAsDraft=false
+        console.log(`>>> [Logic] Running GPT quality review (keepAsDraft=${targetStatus !== 'published'})...`);
+        try {
+            await runFinalReviewAndPublish(data.id, targetStatus !== 'published');
             const { data: updatedData } = await supabase.from('articles').select().eq('id', data.id).single();
             if (updatedData) data = updatedData;
+        } catch (reviewErr) {
+            console.warn(">>> [Logic] GPT review failed (non-fatal), article saved as-is:", reviewErr);
         }
 
         revalidatePath("/", "layout");
