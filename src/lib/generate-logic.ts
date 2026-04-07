@@ -429,7 +429,33 @@ OUTPUT: 16:9 landscape, NO text, NO watermarks, NO logos, NO UI elements.`;
     return null;
 }
 
-// ── Pick the best suitable main image: scraped → search → generate → fallback ─
+/** Fetch ALL image URLs from a single Serper query (up to 12 results) */
+async function fetchAllImageUrls(query: string): Promise<string[]> {
+    const apiKey = process.env.SERPER_API_KEY;
+    if (!apiKey) return [];
+    try {
+        const response = await fetch("https://google.serper.dev/images", {
+            method: "POST",
+            headers: { "X-API-KEY": apiKey, "Content-Type": "application/json" },
+            body: JSON.stringify({ q: query, gl: "us", hl: "en", num: 12 }),
+        });
+        const data = await response.json();
+        interface SerperImg { imageUrl: string; imageWidth?: number }
+        const imgs: SerperImg[] = (data.images || [])
+            .filter((img: SerperImg) =>
+                img.imageUrl?.startsWith('http') &&
+                !img.imageUrl.includes('fbsbx') &&
+                !img.imageUrl.includes('licdn') &&
+                !img.imageUrl.includes('lookaside')
+            )
+            .sort((a: SerperImg, b: SerperImg) => (b.imageWidth || 0) - (a.imageWidth || 0));
+        return imgs.map((img: SerperImg) => img.imageUrl);
+    } catch {
+        return [];
+    }
+}
+
+// ── Pick the best suitable main image: scraped → search (all results) → search fallback → generate → placeholder ─
 async function resolveSuitableMainImage(
     candidates: string[],            // already-extracted URLs to try first
     title: string,
@@ -437,28 +463,47 @@ async function resolveSuitableMainImage(
     category: string,
     fallbackUrl: string
 ): Promise<string> {
-    // 1. Check each scraped candidate
+    // 1. Check each scraped candidate (og:images from source articles)
     for (const candidate of candidates) {
         if (!candidate || !candidate.startsWith('http')) continue;
-        if (await isPhotoSuitable(candidate, title)) return candidate;
+        if (await isPhotoSuitable(candidate, title)) {
+            console.log(`>>> [ImgCheck] ✅ Using scraped og:image candidate`);
+            return candidate;
+        }
     }
 
-    // 2. Try image search — multiple smart queries before giving up
-    console.log(">>> [ImgCheck] No suitable scraped image — searching Google Images...");
+    // 2. Try image search — check ALL results from each query (not just the top one)
+    console.log(">>> [ImgCheck] Searching Google Images (all results per query)...");
     const searchQueries = buildImageSearchQueries(title);
+    let firstSearchResult: string | null = null; // best raw result — used as last-resort fallback
+
     for (const q of searchQueries) {
-        console.log(`>>> [ImgCheck] Trying image search query: "${q}"`);
-        const searched = await searchImage(q);
-        if (searched && await isPhotoSuitable(searched, title)) return searched;
+        console.log(`>>> [ImgCheck] Query: "${q}"`);
+        const allUrls = await fetchAllImageUrls(q);
+        if (allUrls.length > 0 && !firstSearchResult) firstSearchResult = allUrls[0]; // save best as fallback
+        for (const url of allUrls) {
+            if (await isPhotoSuitable(url, title)) return url;
+        }
     }
 
-    // 3. Generate with Gemini — last resort only
-    console.log(">>> [ImgCheck] Search yielded no suitable photo — generating with Gemini...");
-    const generated = await generateHeroImage(title, excerpt, category);
-    if (generated) return generated;
+    // 3. Best search result even without quality check — real Google photo beats CGI generation
+    if (firstSearchResult) {
+        console.log(`>>> [ImgCheck] Quality checks failed — using best Google Image result as fallback (beats CGI): ${firstSearchResult.substring(0, 60)}...`);
+        return firstSearchResult;
+    }
 
-    // 4. Ultimate fallback
-    console.log(">>> [ImgCheck] All options exhausted — using fallback placeholder");
+    // 4. Generate with Gemini — only if Google Images returned NOTHING AT ALL
+    console.log(">>> [ImgCheck] Google returned zero results — generating with Gemini...");
+    const generated = await generateHeroImage(title, excerpt, category);
+    if (generated) {
+        // Validate the generated image — if it's still CGI, skip it
+        const generatedOk = await isPhotoSuitable(generated, title);
+        if (generatedOk) return generated;
+        console.log(">>> [ImgCheck] Generated image failed quality check — using safe placeholder");
+    }
+
+    // 5. Safe placeholder (Unsplash — always a real photograph)
+    console.log(">>> [ImgCheck] Using safe Unsplash placeholder");
     return fallbackUrl;
 }
 
