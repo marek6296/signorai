@@ -106,7 +106,9 @@ export default async function ArticlePage({ params, searchParams }: Props) {
 
     const recentArticles = await getRecentArticles(article.id);
     const relatedArticles = await getRelatedArticlesByCategory(article.category, article.id, 3);
-    const publishDate = format(parseISO(article.published_at), "d. MMMM yyyy, HH:mm", { locale: sk });
+    const publishDate = article.published_at
+        ? format(parseISO(article.published_at), "d. MMMM yyyy, HH:mm", { locale: sk })
+        : "";
 
     const baseUrl = "https://aiwai.news";
     const categorySlug = Object.entries(CATEGORY_MAP).find(([, name]) => name === article.category)?.[0] ?? "novinky";
@@ -231,6 +233,7 @@ export default async function ArticlePage({ params, searchParams }: Props) {
                     {/* Banner 2 — po obsahu, pred zdrojmi (native) */}
                     <AdBanner type="native" label />
 
+                    {article.source_url && (
                     <div className="mt-12 pt-8 border-t">
                         <div className="flex flex-col gap-4">
                             <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Zdroje informácií</span>
@@ -262,6 +265,7 @@ export default async function ArticlePage({ params, searchParams }: Props) {
                             </div>
                         </div>
                     </div>
+                    )}
 
                     <div className="mt-12 pt-8 border-t">
                         <Comments articleId={article.id} />
