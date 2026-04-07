@@ -80,70 +80,40 @@ export async function publishToFacebook(message: string, link?: string, imageUrl
     const pageToken = await getPageAccessToken(FB_PAGE_ID, META_ACCESS_TOKEN);
     console.log(`[Meta API] Posting to Facebook Page ${FB_PAGE_ID} | Article URL: ${link}`);
 
-    if (imageUrl) {
-        // ── Publish photo post directly to page timeline ──────────────────────────
-        //
-        // Using published:true on /photos creates a post that appears in BOTH
-        // the page's Photos section AND the main timeline (All tab) — visible
-        // to all followers. The 2-step approach (unpublished + attached_media)
-        // only shows in Photos, not in the main timeline for non-admins.
-        //
-        // URL is appended to the caption since link + photo = not supported.
-        const fullMessage = link ? `${message}\n\n${link}` : message;
+    // ── Link post to page feed ────────────────────────────────────────────────
+    //
+    // IMPORTANT: Photo posts (via /photos endpoint) only appear in the "Photos"
+    // tab on Facebook mobile, NOT in the main "All" timeline tab. Only link posts
+    // (/{pageId}/feed with `link` param) appear in the "All" tab visible to everyone.
+    //
+    // Facebook auto-fetches the article's og:image for the preview card.
+    // The `message` contains the branded caption text only (no URL — link param handles it).
+    //
+    // imageUrl is no longer used for Facebook feed posts — FB scrapes og:image from the link.
 
-        console.log(`[Meta API] FB: publishing photo post to page timeline...`);
-        const photoParams = new URLSearchParams({
-            url: imageUrl,
-            caption: fullMessage,
-            published: 'true',
-            access_token: pageToken,
-        });
+    const params: Record<string, string> = {
+        message,
+        access_token: pageToken,
+    };
+    if (link) params.link = link;
 
-        let lastError: string | null = null;
-        for (let attempt = 1; attempt <= 2; attempt++) {
-            const photoRes = await fetch(
-                `https://graph.facebook.com/v22.0/${FB_PAGE_ID}/photos`,
-                { method: "POST", body: photoParams }
-            );
-            const photoData = await photoRes.json();
-            if (photoRes.ok) {
-                console.log(`[Meta API] ✅ FB photo post id: ${photoData.id} | post_id: ${photoData.post_id}`);
-                return { id: photoData.post_id || photoData.id, post_id: photoData.post_id || photoData.id };
-            }
-            lastError = photoData.error?.message || "Failed to publish photo to Facebook";
-            console.error(`[Meta API] ❌ FB photo attempt ${attempt} failed (code ${photoData.error?.code}): ${lastError}`);
-            if (attempt < 2) await new Promise(r => setTimeout(r, 2000));
+    console.log(`[Meta API] FB: publishing link post to page feed (link: ${link})...`);
+    let lastError: string | null = null;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+        const response = await fetch(
+            `https://graph.facebook.com/v22.0/${FB_PAGE_ID}/feed`,
+            { method: "POST", body: new URLSearchParams(params) }
+        );
+        const data = await response.json();
+        if (response.ok) {
+            console.log(`[Meta API] ✅ FB link post id: ${data.id}`);
+            return { id: data.id, post_id: data.id };
         }
-        throw new Error(lastError || "Failed to publish photo to Facebook");
-
-    } else {
-        // ── Text / link-only post ─────────────────────────────────────────────────
-        // `link` param creates a proper link-preview card (og:image, title, description).
-        // Message text must NOT contain the URL — it goes only in `link`.
-        const params: Record<string, string> = {
-            message,
-            access_token: pageToken,
-        };
-        if (link) params.link = link;
-
-        console.log(`[Meta API] Publishing to Facebook (text/link post)...`);
-        let lastError: string | null = null;
-        for (let attempt = 1; attempt <= 2; attempt++) {
-            const response = await fetch(
-                `https://graph.facebook.com/v22.0/${FB_PAGE_ID}/feed`,
-                { method: "POST", body: new URLSearchParams(params) }
-            );
-            const data = await response.json();
-            if (response.ok) {
-                console.log(`[Meta API] ✅ Facebook text/link post id: ${data.id}`);
-                return data;
-            }
-            lastError = data.error?.message || "Failed to post to Facebook";
-            console.error(`[Meta API] ❌ FB attempt ${attempt} failed (code ${data.error?.code}): ${lastError}`);
-            if (attempt < 2) await new Promise(r => setTimeout(r, 2000));
-        }
-        throw new Error(lastError || "Failed to post to Facebook");
+        lastError = data.error?.message || "Failed to post to Facebook";
+        console.error(`[Meta API] ❌ FB attempt ${attempt} failed (code ${data.error?.code}): ${lastError}`);
+        if (attempt < 2) await new Promise(r => setTimeout(r, 2000));
     }
+    throw new Error(lastError || "Failed to post to Facebook");
 }
 
 export async function publishToInstagram(imageUrl: string, caption: string) {
