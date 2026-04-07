@@ -6,6 +6,7 @@ import { SocialPromo } from "@/components/SocialPromo";
 import { LoadMoreGrid } from "@/components/LoadMoreGrid";
 import { AppPromo } from "@/components/AppPromo";
 import { TrendingSection } from "@/components/TrendingSection";
+import { AdBlock } from "@/components/AdBlock";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
