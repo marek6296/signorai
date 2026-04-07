@@ -317,11 +317,15 @@ function buildImageSearchQueries(title: string): string[] {
 }
 
 // ── Image suitability check via GPT-4o mini vision ───────────────────────────
-// Returns false when the image is a UI screenshot, presentation slide,
-// app mockup, diagram, or any graphic with heavy text overlay.
-async function isPhotoSuitable(imageUrl: string): Promise<boolean> {
+// Returns false when the image is not a real photograph, is irrelevant to the
+// article topic, or is a UI screenshot / CGI / abstract visualization.
+async function isPhotoSuitable(imageUrl: string, articleTitle?: string): Promise<boolean> {
     if (!imageUrl || !imageUrl.startsWith('http')) return false;
     try {
+        const topicClause = articleTitle
+            ? `\n\nThe article is about: "${articleTitle}"\nAlso answer NO if the image is clearly unrelated to this topic (e.g. a newspaper from a different country, random street sign, completely off-topic scene).`
+            : "";
+
         const res = await getOpenAIClient().chat.completions.create({
             model: "gpt-4o-mini",
             max_tokens: 5,
@@ -331,7 +335,20 @@ async function isPhotoSuitable(imageUrl: string): Promise<boolean> {
                     { type: "image_url", image_url: { url: imageUrl, detail: "low" } },
                     {
                         type: "text",
-                        text: "Is this image a real-world photograph (taken by a camera) suitable as a news website article header? Answer only YES or NO.\n\nAnswer NO if it is ANY of these:\n- UI screenshot, app mockup, screen recording\n- Presentation slide, marketing slide, infographic, diagram, chart\n- 3D render, CGI image, computer-generated art\n- Digital illustration, digital painting, vector art\n- Abstract concept visualization (e.g. glowing orbs, neon lights, energy waves, particle effects, floating data, sci-fi environments)\n- Stock illustration or clip art\n- Any image that is clearly NOT a real photograph of the real world\n\nAnswer YES only if this is a genuine real-world photograph: people, buildings, offices, products, events, nature, etc."
+                        text: `Is this image a real-world photograph suitable as a news article header image? Answer only YES or NO.
+
+Answer NO if it is ANY of these:
+- UI screenshot, app mockup, screen recording
+- Presentation slide, marketing slide, infographic, diagram, chart
+- 3D render, CGI image, computer-generated art
+- Digital illustration, digital painting, vector art
+- Abstract concept visualization (glowing orbs, neon lights, energy waves, particle effects, sci-fi environments)
+- Stock illustration or clip art
+- Newspaper/magazine front page or printed text close-up
+- Any image dominated by large text, headlines or logos unrelated to the topic
+- Any image that is clearly NOT a real photograph of the real world${topicClause}
+
+Answer YES only if this is a genuine real-world photograph relevant to the topic: people, buildings, offices, products, events, etc.`
                     }
                 ]
             }]
@@ -342,7 +359,7 @@ async function isPhotoSuitable(imageUrl: string): Promise<boolean> {
         return ok;
     } catch (e) {
         console.warn(">>> [ImgCheck] Vision check failed (non-fatal, assuming suitable):", e);
-        return true; // fail open — don't block article generation
+        return true;
     }
 }
 
@@ -417,7 +434,7 @@ async function resolveSuitableMainImage(
     // 1. Check each scraped candidate
     for (const candidate of candidates) {
         if (!candidate || !candidate.startsWith('http')) continue;
-        if (await isPhotoSuitable(candidate)) return candidate;
+        if (await isPhotoSuitable(candidate, title)) return candidate;
     }
 
     // 2. Try image search — multiple smart queries before giving up
@@ -426,7 +443,7 @@ async function resolveSuitableMainImage(
     for (const q of searchQueries) {
         console.log(`>>> [ImgCheck] Trying image search query: "${q}"`);
         const searched = await searchImage(q);
-        if (searched && await isPhotoSuitable(searched)) return searched;
+        if (searched && await isPhotoSuitable(searched, title)) return searched;
     }
 
     // 3. Generate with Gemini — last resort only
