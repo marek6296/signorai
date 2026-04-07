@@ -5,16 +5,14 @@ import { useUser } from "@/contexts/UserContext";
 
 // ── ONLY standard banner formats ──
 // Native / Direct-Link / Pop-under formats are intentionally excluded.
-// Standard Adsterra banner invoke.js renders an <ins> element — it does NOT
-// add document-level click listeners, so no pop-unders or forced redirects.
 
 type AdType = "468x60" | "300x250";
 
 interface AdBannerProps {
     type?: AdType;
     label?: boolean;
-    onAdLoaded?: () => void;   // fires when the ad script loads successfully
-    onAdFailed?: () => void;   // fires when the ad script fails / times out
+    onAdLoaded?: () => void;
+    onAdFailed?: () => void;
 }
 
 const AD_CONFIGS: Record<AdType, { key: string; width: number; height: number; src: string }> = {
@@ -63,25 +61,52 @@ export function AdBanner({ type = "468x60", label = false, onAdLoaded, onAdFaile
         `;
         container.appendChild(optionsScript);
 
-        // Load the invoke script — show banner only on successful load
+        // Load the invoke script
         const invokeScript = document.createElement("script");
         invokeScript.type = "text/javascript";
         invokeScript.src = config.src;
         invokeScript.async = true;
 
+        // After script loads, check if actual ad content rendered
+        const checkAdRendered = () => {
+            if (!container) return false;
+            // Adsterra renders an iframe or ins element when ad is available
+            const hasIframe = container.querySelector("iframe");
+            const hasIns = container.querySelector("ins");
+            const hasContent = container.offsetHeight > 10;
+            return !!(hasIframe || hasIns || hasContent);
+        };
+
         invokeScript.onload = () => {
-            setVisible(true);
-            onAdLoaded?.();
+            // Wait a moment for the ad to actually render content
+            let checks = 0;
+            const interval = setInterval(() => {
+                checks++;
+                if (checkAdRendered()) {
+                    clearInterval(interval);
+                    setVisible(true);
+                    onAdLoaded?.();
+                } else if (checks >= 10) {
+                    // After 5 seconds (10 x 500ms), ad didn't render — treat as failed
+                    clearInterval(interval);
+                    setVisible(false);
+                    onAdFailed?.();
+                }
+            }, 500);
         };
 
         invokeScript.onerror = () => {
+            setVisible(false);
             onAdFailed?.();
         };
 
-        // Fallback: if script neither loads nor errors in 5s, treat as failed
+        // Fallback: if script neither loads nor errors in 8s, treat as failed
         const timeout = setTimeout(() => {
-            if (!visible) onAdFailed?.();
-        }, 5000);
+            if (!visible) {
+                setVisible(false);
+                onAdFailed?.();
+            }
+        }, 8000);
 
         container.appendChild(invokeScript);
 
@@ -93,7 +118,6 @@ export function AdBanner({ type = "468x60", label = false, onAdLoaded, onAdFaile
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user, loading]);
 
-    // Logged-in users and loading state → no ads
     if (user || loading) return null;
     if (!config) return null;
 

@@ -93,85 +93,200 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href="https://aiwai.news" />
         <link rel="dns-prefetch" href="https://aiwai.news" />
-        {/* Anti-popup/overlay blocker — blocks fullscreen ads injected by ad networks */}
+        {/* Anti-popup/overlay/redirect blocker — aggressive mobile + desktop protection */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
               (function(){
-                // Block window.open popups
+                var ORIGIN = location.origin;
+                var SAFE_HOSTS = ['aiwai.news', 'www.aiwai.news'];
+
+                function isSafe(url) {
+                  if (!url) return true;
+                  try {
+                    var u = new URL(url, location.href);
+                    return SAFE_HOSTS.indexOf(u.hostname) !== -1 || u.origin === ORIGIN;
+                  } catch(e) { return false; }
+                }
+
+                // 1. Block window.open popups from ad scripts
                 var origOpen = window.open;
-                window.open = function(url, name, features) {
-                  // Allow only same-origin or explicitly user-triggered popups
-                  if (url && typeof url === 'string') {
-                    try {
-                      var u = new URL(url, location.href);
-                      if (u.origin === location.origin) return origOpen.call(window, url, name, features);
-                    } catch(e) {}
-                  }
+                window.open = function(url) {
+                  if (isSafe(url)) return origOpen.apply(window, arguments);
                   console.warn('[AIWai] Blocked popup:', url);
                   return null;
                 };
 
-                // Observe DOM for injected fullscreen overlays / interstitials
+                // 2. Protect location from redirects by ad scripts
+                var origLocation = location.href;
+                var locationLocked = false;
+
+                // Lock location after page loads — any redirect after that is suspicious
+                window.addEventListener('load', function() {
+                  origLocation = location.href;
+                  locationLocked = true;
+                });
+
+                // Intercept location.assign and location.replace
+                var origAssign = location.assign.bind(location);
+                var origReplace = location.replace.bind(location);
+
+                Object.defineProperty(window, 'locationAssign', { value: origAssign });
+                Object.defineProperty(window, 'locationReplace', { value: origReplace });
+
+                try {
+                  location.assign = function(url) {
+                    if (isSafe(url)) return origAssign(url);
+                    console.warn('[AIWai] Blocked redirect (assign):', url);
+                  };
+                  location.replace = function(url) {
+                    if (isSafe(url)) return origReplace(url);
+                    console.warn('[AIWai] Blocked redirect (replace):', url);
+                  };
+                } catch(e) {}
+
+                // 3. Block click hijacking — ad scripts add invisible overlays or document click listeners
+                // that redirect on ANY tap (especially on mobile)
+                document.addEventListener('click', function(e) {
+                  var target = e.target;
+                  if (!target || !target.closest) return;
+
+                  // Allow clicks on real links and buttons within our app
+                  var link = target.closest('a[href]');
+                  if (link) {
+                    var href = link.getAttribute('href') || '';
+                    // Block external links injected by ad scripts (not in article content)
+                    if (href.startsWith('http') && !isSafe(href)) {
+                      var isInContent = link.closest('.prose, [data-aiwai], nav, footer, header');
+                      if (!isInContent) {
+                        e.preventDefault();
+                        e.stopImmediatePropagation();
+                        console.warn('[AIWai] Blocked hijacked link:', href);
+                        return false;
+                      }
+                    }
+                    return;
+                  }
+
+                  // Block clicks on invisible/transparent overlays (ad redirect trick)
+                  if (target.tagName === 'DIV' || target.tagName === 'SPAN' || target.tagName === 'A') {
+                    var style = window.getComputedStyle(target);
+                    var opacity = parseFloat(style.opacity || '1');
+                    var zIndex = parseInt(style.zIndex || '0', 10);
+                    if ((opacity < 0.1 || style.pointerEvents === 'all') && zIndex > 999) {
+                      e.preventDefault();
+                      e.stopImmediatePropagation();
+                      target.remove();
+                      console.warn('[AIWai] Removed invisible click overlay');
+                      return false;
+                    }
+                  }
+                }, true);
+
+                // 4. DOM observer — remove fullscreen overlays, suspicious iframes, and ad scripts
+                var blockedScriptPatterns = [
+                  'popunder', 'popnew', 'directlink', 'social-bar',
+                  'profitablegatecpm', 'profitablecpmratenetwork',
+                  'vfrfrrf', 'surfrfrfr', 'removeatag', 'syndication',
+                  'clickunder', 'pushno', 'notifpush', 'pushnot'
+                ];
+
                 var observer = new MutationObserver(function(mutations) {
-                  mutations.forEach(function(m) {
-                    m.addedNodes.forEach(function(node) {
-                      if (node.nodeType !== 1) return;
-                      var el = node;
-                      var style = el.style || {};
-                      var computed = window.getComputedStyle ? window.getComputedStyle(el) : {};
-                      var pos = style.position || computed.position || '';
-                      var zIndex = parseInt(style.zIndex || computed.zIndex || '0', 10);
-                      var w = parseInt(style.width || computed.width || '0', 10);
-                      var h = parseInt(style.height || computed.height || '0', 10);
+                  for (var i = 0; i < mutations.length; i++) {
+                    var nodes = mutations[i].addedNodes;
+                    for (var j = 0; j < nodes.length; j++) {
+                      var el = nodes[j];
+                      if (el.nodeType !== 1) continue;
 
-                      // Detect fullscreen overlays: fixed/absolute + high z-index + large size
-                      if ((pos === 'fixed' || pos === 'absolute') && zIndex > 9000 && w > window.innerWidth * 0.7 && h > window.innerHeight * 0.7) {
-                        // Check it's not our own UI (navbar, chatbot, etc.)
-                        if (!el.closest('[data-aiwai]') && !el.id?.startsWith('aiwai')) {
-                          console.warn('[AIWai] Blocked overlay ad:', el);
+                      // Remove fullscreen overlays
+                      var s = el.style || {};
+                      var cs = window.getComputedStyle ? window.getComputedStyle(el) : {};
+                      var pos = s.position || cs.position || '';
+                      var z = parseInt(s.zIndex || cs.zIndex || '0', 10);
+
+                      if ((pos === 'fixed' || pos === 'absolute') && z > 999) {
+                        var rect = el.getBoundingClientRect ? el.getBoundingClientRect() : {};
+                        var isLarge = (rect.width > window.innerWidth * 0.5 && rect.height > window.innerHeight * 0.5);
+                        var isOurs = el.closest && (el.closest('[data-aiwai]') || el.closest('nav') || el.closest('header'));
+                        if (isLarge && !isOurs && !(el.id && el.id.startsWith('aiwai'))) {
+                          console.warn('[AIWai] Removed overlay:', el.tagName, el.className);
                           el.remove();
+                          continue;
                         }
                       }
 
-                      // Also catch iframes injected at body level with high z-index
-                      if (el.tagName === 'IFRAME' && zIndex > 9000) {
-                        var src = el.src || '';
-                        if (src && !src.includes('aiwai.news')) {
-                          console.warn('[AIWai] Blocked iframe overlay:', src);
-                          el.remove();
+                      // Remove suspicious iframes
+                      if (el.tagName === 'IFRAME') {
+                        var src = (el.src || '').toLowerCase();
+                        if (z > 999 || (src && !src.includes('aiwai.news') && !src.includes('highperformanceformat'))) {
+                          // Allow iframes inside our ad containers
+                          var inAdContainer = el.closest && el.closest('[class*="AdBanner"], [class*="ad-"]');
+                          if (!inAdContainer && z > 999) {
+                            console.warn('[AIWai] Removed iframe:', src);
+                            el.remove();
+                            continue;
+                          }
                         }
                       }
 
-                      // Block any script that tries to add click listeners to the whole document for redirects
+                      // Block known malicious scripts
                       if (el.tagName === 'SCRIPT' && el.src) {
                         var scriptSrc = el.src.toLowerCase();
-                        // Block known popup/popunder/direct-link ad scripts
-                        if (scriptSrc.includes('popunder') || scriptSrc.includes('popnew') ||
-                            scriptSrc.includes('directlink') || scriptSrc.includes('social-bar') ||
-                            scriptSrc.includes('profitablegatecpm') || scriptSrc.includes('profitablecpmratenetwork') ||
-                            scriptSrc.includes('vfrfrrf') ||
-                            scriptSrc.includes('surfrfrfr') || scriptSrc.includes('removeatag')) {
-                          console.warn('[AIWai] Blocked ad script:', el.src);
-                          el.remove();
+                        for (var k = 0; k < blockedScriptPatterns.length; k++) {
+                          if (scriptSrc.includes(blockedScriptPatterns[k])) {
+                            console.warn('[AIWai] Blocked script:', el.src);
+                            el.remove();
+                            break;
+                          }
                         }
                       }
-                    });
-                  });
+
+                      // Remove injected <a> tags that cover the whole page (mobile redirect trick)
+                      if (el.tagName === 'A') {
+                        var aStyle = window.getComputedStyle ? window.getComputedStyle(el) : {};
+                        var aPos = el.style.position || aStyle.position || '';
+                        if ((aPos === 'fixed' || aPos === 'absolute') && parseInt(el.style.zIndex || aStyle.zIndex || '0', 10) > 99) {
+                          var aRect = el.getBoundingClientRect ? el.getBoundingClientRect() : {};
+                          if (aRect.width > window.innerWidth * 0.5 && aRect.height > window.innerHeight * 0.3) {
+                            console.warn('[AIWai] Removed fullscreen link overlay:', el.href);
+                            el.remove();
+                            continue;
+                          }
+                        }
+                      }
+                    }
+                  }
                 });
                 observer.observe(document.documentElement, { childList: true, subtree: true });
 
-                // Block document-level click hijacking (used by popunder ads)
-                document.addEventListener('click', function(e) {
-                  // If a click would navigate away from our site, block it
-                  // (unless the user clicked an actual <a> tag)
-                  var target = e.target;
-                  var isLink = target.closest && target.closest('a[href]');
-                  if (!isLink) {
-                    // Check if any scripts added a document-level handler that redirects
-                    // We can't fully prevent this, but we can stop propagation on suspicious cases
+                // 5. Block meta refresh redirects
+                var metaObserver = new MutationObserver(function(mutations) {
+                  var metas = document.querySelectorAll('meta[http-equiv="refresh"]');
+                  for (var i = 0; i < metas.length; i++) {
+                    var content = metas[i].getAttribute('content') || '';
+                    if (content.toLowerCase().includes('url=') && !isSafe(content.split('url=')[1])) {
+                      console.warn('[AIWai] Blocked meta refresh redirect');
+                      metas[i].remove();
+                    }
                   }
-                }, true);
+                });
+                metaObserver.observe(document.head || document.documentElement, { childList: true, subtree: true });
+
+                // 6. Periodic cleanup — catch things the observer might miss
+                setInterval(function() {
+                  // Remove any fullscreen fixed elements that aren't ours
+                  var all = document.querySelectorAll('[style*="position: fixed"], [style*="position:fixed"]');
+                  for (var i = 0; i < all.length; i++) {
+                    var el = all[i];
+                    var z = parseInt(el.style.zIndex || '0', 10);
+                    if (z > 9000) {
+                      var isOurs = el.closest && (el.closest('[data-aiwai]') || el.closest('nav') || el.closest('header'));
+                      if (!isOurs && !(el.id && el.id.startsWith('aiwai'))) {
+                        el.remove();
+                      }
+                    }
+                  }
+                }, 2000);
               })();
             `,
           }}
@@ -248,11 +363,11 @@ export default function RootLayout({
           />
           <UserProvider>
             <AnalyticsTracker />
-            <ScrollToTop />
+            <div data-aiwai="scroll-top"><ScrollToTop /></div>
             <Navbar />
             <main className="flex-grow flex flex-col">{children}</main>
             <Footer />
-            <ChatbotWidget />
+            <div data-aiwai="chatbot"><ChatbotWidget /></div>
           </UserProvider>
         </ThemeProvider>
       </body>

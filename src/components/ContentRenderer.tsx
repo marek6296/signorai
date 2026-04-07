@@ -16,16 +16,15 @@ interface ContentRendererProps {
  *
  * Pravidlá pre reklamy:
  * - Max 2 Adsterra bannery v článku
- * - Žiadna reklama na začiatku článku (prvých 30% obsahu)
- * - Reklamy nie sú vedľa seba (min 3 odseky medzi nimi)
- * - 1. banner po ~40% obsahu (468x60)
- * - 2. banner po ~75% obsahu (300x250)
- * - InContentAd (odporúčaný článok) sa vkladá po ~55% obsahu
+ * - Žiadna reklama na začiatku článku (prvé 2 odseky)
+ * - Reklamy nie sú vedľa seba (min 2 odseky medzi nimi)
+ * - 1. banner po ~35% obsahu (468x60)
+ * - 2. banner po ~70% obsahu (300x250)
+ * - InContentAd (odporúčaný článok) sa vkladá medzi ne (~50%)
  */
 export function ContentRenderer({ content, relatedArticles, showAds = false }: ContentRendererProps) {
     if (!content) return null;
 
-    // Split content into paragraphs
     const paragraphs = content.split('</p>');
     const cleanParagraphs = paragraphs
         .map(p => p.trim())
@@ -34,23 +33,42 @@ export function ContentRenderer({ content, relatedArticles, showAds = false }: C
 
     const totalParagraphs = cleanParagraphs.length;
 
-    // For short articles (< 6 paragraphs), don't inject any ads
-    if (totalParagraphs < 6 || !showAds) {
-        const hasRelated = relatedArticles.length > 0 && totalParagraphs >= 3;
+    // No ads at all if showAds is off
+    if (!showAds) {
+        return (
+            <div
+                className="prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-primary hover:prose-a:text-primary/80"
+                dangerouslySetInnerHTML={{ __html: content }}
+            />
+        );
+    }
 
-        if (!hasRelated) {
+    // Very short articles (< 4 paragraphs) — no ads, maybe related article
+    if (totalParagraphs < 4) {
+        if (relatedArticles.length > 0) {
             return (
-                <div
-                    className="prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-primary hover:prose-a:text-primary/80"
-                    dangerouslySetInnerHTML={{ __html: content }}
-                />
+                <div className="flex flex-col">
+                    <div
+                        className="prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-primary hover:prose-a:text-primary/80"
+                        dangerouslySetInnerHTML={{ __html: content }}
+                    />
+                    <InContentAd articles={relatedArticles} />
+                </div>
             );
         }
+        return (
+            <div
+                className="prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-primary hover:prose-a:text-primary/80"
+                dangerouslySetInnerHTML={{ __html: content }}
+            />
+        );
+    }
 
-        // Only inject InContentAd for short articles
-        const midPoint = Math.floor(totalParagraphs / 2);
-        const before = cleanParagraphs.slice(0, midPoint).join('');
-        const after = cleanParagraphs.slice(midPoint).join('');
+    // Short articles (4-5 paragraphs) — 1 ad + related
+    if (totalParagraphs < 6) {
+        const adIndex = Math.max(2, Math.floor(totalParagraphs * 0.5));
+        const before = cleanParagraphs.slice(0, adIndex).join('');
+        const after = cleanParagraphs.slice(adIndex).join('');
 
         return (
             <div className="flex flex-col">
@@ -58,7 +76,10 @@ export function ContentRenderer({ content, relatedArticles, showAds = false }: C
                     className="prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-primary hover:prose-a:text-primary/80"
                     dangerouslySetInnerHTML={{ __html: before }}
                 />
-                <InContentAd articles={relatedArticles} />
+                <div className="my-6 flex justify-center">
+                    <AdBanner type="468x60" label />
+                </div>
+                {relatedArticles.length > 0 && <InContentAd articles={relatedArticles} />}
                 <div
                     className="prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-primary hover:prose-a:text-primary/80"
                     dangerouslySetInnerHTML={{ __html: after }}
@@ -67,26 +88,24 @@ export function ContentRenderer({ content, relatedArticles, showAds = false }: C
         );
     }
 
-    // For longer articles, calculate injection points
-    // Ad 1: after ~40% of content (min paragraph 3)
-    const ad1Index = Math.max(3, Math.floor(totalParagraphs * 0.4));
+    // Medium-long articles (6+ paragraphs) — 2 ads + related
+    // Ad 1: after ~35% of content (min paragraph 2)
+    const ad1Index = Math.max(2, Math.floor(totalParagraphs * 0.35));
 
-    // InContentAd (related article recommendation): after ~55%
-    const relatedIndex = Math.max(ad1Index + 3, Math.floor(totalParagraphs * 0.55));
+    // InContentAd (related article): after ~50%
+    const relatedIndex = Math.max(ad1Index + 2, Math.floor(totalParagraphs * 0.5));
 
-    // Ad 2: after ~75% of content (at least 3 paragraphs after related)
-    const ad2Index = Math.max(relatedIndex + 3, Math.floor(totalParagraphs * 0.75));
+    // Ad 2: after ~70% of content (at least 2 paragraphs after related)
+    const ad2Index = Math.max(relatedIndex + 2, Math.floor(totalParagraphs * 0.7));
 
-    // Build content sections
     const sections: React.ReactNode[] = [];
 
     // Section 1: Start to Ad1
-    const section1 = cleanParagraphs.slice(0, ad1Index).join('');
     sections.push(
         <div
             key="s1"
             className="prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-primary hover:prose-a:text-primary/80"
-            dangerouslySetInnerHTML={{ __html: section1 }}
+            dangerouslySetInnerHTML={{ __html: cleanParagraphs.slice(0, ad1Index).join('') }}
         />
     );
 
@@ -97,104 +116,58 @@ export function ContentRenderer({ content, relatedArticles, showAds = false }: C
         </div>
     );
 
-    // Section 2: Ad1 to Related/Ad2
+    // Section 2: Ad1 to Related
     if (relatedArticles.length > 0 && relatedIndex < totalParagraphs) {
-        const section2 = cleanParagraphs.slice(ad1Index, relatedIndex).join('');
         sections.push(
             <div
                 key="s2"
                 className="prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-primary hover:prose-a:text-primary/80"
-                dangerouslySetInnerHTML={{ __html: section2 }}
+                dangerouslySetInnerHTML={{ __html: cleanParagraphs.slice(ad1Index, relatedIndex).join('') }}
             />
         );
-
-        // InContentAd (related article recommendation)
         sections.push(<InContentAd key="related" articles={relatedArticles} />);
-
-        // Section 3: Related to Ad2
-        if (ad2Index < totalParagraphs) {
-            const section3 = cleanParagraphs.slice(relatedIndex, ad2Index).join('');
-            sections.push(
-                <div
-                    key="s3"
-                    className="prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-primary hover:prose-a:text-primary/80"
-                    dangerouslySetInnerHTML={{ __html: section3 }}
-                />
-            );
-
-            // Ad 2 — 300x250 banner
-            sections.push(
-                <div key="ad2" className="my-6 flex justify-center">
-                    <AdBanner type="300x250" label />
-                </div>
-            );
-
-            // Section 4: After Ad2 to end
-            const section4 = cleanParagraphs.slice(ad2Index).join('');
-            if (section4.trim()) {
-                sections.push(
-                    <div
-                        key="s4"
-                        className="prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-primary hover:prose-a:text-primary/80"
-                        dangerouslySetInnerHTML={{ __html: section4 }}
-                    />
-                );
-            }
-        } else {
-            // Not enough paragraphs for Ad2, just finish with remaining content
-            const remaining = cleanParagraphs.slice(relatedIndex).join('');
-            if (remaining.trim()) {
-                sections.push(
-                    <div
-                        key="s3"
-                        className="prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-primary hover:prose-a:text-primary/80"
-                        dangerouslySetInnerHTML={{ __html: remaining }}
-                    />
-                );
-            }
-            // Ad 2 at the end
-            sections.push(
-                <div key="ad2" className="my-6 flex justify-center">
-                    <AdBanner type="300x250" label />
-                </div>
-            );
-        }
     } else {
-        // No related articles — just place ad2 later
-        const section2 = cleanParagraphs.slice(ad1Index, ad2Index < totalParagraphs ? ad2Index : totalParagraphs).join('');
+        // No related articles — content between ad1 and ad2
         sections.push(
             <div
                 key="s2"
                 className="prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-primary hover:prose-a:text-primary/80"
-                dangerouslySetInnerHTML={{ __html: section2 }}
+                dangerouslySetInnerHTML={{ __html: cleanParagraphs.slice(ad1Index, ad2Index).join('') }}
             />
         );
+    }
 
-        if (ad2Index < totalParagraphs) {
-            // Ad 2 — 300x250 banner
-            sections.push(
-                <div key="ad2" className="my-6 flex justify-center">
-                    <AdBanner type="300x250" label />
-                </div>
-            );
-            const remaining = cleanParagraphs.slice(ad2Index).join('');
-            if (remaining.trim()) {
-                sections.push(
-                    <div
-                        key="s3"
-                        className="prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-primary hover:prose-a:text-primary/80"
-                        dangerouslySetInnerHTML={{ __html: remaining }}
-                    />
-                );
-            }
-        } else {
-            // Ad 2 at the end
-            sections.push(
-                <div key="ad2" className="my-6 flex justify-center">
-                    <AdBanner type="300x250" label />
-                </div>
-            );
-        }
+    // Section 3 + Ad 2
+    const ad2Start = relatedArticles.length > 0 ? relatedIndex : ad2Index;
+
+    if (ad2Index < totalParagraphs && ad2Index > ad2Start) {
+        sections.push(
+            <div
+                key="s3"
+                className="prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-primary hover:prose-a:text-primary/80"
+                dangerouslySetInnerHTML={{ __html: cleanParagraphs.slice(ad2Start, ad2Index).join('') }}
+            />
+        );
+    }
+
+    // Ad 2 — 300x250 banner
+    sections.push(
+        <div key="ad2" className="my-6 flex justify-center">
+            <AdBanner type="300x250" label />
+        </div>
+    );
+
+    // Remaining content after Ad2
+    const remainingStart = Math.max(ad2Index, ad2Start);
+    const remaining = cleanParagraphs.slice(remainingStart).join('');
+    if (remaining.trim()) {
+        sections.push(
+            <div
+                key="s4"
+                className="prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-primary hover:prose-a:text-primary/80"
+                dangerouslySetInnerHTML={{ __html: remaining }}
+            />
+        );
     }
 
     return <div className="flex flex-col">{sections}</div>;
