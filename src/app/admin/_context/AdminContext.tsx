@@ -5,11 +5,20 @@ import { supabase } from "@/lib/supabase";
 // Emails that always get admin access (via Supabase login OR manual login)
 const ADMIN_EMAILS = ["cmelo.marek@gmail.com"];
 
+export type LoadingToastState = {
+  message: string;
+  subMessage?: string;
+  color?: string; // accent color e.g. "#60a5fa" (blue), "#f472b6" (pink), "#f59e0b" (amber)
+} | null;
+
 type AdminContextType = {
   isLoggedIn: boolean;
   isHydrated: boolean;
   login: (email: string, password: string) => string | null;
   logout: () => void;
+  loadingToast: LoadingToastState;
+  showLoading: (message: string, subMessage?: string, color?: string) => void;
+  hideLoading: () => void;
 };
 
 const AdminContext = createContext<AdminContextType | null>(null);
@@ -17,6 +26,12 @@ const AdminContext = createContext<AdminContextType | null>(null);
 export function AdminProvider({ children }: { children: ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
+  const [loadingToast, setLoadingToast] = useState<LoadingToastState>(null);
+
+  const showLoading = (message: string, subMessage?: string, color?: string) => {
+    setLoadingToast({ message, subMessage, color });
+  };
+  const hideLoading = () => setLoadingToast(null);
 
   useEffect(() => {
     const init = async () => {
@@ -77,7 +92,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AdminContext.Provider value={{ isLoggedIn, isHydrated, login, logout }}>
+    <AdminContext.Provider value={{ isLoggedIn, isHydrated, login, logout, loadingToast, showLoading, hideLoading }}>
       {children}
     </AdminContext.Provider>
   );

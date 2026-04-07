@@ -4,7 +4,63 @@ import { AdminProvider, useAdmin } from "@/app/admin/_context/AdminContext";
 import AdminSidebar from "@/app/admin/_components/AdminSidebar";
 import LoginPage from "@/app/admin/_components/LoginPage";
 import { ReactNode } from "react";
-import { Menu } from "lucide-react";
+import { Menu, Sparkles } from "lucide-react";
+
+function GlobalLoadingToast() {
+  const { loadingToast } = useAdmin();
+  if (!loadingToast) return null;
+  const color = loadingToast.color || "#60a5fa";
+  const colorDim = color + "30";
+  const colorBorder = color + "55";
+  return (
+    <div
+      className="fixed inset-x-0 top-0 z-[9999] flex justify-center pt-4"
+      style={{ pointerEvents: "none" }}
+    >
+      <div
+        className="rounded-2xl px-5 py-3.5 flex items-center gap-3.5"
+        style={{
+          background: "linear-gradient(145deg, #141414 0%, #0f0f0f 100%)",
+          border: `1px solid ${colorBorder}`,
+          boxShadow: `0 8px 40px rgba(0,0,0,0.8), 0 0 24px ${colorDim}`,
+          minWidth: 280, maxWidth: 440,
+          animation: "globalToastSlide 0.3s ease",
+        }}
+      >
+        <style>{`@keyframes globalToastSlide { from { opacity:0; transform:translateY(-14px); } to { opacity:1; transform:translateY(0); } }`}</style>
+        {/* Spinner */}
+        <div className="relative w-8 h-8 shrink-0">
+          <div className="absolute inset-0 rounded-full" style={{ border: "2px solid rgba(255,255,255,0.06)" }} />
+          <div
+            className="absolute inset-0 rounded-full animate-spin"
+            style={{ border: "2px solid transparent", borderTopColor: color, borderRightColor: colorDim }}
+          />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Sparkles className="w-3.5 h-3.5" style={{ color }} />
+          </div>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-white font-bold text-sm leading-tight">{loadingToast.message}</p>
+          {loadingToast.subMessage && (
+            <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>{loadingToast.subMessage}</p>
+          )}
+        </div>
+        {/* Animated progress bar */}
+        <div className="w-16 h-1 rounded-full overflow-hidden shrink-0" style={{ background: "rgba(255,255,255,0.06)" }}>
+          <div
+            className="h-full rounded-full"
+            style={{
+              width: "40%",
+              background: `linear-gradient(to right, ${color}, ${color}aa)`,
+              animation: "globalToastBar 1.4s ease-in-out infinite",
+            }}
+          />
+          <style>{`@keyframes globalToastBar { 0%{margin-left:0;width:35%} 50%{margin-left:55%;width:45%} 100%{margin-left:0;width:35%} }`}</style>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function AdminLayoutInner({ children }: { children: ReactNode }) {
   const { isLoggedIn, isHydrated } = useAdmin();
@@ -83,6 +139,9 @@ function AdminLayoutInner({ children }: { children: ReactNode }) {
         isOpen={isMobileOpen}
         onClose={() => setIsMobileOpen(false)}
       />
+
+      {/* ── Global loading toast — always on top ── */}
+      <GlobalLoadingToast />
 
       {/* ── Main content ── */}
       <main className="md:ml-[264px] min-h-screen pt-14 md:pt-0 overflow-x-hidden">

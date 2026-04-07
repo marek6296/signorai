@@ -230,8 +230,8 @@ export default async function ArticlePage({ params, searchParams }: Props) {
                         relatedArticles={relatedArticles}
                     />
 
-                    {/* Banner 2 — po obsahu, pred zdrojmi (native) */}
-                    <AdBanner type="native" label />
+                    {/* Banner 2 — po obsahu, pred zdrojmi */}
+                    <AdBanner type="300x250" label />
 
                     {article.source_url && (
                     <div className="mt-12 pt-8 border-t">

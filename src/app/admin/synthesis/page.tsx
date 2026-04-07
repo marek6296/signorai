@@ -5,12 +5,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Trash2, Plus, Sparkles, Check, Loader2, Globe } from "lucide-react";
 import { Article } from "@/lib/data";
+import { useAdmin } from "@/app/admin/_context/AdminContext";
 
 type Step = "input" | "research" | "synthesis" | "preview";
 
 function SynthesisStudioContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const { showLoading, hideLoading } = useAdmin();
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [step, setStep] = useState<Step>("input");
 
@@ -64,6 +66,7 @@ function SynthesisStudioContent() {
         setError("");
         setStep("research");
         setStatus("Sťahujem a analyzujem zdroje...");
+        showLoading("Synthesis Studio pracuje...", "Sťahujem a analyzujem zdroje");
 
         try {
             const res = await fetch("/api/admin/generate-article-multi", {
@@ -80,10 +83,12 @@ function SynthesisStudioContent() {
 
             setSynthesizedArticle(data.article);
             setStep("preview");
+            hideLoading();
         } catch (error: unknown) {
             console.error("Generate article error:", error);
             setError(error instanceof Error ? error.message : "Syntéza zlyhala");
             setStep("input");
+            hideLoading();
         }
     };
 

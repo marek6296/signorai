@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { useAdmin } from "@/app/admin/_context/AdminContext";
 import {
   Zap, Search, PenTool, Link, Sparkles,
   Rocket, Megaphone, Filter, Hourglass, CheckCircle, Database,
@@ -467,6 +468,7 @@ function ModuleNode({mod,selected,connecting,onMouseDown,onPortOut,onPortIn,stat
 function BotLayoutPageInner(){
   const searchParams = useSearchParams();
   const editBotId = searchParams.get("botId");
+  const { showLoading, hideLoading } = useAdmin();
 
   // All bots from DB
   const [allBots, setAllBots] = useState<BotEntry[]>([]);
@@ -620,6 +622,7 @@ function BotLayoutPageInner(){
     setTestArticleId(null);
     setTerminalLog([]);
     setExecutionLog(modules.map(m => ({module: m.type, status: "pending" as const})));
+    showLoading("Bot beží...", botName, "#f59e0b");
 
     try {
       setTerminalLog([]);
@@ -644,14 +647,14 @@ function BotLayoutPageInner(){
 
       if(!response.ok) {
         setTestError({module: "unknown", message: "Failed to start test"});
-        setTestRunning(false);
+        setTestRunning(false); hideLoading();
         return;
       }
 
       const reader = response.body?.getReader();
       if(!reader) {
         setTestError({module: "unknown", message: "No response stream"});
-        setTestRunning(false);
+        setTestRunning(false); hideLoading();
         return;
       }
 
@@ -687,17 +690,17 @@ function BotLayoutPageInner(){
                   setTestArticleId(data.articleId || null);
                 } else if(data.status === "completed") {
                   setTestArticleId(data.articleId || null);
-                  setTestRunning(false);
+                  setTestRunning(false); hideLoading();
                   setCurrentExecutingModule(null);
                 } else if(data.status === "error") {
-                  setTestRunning(false);
+                  setTestRunning(false); hideLoading();
                   setCurrentExecutingModule(null);
                 }
               }
               // Error
               else if(data.type === "error") {
                 setTestError({module: "unknown", message: data.message});
-                setTestRunning(false);
+                setTestRunning(false); hideLoading();
               }
             } catch(e) {
               // Ignore parse errors
@@ -708,7 +711,7 @@ function BotLayoutPageInner(){
     } catch(err) {
       const msg = err instanceof Error ? err.message : String(err);
       setTestError({module: "unknown", message: msg});
-      setTestRunning(false);
+      setTestRunning(false); hideLoading();
     }
   }
 

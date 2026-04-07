@@ -113,8 +113,8 @@ export default async function Home() {
         </section>
       </div>
 
-      {/* Adsterra Native Banner */}
-      <AdBanner />
+      {/* Adsterra Banner */}
+      <AdBanner type="468x60" />
 
       {/* Grid feed for all remaining mixed articles */}
       {remainingArticles.length > 0 && (
