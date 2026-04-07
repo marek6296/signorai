@@ -81,57 +81,40 @@ export async function publishToFacebook(message: string, link?: string, imageUrl
     console.log(`[Meta API] Posting to Facebook Page ${FB_PAGE_ID} | Article URL: ${link}`);
 
     if (imageUrl) {
-        // ── Two-step: upload unpublished photo → create feed post with attached_media ──
+        // ── Publish photo post directly to page timeline ──────────────────────────
         //
-        // IMPORTANT: `attached_media` and `link` are mutually exclusive in Graph API.
-        // Using both causes unexpected behaviour. URL goes in the message text instead.
+        // Using published:true on /photos creates a post that appears in BOTH
+        // the page's Photos section AND the main timeline (All tab) — visible
+        // to all followers. The 2-step approach (unpublished + attached_media)
+        // only shows in Photos, not in the main timeline for non-admins.
+        //
+        // URL is appended to the caption since link + photo = not supported.
+        const fullMessage = link ? `${message}\n\n${link}` : message;
 
-        // Step 1: Upload photo as unpublished to the Page's photo library
-        console.log(`[Meta API] FB step 1: uploading photo as unpublished...`);
+        console.log(`[Meta API] FB: publishing photo post to page timeline...`);
         const photoParams = new URLSearchParams({
             url: imageUrl,
-            published: 'false',
+            caption: fullMessage,
+            published: 'true',
             access_token: pageToken,
         });
-        const photoRes = await fetch(
-            `https://graph.facebook.com/v22.0/${FB_PAGE_ID}/photos`,
-            { method: "POST", body: photoParams }
-        );
-        const photoData = await photoRes.json();
-        if (!photoRes.ok) {
-            const e = photoData.error?.message || "Failed to upload photo";
-            console.error(`[Meta API] ❌ Photo upload failed: ${e}`, photoData);
-            throw new Error(e);
-        }
-        const photoId = photoData.id;
-        console.log(`[Meta API] FB step 1 ✅ unpublished photo id: ${photoId}`);
 
-        // Step 2: Publish feed post with the uploaded photo + URL in message text
-        // NOTE: Do NOT include `link` param when using `attached_media` (Graph API restriction)
-        const fullMessage = link ? `${message}\n\n${link}` : message;
-        const feedParams: Record<string, string> = {
-            message: fullMessage,
-            attached_media: JSON.stringify([{ media_fbid: photoId }]),
-            access_token: pageToken,
-        };
-
-        console.log(`[Meta API] FB step 2: publishing feed post with attached image...`);
         let lastError: string | null = null;
         for (let attempt = 1; attempt <= 2; attempt++) {
-            const feedRes = await fetch(
-                `https://graph.facebook.com/v22.0/${FB_PAGE_ID}/feed`,
-                { method: "POST", body: new URLSearchParams(feedParams) }
+            const photoRes = await fetch(
+                `https://graph.facebook.com/v22.0/${FB_PAGE_ID}/photos`,
+                { method: "POST", body: photoParams }
             );
-            const feedData = await feedRes.json();
-            if (feedRes.ok) {
-                console.log(`[Meta API] FB step 2 ✅ feed+image post id: ${feedData.id}`);
-                return { id: feedData.id, post_id: feedData.id };
+            const photoData = await photoRes.json();
+            if (photoRes.ok) {
+                console.log(`[Meta API] ✅ FB photo post id: ${photoData.id} | post_id: ${photoData.post_id}`);
+                return { id: photoData.post_id || photoData.id, post_id: photoData.post_id || photoData.id };
             }
-            lastError = feedData.error?.message || "Failed to create Facebook feed post";
-            console.error(`[Meta API] ❌ FB feed attempt ${attempt} failed (code ${feedData.error?.code}): ${lastError}`);
+            lastError = photoData.error?.message || "Failed to publish photo to Facebook";
+            console.error(`[Meta API] ❌ FB photo attempt ${attempt} failed (code ${photoData.error?.code}): ${lastError}`);
             if (attempt < 2) await new Promise(r => setTimeout(r, 2000));
         }
-        throw new Error(lastError || "Failed to create Facebook feed post");
+        throw new Error(lastError || "Failed to publish photo to Facebook");
 
     } else {
         // ── Text / link-only post ─────────────────────────────────────────────────
