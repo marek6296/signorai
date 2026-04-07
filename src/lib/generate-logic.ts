@@ -887,103 +887,165 @@ OUTPUT: 16:9 landscape, NO text overlays, NO watermarks, NO trademarked logos, N
     }
 }
 
+/** Lightweight meta-only scrape — og:image, published date, og:title */
+async function scrapeUrlMetadata(url: string): Promise<{ ogImage?: string; publishedDate?: string; title?: string }> {
+    try {
+        const response = await fetch(url, {
+            headers: {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Accept": "text/html",
+            },
+            signal: AbortSignal.timeout(8000),
+        });
+        if (!response.ok) return {};
+        const html = await response.text();
+        const doc = new JSDOM(html, { url });
+        const d = doc.window.document;
+        const ogImage = d.querySelector('meta[property="og:image"]')?.getAttribute('content') ?? undefined;
+        const publishedDate =
+            d.querySelector('meta[property="article:published_time"]')?.getAttribute('content') ??
+            d.querySelector('meta[property="og:article:published_time"]')?.getAttribute('content') ??
+            d.querySelector('meta[name="pubdate"]')?.getAttribute('content') ??
+            undefined;
+        const title =
+            d.querySelector('meta[property="og:title"]')?.getAttribute('content') ??
+            d.querySelector('title')?.textContent ??
+            undefined;
+        return { ogImage, publishedDate, title: title?.trim() };
+    } catch {
+        return {};
+    }
+}
+
+/** Build HTML sources section from a list of source objects */
+function buildSourcesSection(sources: { url: string; title: string }[]): string {
+    if (sources.length === 0) return "";
+    const items = sources
+        .filter(s => s.url && !s.url.includes('vertexaisearch') && !s.url.includes('grounding-api'))
+        .map(s => `<li><a href="${s.url}" target="_blank" rel="noopener noreferrer">${s.title || s.url}</a></li>`)
+        .join("\n");
+    if (!items) return "";
+    return `\n\n<section class="article-sources" style="margin-top:2rem;padding-top:1.5rem;border-top:1px solid rgba(255,255,255,0.1)"><h3>Zdroje</h3><ul>\n${items}\n</ul></section>`;
+}
+
 export async function processArticleFromTopic(userPrompt: string, targetStatus: 'draft' | 'published' = 'draft') {
     try {
-        console.log(`>>> [Logic] Deep research started for: ${userPrompt}`);
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        console.log(`>>> [Logic] Deep research started for: "${userPrompt}" (${today})`);
 
-        // 1. PHASE: Generate multiple optimized search queries
-        const queryCompletion = await getOpenAIClient().chat.completions.create({
-            model: "gpt-4o",
-            messages: [
-                {
-                    role: "system",
-                    content: "Si expert na vyhľadávanie. Na základe témy vytvor 3 výstižné a rôznorodé vyhľadávacie dopyty v slovenčine alebo angličtine, ktoré pokryjú tému z rôznych uhlov. Vráť LEN JSON pole reťazcov."
-                },
-                { role: "user", content: userPrompt }
-            ],
-            response_format: { type: "json_object" }
-        });
+        // ── PHASE 1: Gemini researches the topic via Google Search grounding ──
+        console.log(`>>> [Logic] Phase 1: Gemini Google Search research...`);
+        const geminiClient = getGeminiClient();
+        let researchSummary = "";
+        let groundedSources: { url: string; title: string }[] = [];
 
-        const queryData = JSON.parse(queryCompletion.choices[0].message.content || '{"queries":[]}');
-        const searchQueries: string[] = queryData.queries || [userPrompt];
+        try {
+            const researchPrompt = `Dnes je ${today}. Prehľadaj Google a nájdi AKTUÁLNE správy a informácie o tejto téme: "${userPrompt}".
 
-        // 2. PHASE: Perform multi-search and collect URLs
-        console.log(`>>> [Logic] Executing searches for: ${searchQueries.join(", ")}`);
-        const allOrganicResults: { title: string, link: string, snippet: string }[] = [];
+Tvoja úloha:
+1. Nájdi najnovšie správy a fakty o tejto téme (prednostne z posledných 14 dní, max 60 dní).
+2. Ak je téma staršia, poznač to.
+3. Zhromaž kľúčové fakty, dátumy, čísla, vyjadrenia a kontext z VIACERÝCH zdrojov.
+4. Identifikuj, čo je nové alebo zaujímavé pre čitateľov AI/Tech magazínu.
+5. Napíš podrobný výskumný súhrn v angličtine — faktický, bez hodnotenia.
 
-        for (const q of searchQueries) {
+Formát výstupu: súvislý text so všetkými relevantnými faktami.`;
+
+            const researchResult = await geminiClient.models.generateContent({
+                model: "gemini-2.5-flash",
+                contents: researchPrompt,
+                config: { tools: [{ googleSearch: {} }] }
+            });
+
+            researchSummary = researchResult.text || "";
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const chunks = (researchResult as any).candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+            groundedSources = chunks
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                .filter((c: any) => c.web?.uri && !c.web.uri.includes('vertexaisearch') && !c.web.uri.includes('grounding-api'))
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                .map((c: any) => ({ url: c.web.uri as string, title: (c.web.title || "") as string }));
+
+            console.log(`>>> [Logic] Gemini research done. ${groundedSources.length} grounded sources found.`);
+        } catch (geminiErr) {
+            console.warn(">>> [Logic] Gemini grounding failed, falling back to Serper search:", geminiErr);
+        }
+
+        // ── PHASE 2: Fallback — Serper search + scrape if Gemini yielded nothing ──
+        let fallbackSourceList: { url: string; title: string }[] = [];
+
+        if (!researchSummary || groundedSources.length === 0) {
+            console.log(`>>> [Logic] Phase 2 fallback: Serper search + scrape...`);
             try {
                 const res = await fetch("https://google.serper.dev/search", {
                     method: "POST",
-                    headers: {
-                        "X-API-KEY": process.env.SERPER_API_KEY || "",
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({ q: q, gl: "sk", hl: "sk", num: 5 }),
+                    headers: { "X-API-KEY": process.env.SERPER_API_KEY || "", "Content-Type": "application/json" },
+                    body: JSON.stringify({ q: userPrompt, gl: "sk", hl: "sk", num: 8 }),
                 });
-                const data = await res.json();
-                if (data.organic) allOrganicResults.push(...data.organic);
-            } catch {
-                console.error("Search failed for query:", q);
+                const serpData = await res.json();
+                const organicLinks: { title: string; link: string; snippet: string }[] = serpData.organic || [];
+                const topLinks = organicLinks.slice(0, 4).map(r => r.link);
+                const scraped = await Promise.all(topLinks.map(l => scrapeUrl(l)));
+                researchSummary = scraped.filter(Boolean).join("\n\n---\n\n");
+                fallbackSourceList = organicLinks.slice(0, 6).map(r => ({ url: r.link, title: r.title }));
+                console.log(`>>> [Logic] Fallback scrape done: ${topLinks.length} pages.`);
+            } catch (fallbackErr) {
+                console.warn(">>> [Logic] Fallback search failed:", fallbackErr);
             }
         }
 
-        // 2.5 Filter out links that are already in the database
-        const { data: existingArticles } = await supabase.from('articles').select('source_url').not('source_url', 'is', null);
-        const processedUrls = new Set((existingArticles || []).map(a => a.source_url));
+        const allSources = groundedSources.length > 0 ? groundedSources : fallbackSourceList;
 
-        const freshResults = allOrganicResults.filter(r => !processedUrls.has(r.link));
+        // ── PHASE 3: Extract og:images from source URLs as image candidates ──
+        console.log(`>>> [Logic] Phase 3: Scraping og:image from top sources...`);
+        const metaResults = await Promise.allSettled(
+            allSources.slice(0, 6).map(s => scrapeUrlMetadata(s.url))
+        );
+        const imageCandidates: string[] = metaResults
+            .filter(r => r.status === 'fulfilled' && r.value.ogImage)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .map(r => (r as any).value.ogImage as string);
 
-        if (freshResults.length < allOrganicResults.length) {
-            console.log(`>>> [Logic] Filtered out ${allOrganicResults.length - freshResults.length} already processed links.`);
+        // ── PHASE 4: Date freshness check — log a warning if all sources are old ──
+        const sourceDates = metaResults
+            .filter(r => r.status === 'fulfilled')
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .map(r => (r as any).value.publishedDate as string | undefined)
+            .filter(Boolean) as string[];
+        if (sourceDates.length > 0) {
+            const latestDate = sourceDates.reduce((a, b) => (a > b ? a : b));
+            const daysOld = Math.floor((Date.now() - new Date(latestDate).getTime()) / 86400000);
+            if (daysOld > 60) {
+                console.warn(`>>> [Logic] WARNING: Most recent source is ${daysOld} days old. Topic might be stale.`);
+            } else {
+                console.log(`>>> [Logic] Date check: most recent source is ${daysOld} days old. ✓`);
+            }
         }
 
-        // Deduplicate and pick top 4 unique links from fresh results
-        const uniqueLinks = Array.from(new Set(freshResults.map(r => r.link))).slice(0, 4);
+        // ── PHASE 5: GPT-4o synthesizes final structured article ──────────────
+        console.log(`>>> [Logic] Phase 5: GPT-4o article synthesis...`);
+        const sourceList = allSources.length > 0
+            ? allSources.map((s, i) => `${i + 1}. ${s.title || s.url} — ${s.url}`).join("\n")
+            : "(žiadne zdroje)";
 
-        if (uniqueLinks.length === 0 && allOrganicResults.length > 0) {
-            console.log(">>> [Logic] All top search results were already processed. Forcing use of top results to avoid empty article.");
-            uniqueLinks.push(...Array.from(new Set(allOrganicResults.map(r => r.link))).slice(0, 2));
-        }
-
-        // 3. PHASE: Scrape top sources
-        console.log(`>>> [Logic] Scraping top ${uniqueLinks.length} sources...`);
-        const scrapedContents = await Promise.all(uniqueLinks.map(link => scrapeUrl(link)));
-        const combinedScrapedText = scrapedContents.filter(Boolean).join("\n\n--- ZDROJ ---\n\n");
-
-        // 4. PHASE: Prepare context
-        const contextDataSnippet = `
-TU SÚ KOMPLETNÉ TEXTY Z TOP ZDROJOV:
-${combinedScrapedText}
-
-TU SÚ ÚRYVKY Z OSTATNÝCH VÝSLEDKOV:
-${allOrganicResults.slice(0, 10).map(r => `Title: ${r.title}\nSnippet: ${r.snippet}`).join("\n\n")}
-`;
-
-        const finalUserPrompt = `
-Pôvodné zadanie: ${userPrompt}
-
-${contextDataSnippet}
-
-Inštrukcia: Na základe týchto hĺbkových faktov napíš komplexný, originálny a pútavý článok v dokonalej slovenčine.
-`;
-
-        const promptSystem = `Si šéfredaktor a špičkový copywriter pre prestížny AI & Tech magazín AIWai. Na základe priložených faktov napíš prémiový článok o umelej inteligencii alebo technológiách.
-Máš prístup k reálnym dátam. Informácie SYNTETIZUJ a napíš ÚPLNE NOVÝ unikátny text.
+        const promptSystem = `Si šéfredaktor a špičkový copywriter pre prestížny AI & Tech magazín AIWai.
+Na základe výskumného súhrnu napíš prémiový a fakticky presný článok.
 
 ZÁVÄZNÉ PRAVIDLÁ:
 1. STRIKTNÁ SLOVENČINA: 100% prirodzená slovenčina, žiadne bohemizmy ani anglicizmy.
 2. PROFESIONÁLNY ŠTÝL: Bohatá slovná zásoba, žurnalistický štýl, dynamické slovesá.
 3. NADPIS — profesionálny novinársky štýl:
    - Konkrétny, informatívny, obsahuje subjekt + kľúčový fakt alebo akciu
-   - Max 12 slov, prirodzená slovenčina
+   - Max 12 slov, BEZ HTML tagov (<strong> atď.)
    - PRÍSNY ZÁKAZ: "Revolúcia", "Neuveriteľné", "Navždy zmení", "Prelomový", "Šokujúce", "Tajomstvo"
    - Vzor dobrého nadpisu: "Anthropic vydáva Claude 3.7 s rozšíreným uvažovaním"
-4. HTML ŠTRUKTÚRA: p, strong, h2, h3 tagy pre prehľadnosť.
+4. HTML ŠTRUKTÚRA: p, strong, h2, h3 tagy (len v content poli, NIE v title).
+5. AKTUÁLNOSŤ: Sústreď sa na najnovšie informácie. Ak sú fakty staré, jasne to naznač.
+6. FAKTY: Použi konkrétne čísla, dátumy a citácie zo zdrojov. Nefantazíruj.
 
-Výstup VŽDY EXAKTNE VO FORMÁTE JSON:
+Výstup VŽDY EXAKTNE VO FORMÁTE JSON (BEZ markdown backticks):
 {
-    "title": "Profesionálny novinársky nadpis v slovenčine",
+    "title": "Profesionálny novinársky nadpis v slovenčine — BEZ HTML tagov",
     "slug": "url-friendly-nazov-bez-diakritiky-a-medzier",
     "excerpt": "Perex: 1 až 2 pútavé odseky.",
     "content": "Článok v HTML s p, strong, h2...",
@@ -992,8 +1054,17 @@ Výstup VŽDY EXAKTNE VO FORMÁTE JSON:
     "image_search_query": "Short English AI tech image search query (max 4 words)."
 }`;
 
-        // 5. PHASE: Generate the final article
-        console.log(`>>> [Logic] Synthesizing final article with Deep Context...`);
+        const finalUserPrompt = `Téma: ${userPrompt}
+Dnes: ${today}
+
+=== VÝSKUM (Gemini + Google) ===
+${researchSummary || "(výskum nedostupný, použi všeobecné znalosti)"}
+
+=== POUŽITÉ ZDROJE ===
+${sourceList}
+
+Napíš kompletný článok v JSON formáte. Obsah musí vychádzať z reálnych faktov vyššie.`;
+
         const finalCompletion = await getOpenAIClient().chat.completions.create({
             model: "gpt-4o",
             messages: [
@@ -1007,6 +1078,7 @@ Výstup VŽDY EXAKTNE VO FORMÁTE JSON:
         if (!gptResponse) throw new Error("Empty response from OpenAI");
 
         const articleData = JSON.parse(gptResponse);
+
         // Category validation
         let finalCategory = articleData.category;
         if (typeof finalCategory === 'string') {
@@ -1014,20 +1086,25 @@ Výstup VŽDY EXAKTNE VO FORMÁTE JSON:
             const lowerCat = finalCategory.toLowerCase();
             const found = VALID_CATEGORIES.find(c => {
                 const lowerC = c.toLowerCase();
-                return lowerC === lowerCat ||
-                    lowerCat.includes(lowerC) ||
-                    lowerC.includes(lowerCat);
+                return lowerC === lowerCat || lowerCat.includes(lowerC) || lowerC.includes(lowerCat);
             });
             finalCategory = found || "AI";
         } else {
             finalCategory = "AI";
         }
 
-        // 6. PHASE: Find a relevant image (with suitability check)
+        // ── PHASE 6: Append sources section to article content ───────────────
+        const sourcesSection = buildSourcesSection(allSources);
+        if (sourcesSection) {
+            articleData.content = (articleData.content || "") + sourcesSection;
+            console.log(`>>> [Logic] Sources section appended (${allSources.length} sources).`);
+        }
+
+        // ── PHASE 7: Find a relevant image ────────────────────────────────────
         const searchQuery = articleData.image_search_query || articleData.title;
-        console.log(`>>> [Logic] Searching for a relevant image using query: "${searchQuery}"...`);
+        console.log(`>>> [Logic] Phase 7: Resolving main image. ${imageCandidates.length} og:image candidates from sources.`);
         const mainImage = await resolveSuitableMainImage(
-            [], // no scraped candidates for topic-based articles
+            imageCandidates,          // og:images scraped from source articles
             searchQuery,
             articleData.excerpt || "",
             finalCategory,
