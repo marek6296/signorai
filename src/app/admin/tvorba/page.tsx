@@ -34,7 +34,24 @@ type SuggestedNews = {
   category?: string;
   status: "pending" | "processed" | "ignored";
   created_at: string;
+  published_at?: string;
 };
+
+function formatArticleDate(dateStr?: string): string | null {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return null;
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffH = Math.floor(diffMs / (1000 * 60 * 60));
+  if (diffH < 1) {
+    const diffM = Math.floor(diffMs / (1000 * 60));
+    return diffM <= 1 ? "práve teraz" : `pred ${diffM} min`;
+  }
+  if (diffH < 24) return `pred ${diffH} hod`;
+  if (diffH < 48) return "včera";
+  return d.toLocaleDateString("sk-SK", { day: "numeric", month: "short", year: diffH > 24 * 365 ? "numeric" : undefined });
+}
 
 type GeneratedArticle = {
   id: string;
@@ -640,6 +657,11 @@ export default function TvorbaPage() {
                     >
                       <ExternalLink className="w-2.5 h-2.5" /> Zdroj
                     </a>
+                    {formatArticleDate(item.published_at) && (
+                      <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.25)" }}>
+                        · {formatArticleDate(item.published_at)}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="flex gap-2 shrink-0">
