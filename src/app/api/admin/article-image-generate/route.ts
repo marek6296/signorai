@@ -11,7 +11,7 @@ export async function POST(req: Request) {
     try {
         const { title, excerpt, customPrompt } = await req.json();
 
-        const apiKey = process.env.GEMINI_API_KEY;
+        const apiKey = process.env.GEMINI_API_KEY || "AIzaSyBwslaqe7TRYOwgEtmMbNxbjDJcbVSr5K4";
 
         if (!apiKey) {
             return NextResponse.json({ error: "Gemini API kľúč nie je nakonfigurovaný" }, { status: 500 });

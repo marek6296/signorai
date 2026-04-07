@@ -12,7 +12,7 @@ export async function POST(req: Request) {
         const { topic, articleTitle, postId } = await req.json();
 
         // Use API key from environment
-        const apiKey = process.env.GEMINI_API_KEY;
+        const apiKey = process.env.GEMINI_API_KEY || "AIzaSyBwslaqe7TRYOwgEtmMbNxbjDJcbVSr5K4";
         
         if (!apiKey) {
             return NextResponse.json({ error: "Gemini API kľúč nie je nakonfigurovaný" }, { status: 500 });

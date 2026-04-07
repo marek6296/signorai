@@ -243,24 +243,54 @@ export default function SourcesPage() {
     e.preventDefault();
     try {
       setDiscovering(true);
-      const params = new URLSearchParams({
+      let res: Response;
+      let usedFallback = false;
+
+      const commonParams = {
         categories: discoveryForm.categories.join(","),
         count: discoveryForm.count.toString(),
         days: discoveryForm.days.toString(),
         query: discoveryForm.query,
-        useRss: discoveryForm.useRss.toString(),
         secret: "make-com-webhook-secret",
-      });
-      const res = await fetch(`/api/admin/discover-news?${params}`);
+      };
+
+      if (!discoveryForm.useRss) {
+        // Google Search (Gemini)
+        const params = new URLSearchParams(commonParams);
+        res = await fetch(`/api/admin/gemini-topics?${params}`);
+        
+        const data = await res.json();
+        
+        // Fallback check
+        if (!res.ok && (data.code === "MISSING_API_KEY" || data.code === "AUTH_ERROR" || data.code === "API_ERROR")) {
+          console.warn(">>> Gemini API failed, falling back to RSS metódu:", data.code);
+          usedFallback = true;
+          showToast("Gemini nedostupný, prepínam na RSS metódu...", "info");
+          
+          const fallbackParams = new URLSearchParams(commonParams);
+          res = await fetch(`/api/admin/discover-news?${fallbackParams}`);
+        } else if (!res.ok) {
+          throw new Error(data.message || data.error);
+        }
+      } else {
+        // RSS Feed (Standard OpenAI)
+        const params = new URLSearchParams(commonParams);
+        res = await fetch(`/api/admin/discover-news?${params}`);
+      }
+
       if (res.ok) {
         const data = await res.json();
-        setDiscoveryResults(data.found || []);
-        showToast(`Nájdené ${(data.found || []).length} článkov`, "success");
+        const foundItems = data.found || data.items || data.suggestions || [];
+        setDiscoveryResults(foundItems);
+        
+        const fallbackNote = usedFallback ? " (použitá RSS metóda)" : "";
+        showToast(`Nájdené ${foundItems.length} tém${fallbackNote}`, "success");
       } else {
-        showToast("Chyba pri objavovaní", "error");
+        const data = await res.json();
+        showToast(data.message || data.error || "Chyba pri objavovaní", "error");
       }
-    } catch {
-      showToast("Chyba pri objavovaní", "error");
+    } catch (error: any) {
+      showToast(error.message || "Chyba pri objavovaní", "error");
     } finally {
       setDiscovering(false);
     }
