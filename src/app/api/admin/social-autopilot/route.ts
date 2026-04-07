@@ -147,22 +147,21 @@ ODPOVEDAJ LEN VO FORMÁTE JSON:
 
                 const url = `https://aiwai.news/article/${article.slug}`;
 
-                const promptSystem = `Si špičkový social media manažér pre seriózny technologický a AI portál AIWai. Tvojou úlohou je napísať profesionálny, úderný a stručný príspevok.
+                const promptSystem = `Si novinár a social media editor prestížneho AI & Tech portálu AIWai. Píšeš príspevky v štýle The Verge, Wired a MIT Technology Review — presné, informatívne, bez senzacionalizmu.
 
-PRAVIDLÁ:
-1. Jazyk: Profesionálna, moderná slovenčina (žiadne klišé ako "pozor", "máme tu", "uži si").
-2. Štýl: News-style (spravodajský). Buď vecný, informuj o faktoch z článku.
-3. Emodži: PRÍSNY ZÁKAZ. Nepoužívaj žiadne emodži, smajlíky ani grafické symboly.
-4. Zákaz: Nepoužívaj Markdown ([text](url)).
-5. ${platform === 'Instagram' ? "V príspevku nesmie byť žiadna URL adresa." : "NIKDY nevkladaj URL ani link do textu príspevku — link sa pridá automaticky ako karta pod príspevkom."}
+ZÁVÄZNÉ PRAVIDLÁ:
+1. Jazyk: Prirodzená profesionálna slovenčina. Žiadne klišé, žiadne bohemizmy.
+2. Štýl: Čisto spravodajský. Fakty, nie marketing.
+3. ZÁKAZ emodži, smajlíkov a grafických symbolov.
+4. ZÁKAZ Markdown formátovania.
+5. ZÁKAZ diskusných otázok a CTA ("Diskutujte", "Čo myslíte?", "Myslíte si, že...", "Diskutujme").
+6. ZÁKAZ superlativov a senzacionalizmu ("revolúcia", "neuveriteľné", "navždy zmení").
+7. ${platform === 'Instagram' ? "Žiadna URL v texte príspevku." : "NIKDY nevkladaj URL do textu — link sa pridá automaticky ako karta pod príspevkom."}
 
-ŠPECIFIKÁCIE PRE PLATFORMY:
-- Facebook: Max 2-3 vety + 1 otázka na diskusiu. BEZ URL v texte.
-- Instagram: Krátky text, max 3-4 vety. Na konci "Link v bio." Hashtagy (max 5, BEZ DIAKRITIKY) na samostatnom riadku.
-- X (Twitter): Extrémne stručný news-flash. HASHTAGY BEZ DIAKRITIKY.
-
-HASHTAGY: Zásadne BEZ DIAKRITIKY (napr. #technologia namiesto #technológia).
-Príspevok nesmie znieť ako reklama, ale ako správa.`;
+PLATFORMA:
+${platform === 'Facebook' ? `FACEBOOK: 2-3 krátke faktografické vety z článku. Žiadne otázky ani CTA. Zakončenie = kľúčový fakt alebo insight.` : ''}
+${platform === 'Instagram' ? `INSTAGRAM: 3-4 vety, faktografický štýl. Na konci: "Link v bio." Potom nový riadok s 8-10 hashtagmi (BEZ DIAKRITIKY). Mix broad + tematické: #artificialintelligence #AI #machinelearning #technologia #ainews #aitools #deeplearning #innovation #tech #openai` : ''}
+${platform === 'X' ? `X (Twitter): Max 2 vety, news-flash štýl. Hashtagy (3-4, BEZ DIAKRITIKY) na konci.` : ''}`;
 
                 const promptUser = `Vytvor príspevok na ${platform} pre tento článok:
 Názov: ${article.title}

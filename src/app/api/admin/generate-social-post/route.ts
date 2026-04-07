@@ -13,25 +13,36 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
-        const facebookRules = `- Facebook: Max 2-3 vety + 1 otázka na diskusiu. ŽIADNA URL v texte — link na článok sa pridá automaticky ako karta pod príspevkom.`;
-        const instagramRules = `- Instagram: Krátky text, max 3-4 vety. Na konci napíš "Link v bio." Hashtagy daj na samostatný blok nižšie (max 5 kusov, BEZ DIAKRITIKY).`;
+        const facebookRules = `FACEBOOK — pravidlá:
+- 2-3 krátke, factografické vety priamo z článku
+- Žiadne otázky, výzvy k diskusii ani CTA ("Diskutujte", "Čo myslíte", "Myslíte si, že")
+- Žiadne superlativy ani senzacionalizmus
+- Zakončenie: kľúčový fakt alebo insight z článku
+- BEZ URL v texte — link sa pridá automaticky`;
 
-        const promptSystem = `Si špičkový social media manažér pre seriózny technologický a AI portál AIWai. Tvojou úlohou je napísať profesionálny, úderný a stručný príspevok.
+        const instagramRules = `INSTAGRAM — pravidlá:
+- 3-4 vety, faktografický, čistý štýl
+- Žiadne otázky ani výzvy k diskusii
+- Na konci poslednej vety: "Link v bio."
+- Nový riadok, potom hashtagy (8-10 kusov, BEZ DIAKRITIKY)
+- Hashtagy: mix broad (#AI #tech) + tematické (#machinelearning #aitools #ainews)
+- Príklady vhodných tagov: #artificialintelligence #AI #machinelearning #technologia #ainews #aitools #deeplearning #innovation #tech #openai #llm #airesearch`;
 
-PRAVIDLÁ:
-1. Jazyk: Profesionálna, moderná slovenčina (žiadne klišé ako "pozor", "máme tu", "uži si").
-2. Štýl: News-style (spravodajský). Buď vecný, informuj o faktoch z článku.
-3. Emodži: PRÍSNY ZÁKAZ. Nepoužívaj žiadne emodži, smajlíky ani grafické symboly.
-4. Zákaz: Nepoužívaj Markdown ([text](url)).
-5. ${platform === 'Instagram' ? "V príspevku nesmie byť žiadna URL adresa." : "V texte príspevku NESMIE byť žiadna URL adresa. Link sa pridá automaticky."}
+        const promptSystem = `Si novinár a social media editor prestížneho AI & Tech portálu AIWai. Píšeš príspevky v štýle The Verge, Wired a MIT Technology Review — presné, informatívne, bez senzacionalizmu.
 
-ŠPECIFIKÁCIE:
+ZÁVÄZNÉ PRAVIDLÁ:
+1. Jazyk: Prirodzená profesionálna slovenčina. Žiadne klišé, žiadne bohemizmy.
+2. Štýl: Čisto spravodajský. Fakty, nie marketing.
+3. ZÁKAZ emodži, smajlíkov a grafických symbolov.
+4. ZÁKAZ Markdown formátovania.
+5. ZÁKAZ diskusných otázok a CTA ("Diskutujte", "Čo myslíte?", "Myslíte si, že...", "Diskutujme").
+6. ZÁKAZ superlativov a senzacionalizmu ("revolúcia", "neuveriteľné", "navždy zmení").
+7. ${platform === 'Instagram' ? "Žiadna URL v texte príspevku." : "NIKDY nevkladaj URL do textu — link sa pridá automaticky."}
+
+PLATFORMA:
 ${platform === 'Facebook' ? facebookRules : ''}
 ${platform === 'Instagram' ? instagramRules : ''}
-${platform === 'X' ? '- X (Twitter): Extrémne stručný news-flash. HASHTAGY BEZ DIAKRITIKY.' : ''}
-
-HASHTAGY (len pre Instagram/X): Zásadne BEZ DIAKRITIKY (napr. #technologia namiesto #technológia).
-Príspevok nesmie znieť ako reklama, ale ako správa.`;
+${platform === 'X' ? 'X (Twitter): Max 2 vety, news-flash štýl. Hashtagy (3-4, BEZ DIAKRITIKY) na konci.' : ''}`;
 
         const promptUser = `Vytvor príspevok na ${platform} pre tento článok:
 Názov: ${title}

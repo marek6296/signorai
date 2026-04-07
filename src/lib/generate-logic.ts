@@ -47,10 +47,16 @@ export async function runFinalReviewAndPublish(articleId: string, keepAsDraft: b
             content: `Si nekompromisný Šéfredaktor spravodajského portálu. Toto je tvoja finálna kontrola pred publikovaním.
 Tvoje úlohy:
 1. Skontrolovať gramatiku, štylistiku a odstrániť z 'excerpt' a 'ai_summary' akékoľvek HTML značky (napr. <p>). Ponechaj text čistý.
-2. Skontrolovať zhodu textu, preklepy. 
-3. Vybrať najvhodnejšiu kategóriu (povolené: AI, Tech, Návody & Tipy).
-4. Zhodnotiť poskytnutú úvodnú fotografiu (ak je k dispozícii). Ak je fotka kvalitná a súvisí s témou (je to skutočná novinárska fotografia alebo relevantný záber), ponechaj "image_needs_replacement": false. Ak obrázok nedáva zmysel, je nekvalitný, pixelový alebo ide len o ikonu/logo, nastav "image_needs_replacement": true.
-5. Vráť LEN čistý JSON, žiadny iný text.
+2. Skontrolovať zhodu textu, preklepy.
+3. TITLE QA — skontroluj a prípadne prepiš nadpis podľa pravidiel profesionálnej žurnalistiky:
+   - Konkrétny, informatívny nadpis: obsahuje subjekt + kľúčový fakt alebo akciu.
+   - Max 12 slov, prirodzená slovenčina.
+   - PRÍSNY ZÁKAZ týchto slov (ak sa vyskytujú, nadpis MUSÍŠ prepísať): "Revolúcia", "Neuveriteľné", "Navždy zmení", "Prelomový", "Šokujúce", "Tajomstvo", "Revolučný", "Neuveriteľný".
+   - Vzor dobrého nadpisu: "Anthropic vydáva Claude 3.7 s rozšíreným uvažovaním", "OpenAI spúšťa nový model o3 pre výskumníkov".
+   - Ak je nadpis v poriadku, ponechaj ho nezmenený.
+4. Vybrať najvhodnejšiu kategóriu (povolené: AI, Tech, Návody & Tipy).
+5. Zhodnotiť poskytnutú úvodnú fotografiu (ak je k dispozícii). Ak je fotka kvalitná a súvisí s témou (je to skutočná novinárska fotografia alebo relevantný záber), ponechaj "image_needs_replacement": false. Ak obrázok nedáva zmysel, je nekvalitný, pixelový alebo ide len o ikonu/logo, nastav "image_needs_replacement": true.
+6. Vráť LEN čistý JSON, žiadny iný text.
 
 Vráť LEN JSON objekt v tvare:
 {
@@ -482,15 +488,19 @@ export async function processArticleFromUrl(url: string, targetStatus: 'draft' |
         const effectiveHtmlContent = parsedArticle?.content || fallbackContent || "";
 
         // 2. Define the instructions
-        const promptSystem = `Si šéfredaktor a špičkový copywriter pre prestížny AI & Tech magazín AIWai. Bude ti zadaný zdrojový text z nejakého webu.
-Tvojou úlohou je napísať z neho prémiový, pútavý a odborne presný článok v STOPERCENTNEJ, ČISTEJ SLOVENČINE.
+        const promptSystem = `Si šéfredaktor a novinár pre prestížny AI & Tech portál AIWai. Píšeš v štýle The Verge, MIT Technology Review a Wired — presne, odborne a bez senzacionalizmu.
+Bude ti zadaný zdrojový text. Napíš z neho profesionálny článok v STOPERCENTNEJ ČISTEJ SLOVENČINE.
 
 ZÁVÄZNÉ PRAVIDLÁ:
 1. STRIKTNÁ SLOVENČINA: Žiadne české slová, žiadne bohemizmy.
 2. ŽIADNY STROJOVÝ PREKLAD: Text ako od slovenského technologického novinára.
-3. Plynulý žurnalistický štýl. Vyhni sa anglicizmom, odborné pojmy vysvetľuj.
+3. Plynulý žurnalistický štýl. Odborné pojmy vysvetľuj v kontexte.
 4. Rozčleň text na odseky s h2/h3 podnadpismi.
-5. CLICKBAIT nadpis – pútavý, čestný, vzbudzuje zvedavosť.
+5. NADPIS — profesionálny novinársky štýl:
+   - Konkrétny, informatívny, obsahuje subjekt + kľúčový fakt alebo akciu
+   - Max 12 slov, prirodzená slovenčina
+   - PRÍSNY ZÁKAZ: "Revolúcia", "Neuveriteľné", "Navždy zmení", "Prelomový", "Šokujúce", "Tajomstvo"
+   - Vzor dobrého nadpisu: "Anthropic vydáva Claude 3.7 s rozšíreným uvažovaním" alebo "Google testuje AI agentov pre automatizáciu pracovných procesov"
 
 PRAVIDLÁ PRE KATEGORIZÁCIU:
 - AI: Vývoj AI, nové modely (GPT, Claude, Gemini, Grok), výskum AI, GPU čipy, agenty, AI bezpečnosť, regulácia AI.
@@ -499,9 +509,9 @@ PRAVIDLÁ PRE KATEGORIZÁCIU:
 
 Tvoj výstup VŽDY EXAKTNE VO FORMÁTE JSON (žiadny markdown okolo JSON):
 {
-    "title": "Virálny nadpis v dokonalej slovenčine",
+    "title": "Profesionálny novinársky nadpis v slovenčine",
     "slug": "url-friendly-nazov-bez-diakritiky-a-medzier",
-    "excerpt": "Perex: 1 až 2 pútavé vety.",
+    "excerpt": "Perex: 1 až 2 informatívne vety ktoré zhŕňajú jadro správy.",
     "content": "Článok v HTML s p, strong, h2, h3.",
     "ai_summary": "PRESNE 1-2 krátke vety. Výstižné zhrnutie jadra správy pre audio. Nie viac.",
     "category": "JEDNA Z TÝCHTO: AI, Tech, Návody & Tipy"
@@ -846,12 +856,16 @@ Máš prístup k reálnym dátam. Informácie SYNTETIZUJ a napíš ÚPLNE NOVÝ 
 ZÁVÄZNÉ PRAVIDLÁ:
 1. STRIKTNÁ SLOVENČINA: 100% prirodzená slovenčina, žiadne bohemizmy ani anglicizmy.
 2. PROFESIONÁLNY ŠTÝL: Bohatá slovná zásoba, žurnalistický štýl, dynamické slovesá.
-3. CLICKBAIT NADPIS: Extrémne pútavý, gramaticky správny, čestne odkazujúci na tému.
+3. NADPIS — profesionálny novinársky štýl:
+   - Konkrétny, informatívny, obsahuje subjekt + kľúčový fakt alebo akciu
+   - Max 12 slov, prirodzená slovenčina
+   - PRÍSNY ZÁKAZ: "Revolúcia", "Neuveriteľné", "Navždy zmení", "Prelomový", "Šokujúce", "Tajomstvo"
+   - Vzor dobrého nadpisu: "Anthropic vydáva Claude 3.7 s rozšíreným uvažovaním"
 4. HTML ŠTRUKTÚRA: p, strong, h2, h3 tagy pre prehľadnosť.
 
 Výstup VŽDY EXAKTNE VO FORMÁTE JSON:
 {
-    "title": "Virálny nadpis v dokonalej slovenčine",
+    "title": "Profesionálny novinársky nadpis v slovenčine",
     "slug": "url-friendly-nazov-bez-diakritiky-a-medzier",
     "excerpt": "Perex: 1 až 2 pútavé odseky.",
     "content": "Článok v HTML s p, strong, h2...",
