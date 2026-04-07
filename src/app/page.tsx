@@ -26,6 +26,14 @@ export const metadata: Metadata = {
     siteName: "AIWai",
     locale: "sk_SK",
     type: "website",
+    images: [
+      {
+        url: `${BASE_URL}/og-image-v2.png`,
+        width: 1200,
+        height: 630,
+        alt: "AIWai – Najnovšie AI Správy & Tech Novinky",
+      },
+    ],
   },
 };
 
