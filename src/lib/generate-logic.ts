@@ -6,6 +6,12 @@ import { revalidatePath } from "next/cache";
 import { GoogleGenAI } from "@google/genai";
 import { createClient } from "@supabase/supabase-js";
 
+/** Strip any HTML/XML tags from a string — titles must never contain <strong>, </p>, etc. */
+function stripHtmlTags(text: string): string {
+    if (!text) return text;
+    return text.replace(/<[^>]*>/g, "").trim();
+}
+
 let openaiClient: OpenAI | null = null;
 export function getOpenAIClient() {
     if (openaiClient) return openaiClient;
@@ -196,7 +202,7 @@ OUTPUT: 16:9 landscape, NO text, NO watermarks, NO logos, NO trademarked brandin
     }
 
     const updatePayload: Record<string, unknown> = {
-        title: reviewedData.title || article.title,
+        title: stripHtmlTags(reviewedData.title || article.title),
         excerpt: reviewedData.excerpt || article.excerpt,
         ai_summary: reviewedData.ai_summary || article.ai_summary,
         content: reviewedData.content || article.content,
@@ -838,7 +844,7 @@ OUTPUT: 16:9 landscape, NO text overlays, NO watermarks, NO trademarked logos, N
         // 3. Save to Supabase
         // 3. Save to Supabase (Upsert approach for slug, insert for unique source_url)
         const dbData = {
-            title: articleData.title || parsedArticle.title || "Bez názvu",
+            title: stripHtmlTags(articleData.title || parsedArticle.title || "Bez názvu"),
             slug: (articleData.slug || 'article-' + Date.now()) + "-" + Math.random().toString(36).substring(2, 7),
             excerpt: articleData.excerpt || "Spracovaný obsah cez AI.",
             content: articleData.content || parsedArticle.content || "Obsah sa nepodarilo vygenerovať správne.",
@@ -1029,7 +1035,7 @@ Výstup VŽDY EXAKTNE VO FORMÁTE JSON:
         );
 
         const dbData = {
-            title: articleData.title,
+            title: stripHtmlTags(articleData.title),
             slug: articleData.slug + "-" + Math.random().toString(36).substring(2, 7),
             excerpt: articleData.excerpt,
             content: articleData.content,

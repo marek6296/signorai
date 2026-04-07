@@ -374,14 +374,24 @@ function InlineImageGenerator({
                             title={title}
                             excerpt={excerpt}
                             label="obrázok do textu"
-                            onGenerated={(url) => { setImageUrl(url); setShowGen(false); }}
+                            onGenerated={(url) => {
+                                setImageUrl(url);
+                                setShowGen(false);
+                                const html = `<figure class="my-8 mx-auto max-w-2xl">\n  <img src="${url}" alt="${title || "Obrázok"}" class="w-full rounded-2xl shadow-lg" />\n</figure>`;
+                                onInsert(html);
+                            }}
                         />
                     )}
 
                     {showPicker && (
                         <ImagePickerModal
                             query={title || "technology AI"}
-                            onSelect={(url) => { setImageUrl(url); }}
+                            onSelect={(url) => {
+                                setImageUrl(url);
+                                setShowPicker(false);
+                                const html = `<figure class="my-8 mx-auto max-w-2xl">\n  <img src="${url}" alt="${title || "Obrázok"}" class="w-full rounded-2xl shadow-lg" />\n</figure>`;
+                                onInsert(html);
+                            }}
                             onClose={() => setShowPicker(false)}
                         />
                     )}
@@ -503,9 +513,10 @@ export default function EditArticlePage({ params }: Props) {
         setStatus("saving");
         setMessage("");
 
+        const cleanTitle = title.replace(/<[^>]*>/g, "").trim();
         const { error } = await supabase
             .from("articles")
-            .update({ title, slug, excerpt, content, category, ai_summary: aiSummary, main_image: mainImage })
+            .update({ title: cleanTitle, slug, excerpt, content, category, ai_summary: aiSummary, main_image: mainImage })
             .eq("id", params.id);
 
         if (error) {
