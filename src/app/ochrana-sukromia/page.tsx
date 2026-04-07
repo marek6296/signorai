@@ -61,7 +61,22 @@ export default function PrivacyPage() {
                 </section>
 
                 <section className="space-y-4">
-                    <h2 className="text-2xl font-bold text-foreground font-syne">4. Vaše práva</h2>
+                    <h2 className="text-2xl font-bold text-foreground font-syne">4. Reklama a Google AdSense</h2>
+                    <p>
+                        Na našej webovej stránke používame službu Google AdSense na zobrazovanie reklám. V tejto súvislosti:
+                    </p>
+                    <ul className="list-disc pl-6 space-y-2">
+                        <li>Dodávatelia tretích strán vrátane spoločnosti Google používajú súbory cookie na zobrazovanie reklám na základe predchádzajúcich návštev používateľa na tejto alebo iných webových stránkach.</li>
+                        <li>Vďaka súborom cookie na inzerciu môže spoločnosť Google a jej partneri zobrazovať reklamy používateľom na základe ich návštev na našich stránkach a/alebo iných stránkach na internete.</li>
+                        <li>Používatelia môžu personalizovanú reklamu odmietnuť v <a href="https://www.google.com/settings/ads" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Nastaveniach reklám Google</a>.</li>
+                    </ul>
+                    <p>
+                        Informácie o tom, ako Google spracováva údaje, nájdete na stránke <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Ako Google používa informácie z webov alebo aplikácií, ktoré používajú naše služby</a>.
+                    </p>
+                </section>
+
+                <section className="space-y-4">
+                    <h2 className="text-2xl font-bold text-foreground font-syne">5. Vaše práva</h2>
                     <p>
                         V súlade s nariadením GDPR máte právo na prístup k svojim údajom, právo na opravu, vymazanie (právo na {'\"'}zabudnutie{'\"'}) a právo kedykoľvek odvolať svoj súhlas so spracovaním.
                     </p>
