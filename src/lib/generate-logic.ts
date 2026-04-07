@@ -444,6 +444,77 @@ OUTPUT: 16:9 landscape, NO text, NO watermarks, NO logos, NO UI elements.`;
     return null;
 }
 
+/**
+ * Insert an inline <figure> image into HTML article content.
+ * Placement: after the 2nd </p> (early enough to break the wall of text).
+ * Falls back to inserting after 40% of content if no paragraph markers found.
+ */
+function insertInlineImageIntoContent(content: string, imageUrl: string, altText: string): string {
+    if (!imageUrl || !content) return content;
+    const figure = `\n<figure class="my-8 mx-auto max-w-2xl">
+  <img src="${imageUrl}" alt="${altText.replace(/"/g, '&quot;')}" class="w-full rounded-2xl shadow-lg" />
+</figure>\n`;
+
+    // Find position right after the 2nd closing </p>
+    let count = 0;
+    let pos = -1;
+    const regex = /<\/p>/gi;
+    let match: RegExpExecArray | null;
+    while ((match = regex.exec(content)) !== null) {
+        count++;
+        if (count === 2) {
+            pos = match.index + match[0].length;
+            break;
+        }
+    }
+    // Fallback: 40% into the content
+    if (pos === -1) pos = Math.floor(content.length * 0.4);
+
+    return content.slice(0, pos) + figure + content.slice(pos);
+}
+
+/**
+ * Find a second image suitable for inline placement.
+ * Uses shifted query order so we don't repeat the same top result as the main image.
+ * Returns null if nothing usable is found (better to skip than show trash).
+ */
+async function resolveSecondInlineImage(
+    title: string,
+    mainImageUrl: string,
+    category: string
+): Promise<string | null> {
+    console.log(`>>> [InlineImg] Searching for second inline image...`);
+    const queries = buildImageSearchQueries(title);
+
+    // Shift: start from 2nd query to increase variety vs the main image
+    const orderedQueries = queries.length > 1
+        ? [...queries.slice(1), queries[0]]
+        : [`${category} technology office`, queries[0]];
+
+    let firstCandidate: string | null = null;
+
+    for (const q of orderedQueries) {
+        const urls = await fetchAllImageUrls(q);
+        for (const url of urls) {
+            if (url === mainImageUrl) continue; // never repeat main image
+            if (!firstCandidate) firstCandidate = url; // save as no-check fallback
+            if (await isPhotoSuitable(url, title)) {
+                console.log(`>>> [InlineImg] ✅ Found suitable second image`);
+                return url;
+            }
+        }
+    }
+
+    // If quality checks fail, use first non-duplicate Google result (real photo > nothing)
+    if (firstCandidate && firstCandidate !== mainImageUrl) {
+        console.log(`>>> [InlineImg] Using first raw search result as second image fallback`);
+        return firstCandidate;
+    }
+
+    console.log(`>>> [InlineImg] No second image found — article will have only main image`);
+    return null;
+}
+
 /** Fetch ALL image URLs from a single Serper query (up to 12 results) */
 async function fetchAllImageUrls(query: string): Promise<string[]> {
     const apiKey = process.env.SERPER_API_KEY;
@@ -774,110 +845,26 @@ DÔLEŽITÉ: Odpovedaj VÝHRADNE v čistom JSON formáte. Žiadny markdown, žia
             AI_FALLBACK_IMAGE
         );
 
-        // ── Strip all original inline images unconditionally ────────────────────
+        // ── Strip original inline images, then inject one real searched image ──
         let cleanContent: string = articleData.content || '';
         if (cleanContent) {
-            // Remove completely all original <img> tags
             cleanContent = cleanContent.replace(/<img[^>]*>/gi, '');
-
-            console.log(">>> [Logic] Generating TWO fresh AI inline images...");
-            
-            const generateInlineImage = async (suffix: string) => {
-                try {
-                    const ai = getGeminiClient();
-                    const prompt = `Generate a photorealistic, editorial-quality photograph for a technology news article.
-Topic: ${articleData.title}
-Visual focus: ${suffix}
-Context: ${articleData.excerpt || ''}
-
-STYLE — think Associated Press or Reuters editorial photograph:
-- Real-world environment: corporate office, conference room, data center, product launch, university lab, city
-- Natural or professional studio lighting
-- People at work, engineers, product close-ups, office environments, company buildings
-
-STRICT PROHIBITIONS (generate NONE of these):
-- Glowing orbs, energy balls, plasma spheres
-- Neon lights, neon glow, neon-lit rooms
-- Electric lightning, sparks, electrical arcs
-- Sci-fi particle systems, floating particles, light streams
-- Abstract blue/purple energy waves
-- Holographic overlays, holographic displays
-- 3D renders, CGI, digital art, illustrations
-- Futuristic fantasy environments, any "AI visualization" clichés
-- 3D letters or text as the main subject
-
-OUTPUT: 16:9 landscape, NO text overlays, NO watermarks, NO trademarked logos, NO real celebrities.`;
-
-                    const imageResult = await ai.models.generateContent({
-                        model: 'gemini-2.0-flash-preview-image-generation',
-                        contents: prompt,
-                        config: {
-                            // @ts-ignore
-                            aspectRatio: "16:9",
-                            personGeneration: "ALLOW_ADULT"
-                        }
-                    });
-
-                    if (imageResult.candidates?.[0]?.content?.parts) {
-                        for (const part of imageResult.candidates[0].content.parts) {
-                            if (part.inlineData && part.inlineData.data) {
-                                const buffer = Buffer.from(part.inlineData.data, 'base64');
-                                const ext = (part.inlineData.mimeType || 'image/png').includes('png') ? 'png' : 'jpg';
-                                const filename = `article-generated/${Date.now()}-${Math.floor(Math.random() * 10000)}.${ext}`;
-                                
-                                const adminSupabase = createClient(
-                                    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-                                    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-                                );
-
-                                const { data: uploadData, error: uploadError } = await adminSupabase.storage
-                                    .from('social-images')
-                                    .upload(filename, buffer, { contentType: part.inlineData.mimeType || 'image/png', upsert: true });
-
-                                if (!uploadError && uploadData) {
-                                    const { data: urlData } = adminSupabase.storage.from('social-images').getPublicUrl(filename);
-                                    return urlData.publicUrl;
-                                }
-                            }
-                        }
-                    }
-                } catch (e) {
-                    console.error(">>> [Logic] Failed to generate inline image:", e);
-                }
-                return null;
-            };
-
-            // Generate two images in parallel to avoid linear timeouts
-            const [url1, url2] = await Promise.all([
-                generateInlineImage("The innovative hardware, product, or core subject"),
-                generateInlineImage("The futuristic impact, environment, or global context")
-            ]);
-
-            // Inject the generated images gracefully after the 1st and 4th paragraphs
-            let pCount = 0;
-            let successCount = 0;
-            cleanContent = cleanContent.replace(/<\/p>/gi, (match) => {
-                pCount++;
-                if (pCount === 1 && url1) {
-                    successCount++;
-                    return `</p>\n<figure class="my-8"><img src="${url1}" alt="Ilustračný obrázok k článku" class="rounded-2xl w-full object-cover aspect-video shadow-md"/></figure>\n`;
-                }
-                if (pCount === 4 && url2) {
-                    successCount++;
-                    return `</p>\n<figure class="my-8"><img src="${url2}" alt="Doplnkový obrázok k článku" class="rounded-2xl w-full object-cover aspect-video shadow-md"/></figure>\n`;
-                }
-                return match;
-            });
-            
-            // If article was too short for the 4th paragraph but we generated url2, append it at the end
-            if (url2 && pCount < 4) {
-                successCount++;
-                cleanContent += `\n<figure class="my-8"><img src="${url2}" alt="Doplnkový obrázok k článku" class="rounded-2xl w-full object-cover aspect-video shadow-md"/></figure>\n`;
-            }
-
-            console.log(`>>> [Logic] Successfully added ${successCount} AI-generated inline images.`);
-
             articleData.content = cleanContent;
+        }
+
+        // Resolve second inline image via Google search (same quality pipeline as main image)
+        const inlineImageUrlFromUrl = await resolveSecondInlineImage(
+            articleData.title || effectiveTitle,
+            mainImage,
+            forcedCategory || "AI"
+        );
+        if (inlineImageUrlFromUrl) {
+            articleData.content = insertInlineImageIntoContent(
+                articleData.content || '',
+                inlineImageUrlFromUrl,
+                articleData.title || effectiveTitle
+            );
+            console.log(`>>> [Logic] ✅ Second inline image inserted into processArticleFromUrl content`);
         }
 
         // Category validation
@@ -1170,6 +1157,21 @@ Napíš kompletný článok v JSON formáte. Obsah musí vychádzať z reálnych
             finalCategory,
             getPlaceholderImage(finalCategory)
         );
+
+        // ── PHASE 8: Second inline image ──────────────────────────────────────
+        const inlineImageUrl = await resolveSecondInlineImage(
+            articleData.title,
+            mainImage,
+            finalCategory
+        );
+        if (inlineImageUrl) {
+            articleData.content = insertInlineImageIntoContent(
+                articleData.content || "",
+                inlineImageUrl,
+                articleData.title
+            );
+            console.log(`>>> [Logic] ✅ Second inline image inserted into content`);
+        }
 
         const dbData = {
             title: stripHtmlTags(articleData.title),
