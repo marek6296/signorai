@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, BookOpen } from "lucide-react";
 import { type Article } from "@/lib/data";
+import { stripHtml } from "@/lib/utils";
 
 interface InContentAdProps {
     articles: Article[];
@@ -46,7 +47,7 @@ export function InContentAd({ articles }: InContentAdProps) {
                         </div>
 
                         <h3 className="text-lg md:text-xl font-black tracking-tight text-card-foreground mb-2 leading-tight group-hover:text-primary transition-colors line-clamp-2">
-                            {article.title}
+                            {stripHtml(article.title)}
                         </h3>
 
                         <p className="text-[11px] text-muted-foreground line-clamp-1 mb-4 font-medium leading-relaxed italic">

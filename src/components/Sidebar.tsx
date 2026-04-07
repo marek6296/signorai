@@ -6,6 +6,7 @@ import { format, parseISO } from "date-fns";
 import { sk } from "date-fns/locale";
 import { type Article } from "@/lib/data";
 import Image from "next/image";
+import { stripHtml } from "@/lib/utils";
 import { AppPromo } from "@/components/AppPromo";
 import { AdBanner } from "@/components/AdBanner";
 import { useUser } from "@/contexts/UserContext";
@@ -85,7 +86,7 @@ export function Sidebar({ articles, title = "Najnovšie správy" }: SidebarProps
                                             {publishDate}
                                         </time>
                                         <h4 className="font-black text-xs md:text-sm text-white leading-tight line-clamp-2 transition-colors group-hover:text-primary">
-                                            {article.title}
+                                            {stripHtml(article.title)}
                                         </h4>
                                     </div>
                                 </div>

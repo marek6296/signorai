@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Eye, Flame, Loader2 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { stripHtml } from "@/lib/utils";
 
 interface TrendingArticle {
   id: string;
@@ -84,7 +85,7 @@ export function TrendingSection() {
         {/* Bottom info */}
         <div className="absolute bottom-0 left-0 w-full p-4 z-10">
           <h3 className="font-black text-sm text-white leading-snug line-clamp-2 group-hover:text-primary transition-colors mb-2">
-            {top.title}
+            {stripHtml(top.title)}
           </h3>
           {top.views > 0 && (
             <span className="flex items-center gap-1 text-[10px] text-white/50 font-semibold">
@@ -125,7 +126,7 @@ export function TrendingSection() {
             {/* Info */}
             <div className="flex flex-col gap-1 min-w-0 flex-1">
               <p className="text-xs font-bold text-foreground/80 leading-snug group-hover:text-foreground transition-colors line-clamp-2">
-                {article.title}
+                {stripHtml(article.title)}
               </p>
               {article.views > 0 && (
                 <span className="flex items-center gap-0.5 text-[9px] text-muted-foreground/40 font-semibold">

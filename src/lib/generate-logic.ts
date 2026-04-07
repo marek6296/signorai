@@ -6,10 +6,25 @@ import { revalidatePath } from "next/cache";
 import { GoogleGenAI } from "@google/genai";
 import { createClient } from "@supabase/supabase-js";
 
-/** Strip any HTML/XML tags from a string — titles must never contain <strong>, </p>, etc. */
+/** Strip any HTML/XML tags from a string — titles must never contain <strong>, </p>, etc.
+ *  Also handles escaped tags like &lt;strong&gt; and decodes common HTML entities. */
 function stripHtmlTags(text: string): string {
     if (!text) return text;
-    return text.replace(/<[^>]*>/g, "").trim();
+    let result = text;
+    // Remove real HTML tags: <strong>, </strong>, <p>, etc.
+    result = result.replace(/<[^>]*>/g, "");
+    // Remove escaped tags: &lt;strong&gt;, &lt;/strong&gt;, etc.
+    result = result.replace(/&lt;[^&]*&gt;/g, "");
+    // Decode common HTML entities
+    result = result
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&nbsp;/g, " ");
+    // Collapse multiple spaces
+    return result.replace(/\s{2,}/g, " ").trim();
 }
 
 let openaiClient: OpenAI | null = null;
@@ -52,7 +67,7 @@ export async function runFinalReviewAndPublish(articleId: string, keepAsDraft: b
             role: "system",
             content: `Si nekompromisný Šéfredaktor spravodajského portálu. Toto je tvoja finálna kontrola pred publikovaním.
 Tvoje úlohy:
-1. Skontrolovať gramatiku, štylistiku a odstrániť z 'excerpt' a 'ai_summary' akékoľvek HTML značky (napr. <p>). Ponechaj text čistý. Pole 'ai_summary' musí mať 4-5 viet — ak je kratšie (1-2 vety), rozšír ho na 4-5 viet. Ak je dlhšie než 6 viet, skráť ho.
+1. Odstrániť HTML značky z polí 'title', 'excerpt' a 'ai_summary' (napr. <strong>, </strong>, <p> atď.) — tieto polia musia byť vždy čistý text BEZ akýchkoľvek HTML tagov. Pole 'ai_summary' musí mať 4-5 viet — ak je kratšie (1-2 vety), rozšír ho na 4-5 viet. Ak je dlhšie než 6 viet, skráť ho.
 2. Skontrolovať zhodu textu, preklepy.
 3. TITLE QA — skontroluj a prípadne prepiš nadpis podľa pravidiel profesionálnej žurnalistiky:
    - Konkrétny, informatívny nadpis: obsahuje subjekt + kľúčový fakt alebo akciu.

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "./ThemeToggle";
-import { cn } from "@/lib/utils";
+import { cn, stripHtml } from "@/lib/utils";
 import { Menu, X, Search, ArrowRight, Loader2, Sparkles, ChevronDown, LogIn, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -260,7 +260,7 @@ export function Navbar() {
                                                 </div>
                                                 <div className="flex flex-col min-w-0">
                                                     <span className="text-[10px] font-black uppercase text-primary/80 tracking-widest truncate">{article.category}</span>
-                                                    <h4 className="text-[11px] font-bold text-foreground leading-tight line-clamp-2 transition-colors group-hover:text-primary">{article.title}</h4>
+                                                    <h4 className="text-[11px] font-bold text-foreground leading-tight line-clamp-2 transition-colors group-hover:text-primary">{stripHtml(article.title)}</h4>
                                                 </div>
                                             </Link>
                                         ))}

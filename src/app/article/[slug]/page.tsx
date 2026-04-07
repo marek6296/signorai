@@ -172,7 +172,7 @@ export default async function ArticlePage({ params, searchParams }: Props) {
                             <BookmarkButton articleId={article.id} />
                         </div>
                         <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight mb-6 leading-[1.1]">
-                            {article.title}
+                            {stripHtml(article.title)}
                         </h1>
                         <p className="text-xl md:text-2xl text-muted-foreground font-medium leading-relaxed mb-8">
                             {stripHtml(article.excerpt)}
