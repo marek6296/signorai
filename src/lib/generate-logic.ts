@@ -52,7 +52,7 @@ export async function runFinalReviewAndPublish(articleId: string, keepAsDraft: b
             role: "system",
             content: `Si nekompromisný Šéfredaktor spravodajského portálu. Toto je tvoja finálna kontrola pred publikovaním.
 Tvoje úlohy:
-1. Skontrolovať gramatiku, štylistiku a odstrániť z 'excerpt' a 'ai_summary' akékoľvek HTML značky (napr. <p>). Ponechaj text čistý.
+1. Skontrolovať gramatiku, štylistiku a odstrániť z 'excerpt' a 'ai_summary' akékoľvek HTML značky (napr. <p>). Ponechaj text čistý. Pole 'ai_summary' musí mať 4-5 viet — ak je kratšie (1-2 vety), rozšír ho na 4-5 viet. Ak je dlhšie než 6 viet, skráť ho.
 2. Skontrolovať zhodu textu, preklepy.
 3. TITLE QA — skontroluj a prípadne prepiš nadpis podľa pravidiel profesionálnej žurnalistiky:
    - Konkrétny, informatívny nadpis: obsahuje subjekt + kľúčový fakt alebo akciu.
@@ -662,7 +662,7 @@ Tvoj výstup VŽDY EXAKTNE VO FORMÁTE JSON (žiadny markdown okolo JSON):
     "slug": "url-friendly-nazov-bez-diakritiky-a-medzier",
     "excerpt": "Perex: 1 až 2 informatívne vety ktoré zhŕňajú jadro správy.",
     "content": "Článok v HTML s p, strong, h2, h3.",
-    "ai_summary": "PRESNE 1-2 krátke vety. Výstižné zhrnutie jadra správy pre audio. Nie viac.",
+    "ai_summary": "Zhrnutie článku v 4-5 vetách. Vysvetli o čom je článok, čo je nové/zaujímavé a prečo to čitateľa zaujíma. Bez HTML tagov, čistý text.",
     "category": "JEDNA Z TÝCHTO: AI, Tech, Návody & Tipy"
 }
 Nikdy nevracaj inú kategóriu. Nikdy nevracaj markdown bloky okolo JSON.`;
@@ -1094,7 +1094,7 @@ Výstup VŽDY EXAKTNE VO FORMÁTE JSON (BEZ markdown backticks):
     "slug": "url-friendly-nazov-bez-diakritiky-a-medzier",
     "excerpt": "Perex: 1 až 2 pútavé odseky.",
     "content": "Článok v HTML s p, strong, h2...",
-    "ai_summary": "Zhrnutie (10-15 viet) pre audio verziu.",
+    "ai_summary": "Zhrnutie článku v 4-5 vetách. Vysvetli o čom je článok, čo je nové/zaujímavé a prečo to čitateľa zaujíma. Bez HTML tagov, čistý text.",
     "category": "JEDNA Z TÝCHTO: AI, Tech, Návody & Tipy",
     "image_search_query": "Short English AI tech image search query (max 4 words)."
 }`;
