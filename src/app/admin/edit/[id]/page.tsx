@@ -297,6 +297,8 @@ function InlineImageGenerator({
     const [imageUrl, setImageUrl] = useState("");
     const [caption, setCaption] = useState("");
     const [copied, setCopied] = useState(false);
+    const [showPicker, setShowPicker] = useState(false);
+    const [showGen, setShowGen] = useState(false);
 
     const htmlSnippet = imageUrl
         ? `<figure class="my-8 mx-auto max-w-2xl">
@@ -343,12 +345,46 @@ function InlineImageGenerator({
 
             {open && (
                 <div className="px-5 pb-5 space-y-4 border-t border-border/40 pt-4">
-                    <ImageGenerator
-                        title={title}
-                        excerpt={excerpt}
-                        label="obrázok do textu"
-                        onGenerated={setImageUrl}
-                    />
+                    {/* Picker / Generator toggle buttons */}
+                    <div className="flex gap-2">
+                        <button
+                            type="button"
+                            onClick={() => { setShowPicker(true); setShowGen(false); }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
+                        >
+                            <Search className="w-3 h-3" />
+                            Nájsť obrázok
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => { setShowGen(!showGen); setShowPicker(false); }}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                                showGen
+                                    ? "bg-primary/15 text-primary border border-primary/30"
+                                    : "border border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
+                            }`}
+                        >
+                            <Sparkles className="w-3 h-3" />
+                            AI Generovať
+                        </button>
+                    </div>
+
+                    {showGen && (
+                        <ImageGenerator
+                            title={title}
+                            excerpt={excerpt}
+                            label="obrázok do textu"
+                            onGenerated={(url) => { setImageUrl(url); setShowGen(false); }}
+                        />
+                    )}
+
+                    {showPicker && (
+                        <ImagePickerModal
+                            query={title || "technology AI"}
+                            onSelect={(url) => { setImageUrl(url); }}
+                            onClose={() => setShowPicker(false)}
+                        />
+                    )}
 
                     {imageUrl && (
                         <div className="space-y-3">
