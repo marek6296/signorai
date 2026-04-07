@@ -23,18 +23,29 @@ export async function POST(req: Request) {
         const prompt = customPrompt
             ? `${customPrompt}
 
-CRITICAL INSTRUCTIONS:
-- MUST NOT contain specific real-world public figures or trademarked logos.
-- Style: Realistic photography, cinematic lighting, highly detailed, professional stock photo style.
-- NO text, NO watermarks, NO UI elements.`
-            : `Generate a photorealistic, ultra-high quality cinematic image that perfectly captures the essence of this technology news article.
-Theme: ${title}
-Context: ${excerpt || 'Teaser na článok'}
+STYLE — editorial/documentary photography:
+- Real-world environment, natural or professional studio lighting
+- STRICT PROHIBITIONS: NO glowing orbs, NO neon lights, NO energy balls, NO electric lightning, NO sci-fi particles, NO holographic displays, NO abstract blue/purple energy waves, NO CGI "AI visualization" clichés
+- NO text, NO watermarks, NO trademarked logos, NO real celebrities.`
+            : `Generate a photorealistic, editorial-quality photograph for a technology news article header.
+Topic: ${title}
+Context: ${excerpt || ''}
 
-CRITICAL INSTRUCTIONS TO AVOID ERRORS:
-- MUST NOT contain specific real-world public figures (like Elon Musk, Sam Altman, etc.) or trademarked logos. If the article mentions them, generate a generic photorealistic alternative (e.g. "a tech CEO", "a modern AI laboratory", "a futuristic server room").
-- Style: Realistic photography, cinematic lighting, highly detailed, professional journalistic stock photo style.
-- NO text, NO watermarks, NO UI elements.`;
+STYLE — think Associated Press or Reuters editorial photograph:
+- Real-world environment: corporate office, conference room, data center, product launch stage, university lab, city skyline
+- Natural or professional studio lighting
+- People using technology, engineers at work, product close-ups, office environments, company buildings
+
+STRICT PROHIBITIONS (generate NONE of these):
+- Glowing orbs, energy balls, plasma spheres
+- Neon lights, neon glow, neon-lit rooms
+- Electric lightning, sparks, electrical arcs
+- Sci-fi particle systems, floating particles, light streams
+- Abstract blue/purple energy waves
+- Holographic overlays, holographic displays
+- Futuristic fantasy environments, CGI "AI visualization" clichés
+
+OUTPUT: 16:9 landscape, NO text, NO watermarks, NO trademarked logos, NO real celebrities.`;
 
         const imageResult = await ai.models.generateContent({
             model: 'gemini-2.0-flash-preview-image-generation',

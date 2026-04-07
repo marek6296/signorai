@@ -135,14 +135,25 @@ OBSAH: ${article.content}`
         console.log(`>>> [Final Review] Image flagged as bad. Generating a new photorealistic replacement via Gemini...`);
         try {
             const ai = getGeminiClient();
-            const prompt = `Generate a photorealistic, ultra-high quality cinematic cover image representing this technology news article.
-Theme: ${reviewedData.title || article.title}
+            const prompt = `Generate a photorealistic, editorial-quality photograph for a technology news article header.
+Topic: ${reviewedData.title || article.title}
 Context: ${reviewedData.excerpt || article.excerpt}
 
-CRITICAL INSTRUCTIONS TO AVOID ERRORS:
-- MUST NOT contain specific real-world public figures (e.g. Elon Musk, Sam Altman) or trademarked logos. Provide generic photorealistic alternatives.
-- Style: Realistic photography, editorial, high detail cover image.
-- NO text, NO watermarks.`;
+STYLE — think Associated Press or Reuters editorial photograph:
+- Real-world environment: corporate office, conference room, data center, product launch stage, university lab
+- Natural or professional studio lighting
+- People at work, engineers, product close-ups, office environments, company buildings
+
+STRICT PROHIBITIONS (generate NONE of these):
+- Glowing orbs, energy balls, plasma spheres
+- Neon lights, neon glow, neon-lit rooms
+- Electric lightning, sparks, electrical arcs
+- Sci-fi particle systems, floating particles, light streams
+- Abstract blue/purple energy waves
+- Holographic overlays, holographic displays
+- Futuristic fantasy environments, CGI "AI visualization" clichés
+
+OUTPUT: 16:9 landscape, NO text, NO watermarks, NO logos, NO trademarked branding, NO real celebrities.`;
 
             const imageResult = await ai.models.generateContent({
                 model: 'gemini-2.0-flash-preview-image-generation',
@@ -250,6 +261,61 @@ export async function searchWeb(query: string) {
     }
 }
 
+// ── Build smart image search queries from article title ──────────────────────
+// Returns 2-3 queries to try in order: specific → general
+function buildImageSearchQueries(title: string): string[] {
+    const queries: string[] = [title];
+
+    const lowerTitle = title.toLowerCase();
+
+    // Known brands/companies/products — map to a targeted photo search
+    const entityMap: [string, string][] = [
+        ['openai', 'OpenAI headquarters office photo'],
+        ['chatgpt', 'ChatGPT OpenAI office photo'],
+        ['anthropic', 'Anthropic AI company office photo'],
+        ['claude', 'Anthropic Claude AI photo'],
+        ['gemini', 'Google Gemini AI photo'],
+        ['google', 'Google headquarters office photo'],
+        ['alphabet', 'Google Alphabet headquarters photo'],
+        ['meta', 'Meta headquarters Menlo Park photo'],
+        ['facebook', 'Facebook Meta office photo'],
+        ['instagram', 'Instagram Meta office photo'],
+        ['microsoft', 'Microsoft headquarters Redmond photo'],
+        ['copilot', 'Microsoft Copilot AI photo'],
+        ['nvidia', 'NVIDIA headquarters Jensen Huang photo'],
+        ['apple', 'Apple Park headquarters photo'],
+        ['amazon', 'Amazon AWS headquarters photo'],
+        ['tesla', 'Tesla factory Elon Musk photo'],
+        ['spacex', 'SpaceX rocket launch photo'],
+        ['samsung', 'Samsung headquarters Seoul photo'],
+        ['deepmind', 'Google DeepMind office photo'],
+        ['mistral', 'Mistral AI startup office photo'],
+        ['llama', 'Meta Llama AI model photo'],
+        ['grok', 'xAI Grok Elon Musk photo'],
+        ['elon musk', 'Elon Musk official photo'],
+        ['sam altman', 'Sam Altman OpenAI photo'],
+        ['sundar pichai', 'Sundar Pichai Google photo'],
+        ['mark zuckerberg', 'Mark Zuckerberg Meta photo'],
+        ['tim cook', 'Tim Cook Apple photo'],
+        ['satya nadella', 'Satya Nadella Microsoft photo'],
+    ];
+
+    for (const [keyword, specificQuery] of entityMap) {
+        if (lowerTitle.includes(keyword)) {
+            if (specificQuery !== title) queries.push(specificQuery);
+            break;
+        }
+    }
+
+    // Also try first 3 words + "photo" as a shorter fallback query
+    const shortQuery = title.split(/\s+/).slice(0, 3).join(' ') + ' photo editorial';
+    if (shortQuery !== title && !queries.includes(shortQuery)) {
+        queries.push(shortQuery);
+    }
+
+    return queries;
+}
+
 // ── Image suitability check via GPT-4o mini vision ───────────────────────────
 // Returns false when the image is a UI screenshot, presentation slide,
 // app mockup, diagram, or any graphic with heavy text overlay.
@@ -285,16 +351,27 @@ async function generateHeroImage(title: string, excerpt: string, category: strin
     console.log(`>>> [ImgCheck] Generating AI hero image for: "${title}"`);
     try {
         const ai = getGeminiClient();
-        const prompt = `Generate a photorealistic, ultra-high quality, cinematic wide-angle photograph for a technology news article header image.
-Title: ${title}
-Summary: ${excerpt || title}
+        const prompt = `Generate a photorealistic, editorial-quality photograph for a technology news article header.
+Topic: ${title}
+Context: ${excerpt || title}
 Category: ${category}
 
-Requirements:
-- Real-world photo style, dramatic professional lighting
-- NO text overlays, NO UI elements, NO app screenshots, NO logos, NO diagrams
-- Suitable as a full-width newspaper/news-website hero image
-- 16:9 landscape orientation, high resolution`;
+STYLE — think Associated Press or Reuters news photograph:
+- Real-world environment: corporate office, conference room, data center, product launch stage, university lab, city skyline
+- Natural or professional studio lighting, NOT dramatic neon
+- People using technology, engineers at work, product close-ups, office environments, or landmark buildings
+
+STRICT PROHIBITIONS (generate NONE of these):
+- Glowing orbs, energy balls, plasma spheres
+- Neon lights, neon glow, neon-lit rooms
+- Electric lightning, sparks, electrical arcs
+- Sci-fi particle systems, floating particles, light streams
+- Abstract blue/purple energy waves
+- Holographic overlays, holographic displays
+- Futuristic fantasy environments
+- Any CGI-looking "AI visualization" clichés
+
+OUTPUT: 16:9 landscape, NO text, NO watermarks, NO logos, NO UI elements.`;
 
         const result = await ai.models.generateContent({
             model: "gemini-2.0-flash-preview-image-generation",
@@ -343,12 +420,16 @@ async function resolveSuitableMainImage(
         if (await isPhotoSuitable(candidate)) return candidate;
     }
 
-    // 2. Try image search with article title
+    // 2. Try image search — multiple smart queries before giving up
     console.log(">>> [ImgCheck] No suitable scraped image — searching Google Images...");
-    const searched = await searchImage(title);
-    if (searched && await isPhotoSuitable(searched)) return searched;
+    const searchQueries = buildImageSearchQueries(title);
+    for (const q of searchQueries) {
+        console.log(`>>> [ImgCheck] Trying image search query: "${q}"`);
+        const searched = await searchImage(q);
+        if (searched && await isPhotoSuitable(searched)) return searched;
+    }
 
-    // 3. Generate with Gemini
+    // 3. Generate with Gemini — last resort only
     console.log(">>> [ImgCheck] Search yielded no suitable photo — generating with Gemini...");
     const generated = await generateHeroImage(title, excerpt, category);
     if (generated) return generated;
